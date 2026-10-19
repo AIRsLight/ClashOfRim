@@ -194,7 +194,7 @@ internal static class ClientShopCatalogTests
             _ => throw new InvalidOperationException(kind)
         };
     }
-    private sealed record Failure(string Code, string Message);
+    internal sealed record Failure(string Code, string Message);
     private sealed record Empty;
     internal sealed record Call(string Kind, ClashOfRimClientNetworkContext Context, CancellationToken Token, ClientShopListingEdit? Edit = null, string? Id = null)
     {

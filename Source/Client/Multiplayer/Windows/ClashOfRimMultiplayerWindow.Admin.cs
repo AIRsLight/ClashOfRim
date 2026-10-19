@@ -46,7 +46,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
         switch (selectedAdminPanelTab)
         {
             case AdminPanelTab.Shop:
-                DrawAdminShopPanel(body, mod);
+                adminShopPage!.Draw(body);
                 break;
             case AdminPanelTab.Bank:
                 adminConfigurationPage!.DrawAdminBankPanel(body, draft);
@@ -117,113 +117,6 @@ public sealed partial class ClashOfRimMultiplayerWindow
 
         selectedAdminPanelTab = tab;
         cachedAdminTabs = null;
-    }
-
-    private void DrawAdminShopPanel(Rect rect, ClashOfRimMod mod)
-    {
-        IReadOnlyList<ModServerShopListingDto> listings = shopPanel!.Read().All;
-        Rect view = BeginAdminScroll(rect, ref adminScrollPosition, Math.Max(rect.height, 80f + listings.Count * 54f));
-        float y = 0f;
-        DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionShop"));
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(0f, y, view.width - 260f, 20f), mod.ServerShopStatus);
-        Text.Font = GameFont.Small;
-        if (Widgets.ButtonText(new Rect(view.width - 250f, y, 110f, 28f), ClashOfRimText.Key("ClashOfRim.Refresh"), active: !mod.ServerShopInProgress))
-        {
-            mod.StartRefreshServerShop();
-        }
-
-        if (Widgets.ButtonText(new Rect(view.width - 130f, y, 120f, 28f), ClashOfRimText.Key("ClashOfRim.Shop.AddListing"), active: !mod.ServerShopInProgress))
-        {
-            Find.WindowStack.Add(new ServerShopListingDialogWindow(mod, listing: null));
-        }
-
-        y += 38f;
-        if (listings.Count == 0)
-        {
-            Widgets.Label(new Rect(0f, y, view.width, 30f), ClashOfRimText.Key("ClashOfRim.Shop.NoListings"));
-            Widgets.EndScrollView();
-            return;
-        }
-
-        foreach (ModServerShopListingDto listing in listings)
-        {
-            DrawAdminShopListingRow(new Rect(0f, y, view.width, 48f), listing, mod);
-            y += 54f;
-        }
-
-        Widgets.EndScrollView();
-    }
-
-    private void DrawAdminShopListingRow(Rect row, ModServerShopListingDto listing, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(row);
-        Rect inner = row.ContractedBy(5f);
-        ModThingReferenceDto? item = listing.Item;
-        bool buyFromPlayer = IsAdminServerShopBuyOrder(listing);
-        Rect iconRect = new(inner.x, inner.y + 3f, 32f, 32f);
-        if (item is not null)
-        {
-            TradeUiUtility.DrawThingIconWithInfo(iconRect, item);
-        }
-
-        string label = item is null
-            ? ClashOfRimText.Key("ClashOfRim.UnknownThing")
-            : TradeUiUtility.ThingLabel(
-                item,
-                asRequirement: buyFromPlayer,
-                qualityRequirementMode: buyFromPlayer ? listing.QualityRequirementMode : null,
-                hitPointsRequirementMode: buyFromPlayer ? listing.HitPointsRequirementMode : null);
-        string kindLabel = ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.KindBuy" : "ClashOfRim.Shop.KindSell");
-        TradeUiUtility.DrawTruncatedLabel(new Rect(iconRect.xMax + 8f, inner.y + 7f, inner.width - 520f, 24f), kindLabel + " - " + label);
-
-        string stockText = adminShopStockBuffers.TryGetValue(listing.ListingId, out string bufferedStock)
-            ? bufferedStock
-            : listing.StockCount.ToString();
-        string priceText = adminShopPriceBuffers.TryGetValue(listing.ListingId, out string bufferedPrice)
-            ? bufferedPrice
-            : (listing.BasePriceSilver > 0 ? listing.BasePriceSilver : listing.PriceSilver).ToString();
-        Widgets.Label(new Rect(inner.xMax - 510f, inner.y + 7f, 42f, 24f), ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.DemandShort" : "ClashOfRim.Shop.StockShort"));
-        adminShopStockBuffers[listing.ListingId] = Widgets.TextField(new Rect(inner.xMax - 468f, inner.y + 5f, 70f, 26f), stockText);
-        Widgets.Label(new Rect(inner.xMax - 388f, inner.y + 7f, 42f, 24f), ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.PayoutShort" : "ClashOfRim.Shop.PriceShort"));
-        adminShopPriceBuffers[listing.ListingId] = Widgets.TextField(new Rect(inner.xMax - 346f, inner.y + 5f, 70f, 26f), priceText);
-
-        int stock = 0;
-        int price = 0;
-        bool parsed = item is not null
-            && int.TryParse(adminShopStockBuffers[listing.ListingId], out stock)
-            && int.TryParse(adminShopPriceBuffers[listing.ListingId], out price)
-            && stock >= 0
-            && price >= 1;
-        if (Widgets.ButtonText(new Rect(inner.xMax - 266f, inner.y + 5f, 78f, 28f), ClashOfRimText.Key("ClashOfRim.Admin.Save"), active: parsed && !mod.ServerShopInProgress))
-        {
-            mod.StartUpsertServerShopListing(
-                listing.ListingId,
-                listing.ListingKind,
-                item!,
-                price,
-                stock,
-                listing.PriceIncreaseRatio,
-                listing.QualityRequirementMode,
-                listing.HitPointsRequirementMode);
-        }
-
-        if (Widgets.ButtonText(new Rect(inner.xMax - 182f, inner.y + 5f, 78f, 28f), ClashOfRimText.Key("ClashOfRim.Edit"), active: item is not null && !mod.ServerShopInProgress))
-        {
-            Find.WindowStack.Add(new ServerShopListingDialogWindow(mod, listing));
-        }
-
-        if (Widgets.ButtonText(new Rect(inner.xMax - 98f, inner.y + 5f, 88f, 28f), ClashOfRimText.Key("ClashOfRim.Admin.Remove"), active: !mod.ServerShopInProgress))
-        {
-            Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                ClashOfRimText.Key("ClashOfRim.Shop.ConfirmRemove", label.Named("THING")),
-                mod.ShopCatalog.BindRemove(listing.ListingId)));
-        }
-    }
-
-    private static bool IsAdminServerShopBuyOrder(ModServerShopListingDto listing)
-    {
-        return string.Equals(listing.ListingKind, "BuyFromPlayer", StringComparison.Ordinal);
     }
 
     private void DrawAdminManifestPanel(Rect rect, ClashOfRimMod mod, ModAdminConfigurationDto? config, ClientAdminConfigurationDraft? draft)

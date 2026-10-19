@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using static AIRsLight.ClashOfRim.Modules.Multiplayer.PanelNumberInput;
 
 namespace AIRsLight.ClashOfRim.Modules.Multiplayer;
 
@@ -29,9 +30,6 @@ internal sealed class ClientAdminTextInput
     internal static ClientAdminTextInput Curve(string value, Action<ModAdminConfigurationDto, string> write)
         => Create<string>(value, TryCurve, write);
 
-    internal static bool TryInt(string text, out int value) => int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
-    internal static bool TryFloat(string text, out float value) => float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && float.IsFinite(value);
-    internal static bool TryDouble(string text, out double value) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
     private static bool TryCurve(string text, out string value)
     {
         value = text.Trim();
@@ -54,7 +52,7 @@ internal sealed class ClientAdminFixedTradeFeeInput
         value = null;
         string name = ThingDefName.Trim();
         if (name.Length == 0 && string.IsNullOrWhiteSpace(SilverPerUnit)) return true;
-        if (name.Length == 0 || !ClientAdminTextInput.TryInt(SilverPerUnit, out int amount)) return false;
+        if (name.Length == 0 || !TryInt(SilverPerUnit, out int amount)) return false;
         value = new() { ThingDefName = name, SilverPerUnit = Math.Max(0, amount) };
         return true;
     }
@@ -70,8 +68,8 @@ internal sealed class ClientAdminPenaltyInput
         value = null;
         string kind = Kind.Trim();
         if (kind.Length == 0 && string.IsNullOrWhiteSpace(TriggerPenaltyCount) && string.IsNullOrWhiteSpace(Severity)) return true;
-        if (kind.Length == 0 || !ClientAdminTextInput.TryInt(TriggerPenaltyCount, out int count) || count <= 0
-            || !ClientAdminTextInput.TryFloat(Severity, out float severity) || severity < 0) return false;
+        if (kind.Length == 0 || !TryInt(TriggerPenaltyCount, out int count) || count <= 0
+            || !TryFloat(Severity, out float severity) || severity < 0) return false;
         value = count.ToString(CultureInfo.InvariantCulture) + ":" + kind + ":" + severity.ToString("R", CultureInfo.InvariantCulture);
         return true;
     }

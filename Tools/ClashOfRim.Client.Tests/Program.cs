@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("multiplayer admin shop owns row drafts, editor copies and delayed actions", MultiplayerAdminShopTests.Run),
     ("multiplayer admin configuration owns drafts, parsing and permission-bound saves", MultiplayerAdminConfigurationTests.Run),
     ("multiplayer account drafts own submission and session lifetime", MultiplayerAccountDiagnosticsTests.Account),
     ("multiplayer diagnostics project current status without credentials or side effects", MultiplayerAccountDiagnosticsTests.Diagnostics),

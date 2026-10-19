@@ -442,8 +442,22 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal (ClientShopPanel Model, MultiplayerShopPage Page) CreateShopPage()
     {
-        var model = new ClientShopPanel(sessionLifecycle, new ClientSnapshotGame(), shopState, shopCatalog, shopOperations, synchronization);
+        var model = CreateShopPanel();
         return (model, new(model));
+    }
+
+    private ClientShopPanel CreateShopPanel() =>
+        new(sessionLifecycle, new ClientSnapshotGame(), shopState, shopCatalog, shopOperations, synchronization);
+
+    private ClientAdminShopPanel CreateAdminShopPanel(ClientShopPanel shop) =>
+        new(sessionLifecycle, adminAccess, shopState, shopCatalog, shop);
+
+    internal MultiplayerAdminShopPage CreateAdminShopPage(ClientShopPanel shop) => new(CreateAdminShopPanel(shop));
+
+    internal ClientAdminShopPanel.Edit CreateAdminShopEdit(ModServerShopListingDto? listing)
+    {
+        var panel = CreateAdminShopPanel(CreateShopPanel());
+        return listing is null ? panel.PrepareEdit() : panel.PrepareExistingEdit(listing);
     }
 
     internal (ClientBankPanel Model, MultiplayerBankPage Page) CreateBankPage()

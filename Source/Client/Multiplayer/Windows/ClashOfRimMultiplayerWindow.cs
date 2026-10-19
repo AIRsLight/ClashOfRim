@@ -16,6 +16,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private MultiplayerTradePage? tradePage;
     private ClientShopPanel? shopPanel;
     private MultiplayerShopPage? shopPage;
+    private MultiplayerAdminShopPage? adminShopPage;
     private ClientBankPanel? bankPanel;
     private MultiplayerBankPage? bankPage;
     private MultiplayerMercenaryPage? mercenaryPage;
@@ -37,8 +38,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string adminBroadcastTargetColonyId = string.Empty;
     private bool adminBroadcastPersistent = true;
     private string adminMaintenanceReason = string.Empty;
-    private readonly Dictionary<string, string> adminShopStockBuffers = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> adminShopPriceBuffers = new(StringComparer.Ordinal);
     private MultiplayerTab cachedMainTabsSelectedTab;
     private bool cachedMainTabsDevMode;
     private bool cachedMainTabsAdministrator;
@@ -70,6 +69,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         achievementsPage ??= mod.CreateAchievementsPage(playersPanel);
         tradePage ??= mod.CreateTradePage();
         if (shopPanel is null) (shopPanel, shopPage) = mod.CreateShopPage();
+        adminShopPage ??= mod.CreateAdminShopPage(shopPanel);
         if (bankPanel is null) (bankPanel, bankPage) = mod.CreateBankPage();
         mercenaryPage ??= mod.CreateMercenaryPage(bankPanel);
         accountPage ??= mod.CreateAccountPage();
@@ -123,6 +123,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         achievementsPage?.Close();
         tradePage?.Close();
         shopPage?.Close();
+        adminShopPage?.Close();
         bankPage?.Close();
         mercenaryPage?.Close();
         accountPage?.Close();

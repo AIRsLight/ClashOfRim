@@ -5,6 +5,8 @@ using System.Linq;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Shop;
+using AIRsLight.ClashOfRim.Modules.Multiplayer;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
 using RimWorld;
@@ -17,7 +19,7 @@ public sealed class ServerShopListingDialogWindow : Window
 {
     private static List<ThingDef>? cachedSearchableThingDefs;
 
-    private readonly Action<ClientShopListingEdit> save;
+    private readonly ClientAdminShopPanel.Edit edit;
     private readonly ModServerShopListingDto? listing;
     private Vector2 searchScrollPosition;
     private string searchText = string.Empty;
@@ -37,23 +39,23 @@ public sealed class ServerShopListingDialogWindow : Window
     private string? lastSuggestedPriceKey;
 
     public ServerShopListingDialogWindow(ClashOfRimMod mod, ModServerShopListingDto? listing)
-        : this(mod.ShopCatalog, listing) { }
+        : this(mod.CreateAdminShopEdit(listing)) { }
 
-    internal ServerShopListingDialogWindow(ClientShopCatalog catalog, ModServerShopListingDto? listing)
+    internal ServerShopListingDialogWindow(ClientAdminShopPanel.Edit edit)
     {
-        save = catalog.BindUpsert();
-        this.listing = listing;
-        selectedItem = CloneThingReference(listing?.Item);
+        this.edit = edit;
+        listing = edit.Listing;
+        selectedItem = listing?.Item;
         stockText = listing?.StockCount.ToString() ?? "1";
         itemCountText = Math.Max(1, selectedItem?.StackCount ?? 1).ToString();
-        listingKind = NormalizeListingKind(listing?.ListingKind);
+        listingKind = ClientShopRules.NormalizeListingKind(listing?.ListingKind);
         qualityRequirementMode = NormalizeQualityRequirementMode(listing?.QualityRequirementMode);
         hitPointsRequirementMode = NormalizeRequirementMode(listing?.HitPointsRequirementMode);
         priceManuallyEdited = listing is not null;
         string suggestedPriceText = SuggestedListingPriceText(selectedItem);
         lastSuggestedPriceKey = selectedItem is null ? null : ItemCacheKey(selectedItem);
-        priceText = (listing is not null ? ListingBasePrice(listing).ToString() : suggestedPriceText);
-        priceIncreaseRatioText = ClashOfRimMod.NormalizeServerShopPriceIncreaseRatio(listing?.PriceIncreaseRatio ?? 1d)
+        priceText = (listing is not null ? ClientShopRules.BasePrice(listing).ToString() : suggestedPriceText);
+        priceIncreaseRatioText = ServerShopPricing.NormalizeRatio(listing?.PriceIncreaseRatio ?? 1d)
             .ToString("0.###", CultureInfo.InvariantCulture);
         doCloseX = true;
         closeOnAccept = false;
@@ -62,6 +64,8 @@ public sealed class ServerShopListingDialogWindow : Window
         forcePause = false;
         draggable = true;
     }
+
+    public override void PostClose() { edit.Close(); base.PostClose(); }
 
     public override Vector2 InitialSize => new(780f, 620f);
 
@@ -87,7 +91,7 @@ public sealed class ServerShopListingDialogWindow : Window
         int itemCount = 0;
         double priceIncreaseRatio = 0d;
         ApplyItemCountFromText();
-        bool canSave = selectedItem is not null
+        bool canSave = edit.CanSubmit && selectedItem is not null
             && int.TryParse(stockText, out stock)
             && int.TryParse(priceText, out price)
             && int.TryParse(itemCountText, out itemCount)
@@ -100,9 +104,8 @@ public sealed class ServerShopListingDialogWindow : Window
         if (Widgets.ButtonText(saveRect, ClashOfRimText.Key("ClashOfRim.Admin.Save"), active: canSave))
         {
             selectedItem!.StackCount = Math.Max(1, itemCount);
-            save(new(listing?.ListingId, listingKind, selectedItem!, price, stock, priceIncreaseRatio,
-                qualityRequirementMode, hitPointsRequirementMode));
-            Close();
+            if (edit.Submit(new(listing?.ListingId, listingKind, selectedItem!, price, stock, priceIncreaseRatio,
+                qualityRequirementMode, hitPointsRequirementMode)) is not null) Close();
         }
     }
 
@@ -279,7 +282,7 @@ public sealed class ServerShopListingDialogWindow : Window
 
     private void SetListingKind(string kind)
     {
-        string normalized = NormalizeListingKind(kind);
+        string normalized = ClientShopRules.NormalizeListingKind(kind);
         if (string.Equals(listingKind, normalized, StringComparison.Ordinal))
         {
             return;
@@ -518,13 +521,6 @@ public sealed class ServerShopListingDialogWindow : Window
         }
     }
 
-    private static string NormalizeListingKind(string? kind)
-    {
-        return string.Equals(kind, "BuyFromPlayer", StringComparison.Ordinal)
-            ? "BuyFromPlayer"
-            : "SellToPlayer";
-    }
-
     private static string NormalizeQualityRequirementMode(string? mode)
     {
         return NormalizeRequirementMode(mode);
@@ -574,11 +570,6 @@ public sealed class ServerShopListingDialogWindow : Window
             : "0";
     }
 
-    private static int ListingBasePrice(ModServerShopListingDto listing)
-    {
-        return listing.BasePriceSilver > 0 ? listing.BasePriceSilver : listing.PriceSilver;
-    }
-
     private static bool TryParsePriceIncreaseRatio(string text, out double ratio)
     {
         if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out ratio)
@@ -587,7 +578,7 @@ public sealed class ServerShopListingDialogWindow : Window
             return false;
         }
 
-        ratio = ClashOfRimMod.NormalizeServerShopPriceIncreaseRatio(ratio);
+        ratio = ServerShopPricing.NormalizeRatio(ratio);
         return true;
     }
 
@@ -628,43 +619,4 @@ public sealed class ServerShopListingDialogWindow : Window
         return string.Join("\u001f", parts);
     }
 
-    private static ModThingReferenceDto? CloneThingReference(ModThingReferenceDto? source)
-    {
-        if (source is null)
-        {
-            return null;
-        }
-
-        return new ModThingReferenceDto
-        {
-            GlobalKey = source.GlobalKey,
-            DefName = source.DefName,
-            StackCount = Math.Max(1, source.StackCount),
-            Quality = source.Quality,
-            HitPoints = source.HitPoints,
-            StuffDefName = source.StuffDefName,
-            MaxHitPoints = source.MaxHitPoints,
-            MinifiedInnerDefName = source.MinifiedInnerDefName,
-            MinifiedInnerStuffDefName = source.MinifiedInnerStuffDefName,
-            MinifiedInnerQuality = source.MinifiedInnerQuality,
-            MinifiedInnerHitPoints = source.MinifiedInnerHitPoints,
-            MinifiedInnerMaxHitPoints = source.MinifiedInnerMaxHitPoints,
-            WornByCorpse = source.WornByCorpse,
-            Biocoded = source.Biocoded,
-            BiocodedPawnLabel = source.BiocodedPawnLabel,
-            BiocodedPawnGlobalId = source.BiocodedPawnGlobalId,
-            DisplayLabel = source.DisplayLabel,
-            MarketValue = source.MarketValue,
-            UniqueWeapon = source.UniqueWeapon,
-            UniqueWeaponTraits = source.UniqueWeaponTraits?.ToList() ?? new List<string>(),
-            PawnPackage = source.PawnPackage,
-            PawnPackageId = source.PawnPackageId,
-            ThingPackage = source.ThingPackage,
-            ThingPackageId = source.ThingPackageId,
-            Metadata = source.Metadata?.ToDictionary(
-                pair => pair.Key,
-                pair => pair.Value,
-                StringComparer.Ordinal) ?? new Dictionary<string, string?>()
-        };
-    }
 }
