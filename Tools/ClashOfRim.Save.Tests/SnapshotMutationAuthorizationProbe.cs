@@ -1,7 +1,7 @@
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
 
-internal static class MutationAuthenticationTests
+internal static class SnapshotMutationAuthorizationProbe
 {
     internal static void RevokedWhileWaiting(ClashOfRimNetworkState state, string user, string colony,
         bool replaceSession, Func<bool> execute)

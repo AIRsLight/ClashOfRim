@@ -6,6 +6,7 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using static EventFailureGraph;
 using static EventFailureTestClient;
+using static SessionTestAuthentication;
 using static EventLedgerTestEvidence;
 using static SnapshotTestAssertions;
 

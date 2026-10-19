@@ -4,5 +4,5 @@ internal static class EventFailureFixtureTests
         typeof(EventFailureReportTests), typeof(EventFailureRecoveryPreparationTests),
         typeof(EventFailureGraph), typeof(EventFailureTestClient), typeof(EventFailureRecoveryFixture),
         typeof(EventLedgerTestEvidence), typeof(InterruptedEventLedger), typeof(SnapshotPublicationProbe),
-        typeof(SqliteTestDirectory));
+        typeof(SqliteTestDirectory), typeof(SessionTestAuthentication));
 }

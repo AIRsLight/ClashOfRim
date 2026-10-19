@@ -71,7 +71,7 @@ internal static class TradeCommandAuthTests
         {
             // Each attempt needs a live session before the request starts waiting.
             token = Token(state, user);
-            MutationAuthenticationTests.RevokedWhileWaiting(state, user, user + "-colony", replaced,
+            SnapshotMutationAuthorizationProbe.RevokedWhileWaiting(state, user, user + "-colony", replaced,
                 () => Call(state, order, kind, user, token).Accepted);
         }
     }

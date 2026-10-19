@@ -5,6 +5,7 @@ using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.Data.Sqlite;
 using static EventFailureGraph;
 using static EventFailureTestClient;
+using static SessionTestAuthentication;
 using static EventLedgerTestEvidence;
 using static SnapshotTestAssertions;
 

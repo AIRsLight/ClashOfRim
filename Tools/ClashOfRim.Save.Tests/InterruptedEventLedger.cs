@@ -8,6 +8,7 @@ public class InterruptedEventLedger : DispatchProxy
     public Action? BeforeBatch, AfterBatch;
     public Action? BeforeAppend, AfterAppend;
     public Action<string>? OnCall;
+    public Action<string>? AfterCall;
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
     {
         OnCall?.Invoke(targetMethod!.Name);
@@ -20,6 +21,7 @@ public class InterruptedEventLedger : DispatchProxy
         catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
         if (batch) AfterBatch?.Invoke();
         if (append) AfterAppend?.Invoke();
+        AfterCall?.Invoke(targetMethod.Name);
         return result;
     }
 }

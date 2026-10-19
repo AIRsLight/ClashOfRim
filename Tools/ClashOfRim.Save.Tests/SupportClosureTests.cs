@@ -39,7 +39,7 @@ internal static partial class SupportClosureTests
             var state = new ClashOfRimNetworkState(); state.Ledger.Append(Source());
             string token = Token(state, "userA");
             if (replay) Require(Call(state, kind).Accepted, "initial closure for queued retry failed");
-            MutationAuthenticationTests.RevokedWhileWaiting(state, "userA", "colonyA", replaced,
+            SnapshotMutationAuthorizationProbe.RevokedWhileWaiting(state, "userA", "colonyA", replaced,
                 () => Call(state, kind, token: token, authenticate: false).Accepted);
         }
         ConflictingReturns();

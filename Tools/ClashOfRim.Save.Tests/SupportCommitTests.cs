@@ -232,7 +232,7 @@ internal static class SupportCommitTests
         state.LoginSessions.TryCreate(Actor.UserId, Actor.ColonyId!, now, out string session);
         string token = state.AuthTokens.Issue(Actor.UserId, Actor.UserId, Actor.ColonyId!, session, now);
         string before = State(state);
-        MutationAuthenticationTests.RevokedWhileWaiting(state, Actor.UserId, Actor.ColonyId!, replaced,
+        SnapshotMutationAuthorizationProbe.RevokedWhileWaiting(state, Actor.UserId, Actor.ColonyId!, replaced,
             () => SnapshotEndpointTestClient.Invoke<EventCreationResponse>("CreateSupportPawnWithSnapshot", state,
                 _ => Request(package), package.Payload, Actor, token).GetAwaiter().GetResult().Result.Accepted);
         Check(before == State(state) && !Directory.GetFiles(Path.Combine(root, "intents"), "*.json").Any(),
