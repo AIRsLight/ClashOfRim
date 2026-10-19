@@ -26,40 +26,6 @@ internal sealed partial class GameSuite
         await Invoke("B", "MarkPrivateChatRead");
         Check((await Call("B", "clash.state")).Int("unreadPrivateChatCount") == 0, "Private chat read marker was not cleared.");
     }
-    async Task AdminConfiguration()
-    {
-        await Invoke("A", "StartRefreshAdminStatus"); await Idle("A");
-        var status = await Call("A", "clash.admin");
-        Check(status.Bool("isAdministrator") && status.GetProperty("result").Bool("accepted"), "Initial owner is not administrator.");
-        var original = status.GetProperty("configuration");
-        var changed = JsonNode.Parse(original.GetRawText())!;
-        changed["giftsEnabled"] = false;
-        await Invoke("A", "StartUpdateAdminConfiguration", new { configuration = changed }); await Idle("A");
-        await Invoke("A", "StartRefreshAdminStatus"); await Idle("A");
-        Check(!(await Call("A", "clash.admin")).GetProperty("configuration").Bool("giftsEnabled"), "Administrator configuration did not persist.");
-        await Invoke("B", "StartUpdateAdminConfiguration", new { configuration = original }); await Idle("B");
-        await Invoke("A", "StartRefreshAdminStatus"); await Idle("A");
-        Check(!(await Call("A", "clash.admin")).GetProperty("configuration").Bool("giftsEnabled"), "Non-administrator changed configuration.");
-        await Invoke("A", "StartUpdateAdminConfiguration", new { configuration = original }); await Idle("A");
-        await Invoke("A", "StartRefreshAdminStatus"); await Idle("A");
-        Check((await Call("A", "clash.admin")).GetProperty("configuration").Bool("giftsEnabled") == original.Bool("giftsEnabled"), "Configuration restore failed.");
-    }
-    async Task PasswordChange()
-    {
-        var accounts = server.Services.GetRequiredService<ClashOfRimNetworkState>().OfflineAccounts;
-        const string initial = "local-test-password", replacement = "rimtest-replacement-password";
-        await Invoke("B", "StartChangeOfflinePassword", new { currentPassword = "incorrect-password", newPassword = replacement });
-        await Wait("B", "clash.state", null, s => !s.Bool("accountPasswordInProgress"));
-        Check(accounts.Authenticate("rimtest-B", initial, DateTimeOffset.UtcNow).Accepted, "Rejected password change altered credentials.");
-        await Invoke("B", "StartChangeOfflinePassword", new { currentPassword = initial, newPassword = replacement });
-        await Wait("B", "clash.state", null, s => !s.Bool("accountPasswordInProgress"));
-        Check(!accounts.Authenticate("rimtest-B", initial, DateTimeOffset.UtcNow).Accepted, "Old password still accepted.");
-        Check(accounts.Authenticate("rimtest-B", replacement, DateTimeOffset.UtcNow).Accepted, "New password rejected.");
-        await Invoke("B", "StartChangeOfflinePassword", new { currentPassword = replacement, newPassword = initial });
-        await Wait("B", "clash.state", null, s => !s.Bool("accountPasswordInProgress"));
-        Check(accounts.Authenticate("rimtest-B", initial, DateTimeOffset.UtcNow).Accepted, "Password restore failed.");
-        await run.RecordAsync(new { serverObservation = "password-change", wrongCurrentRejected = true, oldRejected = true, replacementAccepted = true, restored = true });
-    }
     async Task Appearance()
     {
         var state = server.Services.GetRequiredService<ClashOfRimNetworkState>();

@@ -23,6 +23,8 @@ internal sealed partial class GameSuite
     private readonly EconomicScenarioFixture economy;
     private readonly MercenaryScenario mercenaries;
     private readonly BankScenario bank;
+    private readonly AdministrationScenario administration;
+    private readonly PasswordScenario passwords;
     private readonly ShopScenario shop;
     private readonly TradeScenarioFixture tradeActions;
     private readonly TradeScenario trades;
@@ -81,6 +83,8 @@ internal sealed partial class GameSuite
         world = new(run, polling, profile, serverState.WorldConfiguration, serverState.WorldTileDistanceCalculator,
             id => WorldPersistenceProbe.Read(root, id));
         entry = new(run, polling, dialogs, world, colonyFixture, diagnostics, () => url, serverState.OnlinePresence.IsUserOnline);
+        administration = new(run, polling, entry, serverState.AdminControl, serverState.WorldConfiguration);
+        passwords = new(run, polling, serverState.OfflineAccounts);
         giftScenario = new(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger, entry);
         notifications = new(run, polling, entry, eventFixture, serverState.Ledger);
         roundtrips = new(run, polling, colonyFixture, entry);
@@ -121,7 +125,7 @@ internal sealed partial class GameSuite
             await world.Run();
             if (profile.Features)
             {
-                await Case("account-password-change", PasswordChange);
+                await Case("account-password-change", passwords.Change);
                 await Case("colony-appearance-sync", Appearance);
                 await Invoke("A", "StartRefreshPlayers"); await Invoke("B", "StartRefreshPlayers");
                 await Wait("A", "clash.records", new { kind = "players" }, p => Items(p).Any(v => v.GetProperty("data").String("userId") == "rimtest-B"));
@@ -134,13 +138,13 @@ internal sealed partial class GameSuite
                 });
                 await Case("private-chat-read", PrivateChat);
                 await Case("unicode-chat-blank-rejection", UnicodeChat);
-                await Case("admin-configuration-permissions", AdminConfiguration);
-                await Case("admin-action-permissions", AdminGuards);
-                await Case("admin-role-grant-revoke", AdminRoles);
-                await Case("admin-broadcast", AdminBroadcast);
-                await Case("admin-kick-reconnect", AdminKick);
-                await Case("admin-ban-unban", AdminBan);
-                await Case("maintenance-password-rejection", MaintenanceAndPassword);
+                await Case("admin-configuration-permissions", administration.Configuration);
+                await Case("admin-action-permissions", administration.Guards);
+                await Case("admin-role-grant-revoke", administration.Roles);
+                await Case("admin-broadcast", administration.Broadcast);
+                await Case("admin-kick-reconnect", administration.Kick);
+                await Case("admin-ban-unban", administration.Ban);
+                await Case("maintenance-password-rejection", administration.MaintenanceAndPassword);
                 await Case("bank-input-rejection", bank.InputBounds);
                 await Case("bank-loan-repayment", bank.LoanRepayment);
                 await Case("shop-purchase-stock", shop.Purchase);

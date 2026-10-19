@@ -24,43 +24,6 @@ internal sealed partial class GameSuite
         Check(!Items(after).Any(v => string.IsNullOrWhiteSpace(v.GetProperty("data").OptionalString("text"))), "Blank chat entered the feed.");
         Check((await Call("A", "clash.state")).String("currentSnapshotId") == snapshot, "Chat mutated colony snapshot.");
     }
-    async Task AdminGuards()
-    {
-        var state = ServerState; int audits = state.AdminControl.ListAudit().Count;
-        foreach (string kind in new[] { "LockMaintenance", "PromoteAdmin", "Ban", "Kick", "DeletePlayerSave", "ResetOfflinePassword" })
-        {
-            await Invoke("B", "StartAdminAction", new { actionKind = kind, targetUserId = "rimtest-A", message = "unauthorized" }); await Idle("B");
-        }
-        Check(state.AdminControl.ListAudit().Count == audits && !state.AdminControl.MaintenanceLoginLocked && !state.AdminControl.IsBanned("rimtest-A"), "Unauthorized admin action changed server state.");
-        Check((await Call("A", "clash.state")).Bool("isInActiveMultiplayerSession"), "Unauthorized admin action kicked owner.");
-        foreach (string kind in new[] { "Kick", "Ban", "RevokeAdmin", "DeletePlayerSave" })
-        {
-            await Invoke("A", "StartAdminAction", new { actionKind = kind, targetUserId = "rimtest-A" }); await Idle("A");
-        }
-        Check(state.AdminControl.ListAudit().Count == audits && state.WorldConfiguration.IsAdministrator("rimtest-A"), "Self-target protection failed.");
-    }
-    async Task AdminRoles()
-    {
-        await Invoke("A", "StartAdminAction", new { actionKind = "PromoteAdmin", targetUserId = "rimtest-B" }); await Idle("A");
-        try
-        {
-            await Wait("B", "clash.state", null, s => s.Bool("isAdministrator"));
-            await Invoke("B", "StartRefreshAdminStatus"); await Idle("B");
-            await Wait("B", "clash.admin", null, s => s.ValueKind == JsonValueKind.Object && s.Bool("isAdministrator"));
-            Check(ServerState.WorldConfiguration.IsAdministrator("rimtest-B"), "Promotion was not authoritative.");
-        }
-        finally { await Invoke("A", "StartAdminAction", new { actionKind = "RevokeAdmin", targetUserId = "rimtest-B" }); await Idle("A"); }
-        await Wait("B", "clash.state", null, s => !s.Bool("isAdministrator"));
-        Check(!ServerState.WorldConfiguration.IsAdministrator("rimtest-B"), "Revocation was not authoritative.");
-    }
-    async Task AdminBroadcast()
-    {
-        const string message = "RimTest notice 中文 Français 1,25";
-        await Invoke("A", "StartAdminAction", new { actionKind = "Broadcast", targetUserId = "rimtest-B", message, persistentNotification = true }); await Idle("A");
-        await Invoke("B", "StartRefreshEventsForTest");
-        await Wait("B", "clash.events", new { limit = 200 }, p => Items(p).Any(v => NotificationScenario.HasMessage(v, message)));
-        Check(ServerState.AdminControl.ListAudit().Any(a => a.ActionKind == "Broadcast" && a.Message == message), "Broadcast audit missing.");
-    }
     async Task Achievements()
     {
         // The first fulfilled order was tested above. Reach the shipped threshold by

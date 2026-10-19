@@ -12,7 +12,7 @@ internal sealed partial class GameSuite
 
     async Task AccountLifecycle()
     {
-        await Case("account-password-change", PasswordChange);
+        await Case("account-password-change", passwords.Change);
         await Case("account-achievements-before-abandon", async () =>
         {
             // Two generations each perform ten real shipments, plus a hire. Fund
