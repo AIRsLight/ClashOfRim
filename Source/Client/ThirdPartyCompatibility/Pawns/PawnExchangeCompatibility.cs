@@ -11,6 +11,7 @@ internal sealed class PawnExchangeCompatibility
 {
     private readonly List<PawnExchangeExtensionAppender> PawnExchangeExtensionAppenders = new();
     private readonly List<PawnExchangePackageRegistrar> PawnExchangePackageRegistrars = new();
+    private readonly List<PawnPreviewRestorer> PawnPreviewRestorers = new();
     private readonly List<PawnExchangePackageNormalizer> PawnExchangePackageNormalizers = new();
     private readonly List<PawnExchangeLocalSaveOnlyLoadIdPredicate> PawnExchangeLocalSaveOnlyLoadIdPredicates = new();
     private readonly List<PawnPostRestoreLocalizer> PawnPostRestoreLocalizers = new();
@@ -80,32 +81,29 @@ internal sealed class PawnExchangeCompatibility
 
     internal bool TryRegisterPawnExchangePackageExtensions(ModPawnExchangePackageDto package, out string message)
     {
+        if (package is null) { message = string.Empty; return true; }
+        return TryRestore(PawnExchangePackageRegistrars, nameof(TryRegisterPawnExchangePackageExtensions), registrar =>
+        { bool accepted = registrar(package, out string message); return (accepted, message); }, out message);
+    }
+
+    internal void RegisterPawnPreviewRestorer(PawnPreviewRestorer restorer) => Registrations.RegisterUnique(PawnPreviewRestorers, restorer);
+
+    internal bool TryRestorePawnPreview(Pawn pawn, ModPawnExchangePackageDto package, out string message)
+        => TryRestore(PawnPreviewRestorers, nameof(TryRestorePawnPreview), restorer =>
+        { bool accepted = restorer(pawn, package, out string message); return (accepted, message); }, out message);
+
+    private bool TryRestore<T>(List<T> callbacks, string operation, Func<T, (bool Accepted, string Message)> invoke, out string message) where T : Delegate
+    {
         message = string.Empty;
-        if (package is null)
+        foreach (T callback in callbacks.ToList())
         {
-            return true;
+            (bool Accepted, string Message) result = (false, string.Empty);
+            if (!Registrations.TryInvokeCompatibilityCallback(operation, callback,
+                () => { result = invoke(callback); return result.Accepted; }, out bool accepted))
+            { message = "Compatibility package failed."; return false; }
+            message = result.Message;
+            if (!accepted) return false;
         }
-
-        foreach (PawnExchangePackageRegistrar registrar in PawnExchangePackageRegistrars.ToList())
-        {
-            string registrarMessage = string.Empty;
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(TryRegisterPawnExchangePackageExtensions),
-                    registrar,
-                    () => registrar(package, out registrarMessage),
-                    out bool accepted))
-            {
-                message = "Compatibility package failed.";
-                return false;
-            }
-
-            message = registrarMessage;
-            if (!accepted)
-            {
-                return false;
-            }
-        }
-
         return true;
     }
 

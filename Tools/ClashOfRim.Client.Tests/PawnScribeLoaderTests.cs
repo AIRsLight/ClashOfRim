@@ -22,7 +22,7 @@ internal static class PawnScribeLoaderTests
     private const string Xml = "<pawn><id>Human123</id><name>文化 İ</name><skills><li><level>12</level></li></skills></pawn>";
     private static readonly List<string> trace = new(), paths = new(), warnings = new();
     private static Pawn? loaded;
-    private static string? fault;
+    private static string? fault, nativeXml;
     private static Exception failure = new InvalidOperationException("expected");
     private static bool stopFails;
     private static readonly Faction player = new();
@@ -56,7 +56,7 @@ internal static class PawnScribeLoaderTests
             foreach (string name in new[] { "en-US", "zh-CN", "tr-TR", "ar-SA" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
-                Documents(); NativeLifetime(); Arrival();
+                Documents(); NativeLifetime(); Arrival(); Preview();
             }
             Console.WriteLine("PASS: pawn Scribe separation (four cultures; frozen XML, native failures/cleanup, arrival order)");
         }
@@ -190,19 +190,72 @@ internal static class PawnScribeLoaderTests
         }
     }
 
+    private static void Preview()
+    {
+        const string xml = "<pawn><name>文化 İ</name><faction>Faction_5</faction><questTags><li>ClashOfRim.PawnGlobalId:real</li></questTags>"
+            + "<ownership><ownedBed>Bed123</ownedBed></ownership><social><directRelations><li><def>Parent</def><otherPawn>Human123</otherPawn></li></directRelations></social>"
+            + "<ideo><ideo>Ideo_4</ideo><certainty>0.75</certainty><joinTick>42</joinTick></ideo>"
+            + "<royalty><titles><li><def>Duke</def><faction>Faction_5</faction></li></titles><heirs><keys><li>Faction_5</li></keys><values><li>Human123</li></values></heirs></royalty>"
+            + "<healthTracker><hediffs><li><def>Scar</def><severity>0.25</severity></li></hediffs></healthTracker></pawn>";
+        var token = ClashOfRimCompatibilityApi.CreateRegistrationToken("test-pawn-preview");
+        try
+        {
+            ClashOfRimCompatibilityApi.UseRegistrationToken(token, () =>
+            {
+                ClashOfRimCompatibilityApi.RegisterPawnExchangePackageNormalizer(package => { _ = Rand.Value; });
+                ClashOfRimCompatibilityApi.RegisterPawnPreviewRestorer((Pawn p, ModPawnExchangePackageDto package, out string message) =>
+                {
+                    Step("preview-metadata"); message = "preview rejected";
+                    package.Reference!.GlobalId = "mutated-copy";
+                    Check(ReferenceEquals(p, loaded), "Preview callback received another pawn.");
+                    return fault != "preview-reject";
+                });
+            });
+            foreach (string phase in new[] { "success", "init", "deep", "finalize", "preview-reject", "preview-metadata" })
+            {
+                Reset(); fault = phase;
+                var package = new ModPawnExchangePackageDto { Scribe = Payload(xml), Reference = new() { GlobalId = "original" } };
+                Rand.PushState(12345); float expected = Rand.Value; Rand.PopState();
+                Rand.PushState(12345);
+                try
+                {
+                    bool success = PawnPreviewScribeRestorer.TryRestore(package, out var pawn, out _);
+                    Check(success == (phase == "success") && (success ? ReferenceEquals(pawn, loaded) : pawn is null), "Preview failure published a pawn: " + phase);
+                    Check(Rand.Value == expected, "Preview advanced the simulation RNG: " + phase);
+                }
+                finally { Rand.PopState(); }
+                Check(package.Reference.GlobalId == "original" && package.Scribe.Xml == xml, "Preview extension mutated caller-owned input.");
+                Check(!trace.Any(x => x is "register" or "faction" or "localize" or "metadata" or "mark" or "merge" or "relations"),
+                    "Preview entered real arrival side effects.");
+                var root = XDocument.Parse(nativeXml!).Root!.Element("pawn")!;
+                Check(root.Element("faction")!.Value == "null" && !root.Element("questTags")!.Elements().Any()
+                    && !root.Element("ownership")!.Elements().Any() && !root.Element("social")!.Element("directRelations")!.Elements().Any(),
+                    "Preview retained ownership or relationship bindings.");
+                Check(root.Element("ideo")!.Attribute("Class")!.Value == typeof(PawnPreviewIdeoTracker).FullName
+                    && root.Element("ideo")!.Element("certainty")!.Value == "0.75" && root.Element("ideo")!.Element("ideo")!.Value == "null"
+                    && !root.Element("royalty")!.Element("titles")!.Elements().Any()
+                    && root.Element("healthTracker")!.Descendants("severity").Single().Value == "0.25", "Preview lost state or left native ideology/title side effects enabled.");
+                Clean();
+            }
+        }
+        finally { ClashOfRimCompatibilityApi.RevokeRegistrationToken(token); }
+    }
+
     private static void Reset()
     {
         Scribe.mode = LoadSaveMode.Inactive; trace.Clear(); paths.Clear(); warnings.Clear(); fault = null; onRegister = null; stopFails = false;
-        failure = new InvalidOperationException("expected"); loaded = new Pawn { def = new ThingDef { defName = "Human" }, thingIDNumber = 123 };
+        failure = new InvalidOperationException("expected"); nativeXml = null;
+        loaded = new Pawn { def = new ThingDef { defName = "Human", race = new RaceProperties { intelligence = Intelligence.Humanlike } }, thingIDNumber = 123 };
     }
     private static void Clean() => Check(Scribe.mode == LoadSaveMode.Inactive && paths.All(p => !File.Exists(p)), "Native Scribe or temporary file leaked.");
     private static void Step(string phase) { trace.Add(phase); if (fault == phase) throw failure; }
     private static bool Init(string __0)
     {
+        nativeXml = File.ReadAllText(__0);
         paths.Add(__0); Check(File.Exists(__0) && XDocument.Load(__0).Root!.Element("pawn")!.Element("name")!.Value == "文化 İ", "Native loader received unfrozen/wrong XML.");
         Scribe.mode = LoadSaveMode.LoadingVars; Step("init"); return false;
     }
-    private static bool Deep(ref Pawn? __0) { Step("deep"); __0 = loaded; return false; }
+    private static bool Deep(ref Pawn? __0) { Step("deep"); _ = Rand.Value; __0 = loaded; return false; }
     private static bool Finalize() { Step("finalize"); Scribe.mode = LoadSaveMode.Inactive; return false; }
     private static bool Stop() { trace.Add("stop"); Scribe.mode = LoadSaveMode.Inactive; if (stopFails) throw new InvalidOperationException("stop"); return false; }
     private static bool Register(out string message, ref bool __result) { trace.Add("register"); onRegister?.Invoke(); message = "extension"; __result = fault != "register"; return false; }

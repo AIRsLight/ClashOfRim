@@ -74,6 +74,25 @@ internal static class IdeologyPawnReferenceCompatibility
             return string.Empty;
         }
 
+        Ideo? ideo = ResolveReference(metadataValue!, label);
+
+        if (ideo is null)
+        {
+            Log.Warning("[ClashOfRim][PawnExchange] Could not restore " + label + " ideo because global ideo is missing: " + metadataValue);
+            return ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusIdeoCatalogMissing");
+        }
+
+        if (!TrySetPawnIdeo(pawn, ideo))
+        {
+            Log.Warning("[ClashOfRim][PawnExchange] Could not assign restored " + label + " ideo: " + metadataValue);
+            return ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusIdeoAssignFailed");
+        }
+
+        return ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusIdeoRestored");
+    }
+
+    private static Ideo? ResolveReference(string metadataValue, string label)
+    {
         if ((!RemoteIdeoCatalog.TryGetIdeo(metadataValue!, out Ideo? ideo) || ideo is null)
             && TryParseIdeoGlobalKey(metadataValue, out string? ownerUserId, out string? localId))
         {
@@ -94,19 +113,22 @@ internal static class IdeologyPawnReferenceCompatibility
             }
         }
 
-        if (ideo is null)
-        {
-            Log.Warning("[ClashOfRim][PawnExchange] Could not restore " + label + " ideo because global ideo is missing: " + metadataValue);
-            return ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusIdeoCatalogMissing");
-        }
+        return ideo;
+    }
 
-        if (!TrySetPawnIdeo(pawn, ideo))
-        {
-            Log.Warning("[ClashOfRim][PawnExchange] Could not assign restored " + label + " ideo: " + metadataValue);
-            return ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusIdeoAssignFailed");
-        }
-
-        return ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusIdeoRestored");
+    internal static bool RestorePreview(Pawn pawn, ModPawnExchangePackageDto package, out string message)
+    {
+        message = string.Empty;
+        if (!HasPawnReference) return true;
+        string? globalId = ResolveIdeoGlobalIdFromPackage(package);
+        if (string.IsNullOrWhiteSpace(globalId)) return true;
+        var ideo = ResolveReference(globalId!, "preview");
+        if (ideo is null) { message = ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusIdeoCatalogMissing"); return false; }
+        pawn.ideo ??= new AIRsLight.ClashOfRim.Pawns.PawnPreviewIdeoTracker(pawn);
+        // SetIdeo is a gameplay conversion (history, membership, beds and bonds).
+        // A preview only binds the already-known catalog object for reading.
+        typeof(Pawn_IdeoTracker).GetField("ideo", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(pawn.ideo, ideo);
+        return true;
     }
 
     internal static void AppendIdeologyPawnExchangeExtension(Pawn pawn, ModPawnExchangePackageDto package)

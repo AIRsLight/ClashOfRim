@@ -49,6 +49,7 @@ internal static class PawnCompatibilityTests
             Check(f.References.RestorePawnReferenceMetadata(pawn, "key", "value", "label") == (populated ? "restored" : ""), "Restorer lifecycle changed.");
             f.Exchange.AppendPawnExchangeExtensions(pawn, package); f.Exchange.NormalizePawnExchangePackage(package);
             Check(f.Exchange.TryRegisterPawnExchangePackageExtensions(package, out string message) && message == (populated ? "accepted" : ""), "Registrar lifecycle changed.");
+            Check(f.Exchange.TryRestorePawnPreview(pawn, package, out message) && message == (populated ? "preview" : ""), "Preview callback lifecycle changed.");
             Check(f.Exchange.IsPawnExchangeLocalSaveOnlyLoadId("load") == populated, "Local-save predicate lifecycle changed.");
             f.Exchange.LocalizeRestoredPawnWithCompatibility(pawn); f.Trade.ApplyPawnSoldEffects(pawn, null);
             Check(f.Trade.IsTradeablePawnByCompatibility(pawn) == populated && f.Trade.IsTradePawnRestoreAllowedByCompatibility(pawn) == populated,
@@ -65,20 +66,21 @@ internal static class PawnCompatibilityTests
             f.Exchange.RegisterPawnExchangeExtensionAppender((_, _) => calls++);
             f.Exchange.RegisterPawnExchangePackageNormalizer(_ => calls++);
             f.Exchange.RegisterPawnExchangePackageRegistrar((ModPawnExchangePackageDto _, out string message) => { calls++; message = "accepted"; return true; });
+            f.Exchange.RegisterPawnPreviewRestorer((Pawn _, ModPawnExchangePackageDto _, out string message) => { calls++; message = "preview"; return true; });
             f.Exchange.RegisterPawnExchangeLocalSaveOnlyLoadIdPredicate(_ => { calls++; return true; });
             f.Exchange.RegisterPawnPostRestoreLocalizer(_ => calls++);
             f.Trade.RegisterPawnSoldEffectHandler((_, _) => calls++);
             f.Trade.RegisterTradeablePawnPredicate(_ => { calls++; return true; });
             f.Trade.RegisterTradePawnRestoreValidator(_ => { calls++; return true; });
             Invoke(true);
-            Check(calls == 13 && f.Scope.Records.Count == 13, "Capabilities did not use all 13 collections in the shared scope.");
+            Check(calls == 14 && f.Scope.Records.Count == 14, "Capabilities did not use all 14 collections in the shared scope.");
             var independent = new Fixture();
             Check(independent.References.ResolvePawnReferenceMetadata(pawn, "key", null, null) is null
                 && !independent.Trade.IsTradeablePawnByCompatibility(pawn), "Independent capability instances leaked global state.");
             if (cycle == 0) Check(f.Scope.RevokeRegistrationToken(owner), "Owner revocation did not find capability registrations.");
             else f.Scope.BeginRegistrationCycle("next");
             Invoke(false);
-            Check(calls == 13 && f.Scope.Records.Count == 0, "Revocation/new cycle retained callbacks.");
+            Check(calls == 14 && f.Scope.Records.Count == 0, "Revocation/new cycle retained callbacks.");
         }
     }
 

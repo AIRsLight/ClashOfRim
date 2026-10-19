@@ -37,6 +37,7 @@ internal static class RoyaltyCompatibilityPackage
             RoyaltyPawnReferenceCompatibility.PawnMetadataRoyaltyState,
             RoyaltyPawnReferenceCompatibility.RestoreRoyaltyPawnReferenceMetadata);
         ClashOfRimCompatibilityApi.RegisterPawnExchangeExtensionAppender(RoyaltyPawnReferenceCompatibility.AppendRoyaltyPawnExchangeExtension);
+        ClashOfRimCompatibilityApi.RegisterPawnPreviewRestorer(RoyaltyPawnReferenceCompatibility.RestorePreview);
         ClashOfRimCompatibilityApi.RegisterThingReferenceEditor(
             RoyaltyCompatibilityKeys.TradeMetadata + ".persona-weapon-editor",
             RoyaltyThingReferenceCompatibility.DrawThingReferenceEditor,

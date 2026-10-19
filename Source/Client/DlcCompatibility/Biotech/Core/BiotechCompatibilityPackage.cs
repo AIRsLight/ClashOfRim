@@ -98,6 +98,7 @@ internal static class BiotechCompatibilityPackage
         ClashOfRimCompatibilityApi.RegisterWorldGenerationFloatSettingProvider("pollution", BiotechWorldConfigurationCompatibility.TryResolveWorldGenerationPollution);
         ClashOfRimCompatibilityApi.RegisterPawnExchangeExtensionAppender(PawnExchange.Append);
         ClashOfRimCompatibilityApi.RegisterPawnExchangePackageRegistrar(PawnExchange.TryRegister);
+        ClashOfRimCompatibilityApi.RegisterPawnPreviewRestorer(PawnExchange.RestorePreview);
         ClashOfRimCompatibilityApi.RegisterPawnPostRestoreLocalizer(PawnExchange.ResetRestoredPawnGeneCaches);
         RegisterItemCapabilities();
         BiotechThingTransferCompatibility.Apply();

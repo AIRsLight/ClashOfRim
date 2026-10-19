@@ -3170,3 +3170,19 @@ PNG 下载保持四路并发、20 秒超时及 256 项纹理容量；详情保�
 **5 个相关单元组通过**：新增 Scribe 加载、预览模块、pawn 捕获、重复流转身份和模块依赖守卫；日志 `LocalOnly/module-migration/pawn-scribe-final-tests.log`。守卫检查 1,631 个纯模块类型、125 个兼容能力类型、60 个页面／适配类型及 311 个事件适配类型。生产随测试编译；未运行全量回归、专项 RimTest 或独立发布／桥接构建，未推送，冻结 1.6 保留。
 
 **下一步 M11o4b：预览专用的原生加载与 DLC 展示恢复。** 利用已分开的载荷／加载模块处理 PostLoadInit 的关系和意识形态路径，隔离真实入境的扩展注册、身份与关系提交，并保持详情所需的健康、装备、基因和 DLC 展示。完成预览隔离后继续剩余 UI 与过渡门面迁移；M11、M12 和最终审计均未完成。
+
+### M11o4b：详情预览与真实 pawn 入境隔离（2026-10-19）
+
+详情适配器改用 `PawnPreviewScribeRestorer`，不再调用礼物／交易的真实入境恢复器。预览先复制载荷，复用现有包归一化、校验、冻结 XML、原生 Scribe 生命周期和运行状态检查；不会调用入境扩展注册、玩家阵营转换、全局交换身份登记、元数据入境处理或世界关系合并。详情不负责授权购买，因此不对已经脱离阵营／访客归属的展示对象再次套用出售资格；真实交易仍使用原校验。整个预览过程保存并恢复 Rand 状态，包含归一化和扩展回调失败的路径。
+
+纯模块 `PawnPreviewDocument` 在共享 XML 清理之后移除预览的阵营、任务标签、所有权、社交关系及爵位的运行关联，保持原生健康、装备和基因数据的读取路径。意识形态采用仅用于临时预览的 `PawnPreviewIdeoTracker`，通过原生 Scribe 的 `IExposable` 分派保留 LoadingVars／CrossRef 阶段、跳过基类 PostLoadInit 的缺失回填。继续复用共用加载器的临时文件和异常清理，没有复制另一套 Scribe 会话。新增类型不进入真实流转存档。
+
+新增有注册令牌归属的 `PawnPreviewRestorer` 扩展契约，和入境注册器共用回调快照、故障处理与撤销算法。Ideology 复用全局目录／拥有者回退解析，直接绑定已知意识形态、保留确信度和加入时间；未知显式身份返回失败，不调用 `SetIdeo`。Royalty 复用标题／阵营解析和 favor 归一化，仅写预览自身的标题及 favor 集合，不调用 `SetTitle`／`SetFavor`，重复阵营记录保持末次有效记录语义。Biotech 从既有保存包注册器抽出只读取定义的 `TryRead`，匹配实际基因后绑定预览缓存，不向当前存档的异种数据库登记；已有包大小、摘要和临时文件逻辑共用。读取前拒绝占用其他 Scribe 操作，避免原生 helper 在失败时强制停止不属于它的会话。
+
+**预览仍分配唯一的引擎 ID。** 根 pawn、装备、hediff 和能力复用原 ID 本地化算法，以免信息卡／属性缓存与真实对象共用源 ID；跳过入境兼容 localizer。这会推进游戏的 ID 计数器，不能称为完全不修改 Game。缓存淘汰只释放自身引用，已打开的信息卡继续持有展示对象，不调用 Destroy。第三方 `ExposeData` 和包归一化仍会执行；新的展示扩展禁止写世界是调用契约，不是对任意第三方代码的沙箱。共享外部引用清理算法保持原行为，复杂模组物品的全部状态保真和任意第三方组件副作用尚未实测。
+
+新增／扩展单元测试覆盖五种文化的 DLC 展示、原生 Scribe 对基类和预览 tracker 的实际类型分派及字段读取、未知意识形态、爵位归一化、自定义异种匹配／失败／摘要篡改／占用 Scribe、唯一引擎 ID 分配；另以四种文化覆盖预览各加载阶段和扩展失败、输入不变、随机数状态恢复、禁止进入入境提交及临时文件清理。原生 tracker 测试保留实际加载与 CrossRef，观测并隔离基类 PostLoadInit；完整 pawn 和异种原生加载在其他用例中仍使用故障替身。扩展令牌生命周期及模块依赖守卫同步覆盖新入口。两项临时错误实现分别被 `Native Scribe did not preserve fields or dispatch the preview IExposable implementation` 和 `Xenotype preview registered a world definition, lost its display cache or leaked a file.` 捕获，日志 `LocalOnly/module-migration/pawn-preview-{ideo,xenotype}-negative.log`；错误实现已恢复。
+
+**9 个相关单元组通过**：新增预览 DLC、Scribe 加载、预览请求缓存、pawn 兼容注册、Biotech 包、Ideology 加载、pawn 捕获、重复流转身份和模块边界。日志 `LocalOnly/module-migration/pawn-preview-isolation-final-tests.log`；守卫检查 1,633 个纯模块类型、127 个兼容能力类型、62 个页面／适配类型及 311 个事件适配类型。生产代码随单元测试编译；没有运行全量实机回归、专项 RimTest 或独立发布／桥接构建。真实信息卡交互与完整 pawn／第三方组件的运行效果仍需定向实机验证。冻结 1.6 和原有未提交修改保留，未推送。
+
+**下一步 M11o5：远端世界对象交互适配器。** `RemoteWorldObjectUiUtility` 仍通过整个 Mod 读取 PvP／礼物开关并启动观察；运输菜单与两类抵达动作还各自维护相近的目标、开关和载荷准入判断。继续核对它们与殖民地 gizmo／生命周期入口的实际调用归属，优先复用已提取的袭击、礼物、观察和世界目标模块。之后继续网络／服务器过渡门面与 M12；M11 整体和最终审计仍开放。每步以相关单元测试验证，必要时补本次功能的定向 RimTest，全量由用户安排。

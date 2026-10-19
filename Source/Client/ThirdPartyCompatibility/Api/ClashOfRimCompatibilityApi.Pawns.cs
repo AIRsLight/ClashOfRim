@@ -68,6 +68,11 @@ public static partial class ClashOfRimCompatibilityApi
     public static bool TryRegisterPawnExchangePackageExtensions(ModPawnExchangePackageDto package, out string message) =>
         PawnExchange.TryRegisterPawnExchangePackageExtensions(package, out message);
 
+    public static void RegisterPawnPreviewRestorer(PawnPreviewRestorer restorer) => PawnExchange.RegisterPawnPreviewRestorer(restorer);
+
+    internal static bool TryRestorePawnPreview(Pawn pawn, ModPawnExchangePackageDto package, out string message) =>
+        PawnExchange.TryRestorePawnPreview(pawn, package, out message);
+
     public static bool IsPawnExchangeLocalSaveOnlyLoadId(string? loadId) =>
         PawnExchange.IsPawnExchangeLocalSaveOnlyLoadId(loadId);
 

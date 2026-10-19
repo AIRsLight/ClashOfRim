@@ -40,6 +40,12 @@ internal sealed class PawnScribeDocument
     }
 
     internal string Build(Func<string, bool> localSaveOnlyLoadId, string missingRootMessage)
+        => Build(localSaveOnlyLoadId, missingRootMessage, null);
+
+    internal string BuildPreview(Func<string, bool> localSaveOnlyLoadId, string missingRootMessage, string ideologyTrackerClass)
+        => Build(localSaveOnlyLoadId, missingRootMessage, ideologyTrackerClass);
+
+    private string Build(Func<string, bool> localSaveOnlyLoadId, string missingRootMessage, string? ideologyTrackerClass)
     {
         XDocument source = ParseScribeXml(xml);
         XElement root = source.Root ?? throw new InvalidOperationException(missingRootMessage);
@@ -51,6 +57,7 @@ internal sealed class PawnScribeDocument
         ResetExchangePawnRuntimeState(pawnElement);
         RemoveLocalSaveOnlyReferences(pawnElement, localSaveOnlyLoadId);
         RemoveExternalPawnReferenceElements(pawnElement, BuildExternalPawnLoadIdSet(referenceReplacements));
+        if (ideologyTrackerClass is not null) PawnPreviewDocument.Project(pawnElement, ideologyTrackerClass);
         return new XDocument(new XElement("root", pawnElement)).ToString(SaveOptions.DisableFormatting);
     }
 

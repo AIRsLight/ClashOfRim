@@ -150,6 +150,8 @@ internal static class ClientModuleBoundaryTests
                 || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopListingRuntime)
                 || t == typeof(AIRsLight.ClashOfRim.Trades.ClientPawnPreviewRuntime)
                 || t == typeof(AIRsLight.ClashOfRim.Pawns.PawnScribeLoader)
+                || t == typeof(AIRsLight.ClashOfRim.Pawns.PawnPreviewScribeRestorer)
+                || t == typeof(AIRsLight.ClashOfRim.Pawns.PawnPreviewIdeoTracker)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Trades.ClientPawnPreviewRuntime)
                 || t == typeof(AIRsLight.ClashOfRim.Trades.ClientPawnPreviewTransport)
                 || t == typeof(AIRsLight.ClashOfRim.Trades.TradeUiUtility)

@@ -9,6 +9,12 @@ namespace AIRsLight.ClashOfRim.Pawns;
 internal static class PawnExchangeLoadIdUtility
 {
     public static void LocalizeRestoredPawn(Pawn pawn)
+        => LocalizePawn(pawn, restoreCompatibility: true);
+
+    internal static void LocalizePreviewPawn(Pawn pawn)
+        => LocalizePawn(pawn, restoreCompatibility: false);
+
+    private static void LocalizePawn(Pawn pawn, bool restoreCompatibility)
     {
         if (pawn is null || Find.UniqueIDsManager is null)
         {
@@ -17,7 +23,7 @@ internal static class PawnExchangeLoadIdUtility
 
         LocalizeThing(pawn);
         LocalizeHeldThingIds(pawn);
-        ClashOfRimCompatibilityApi.LocalizeRestoredPawnWithCompatibility(pawn);
+        if (restoreCompatibility) ClashOfRimCompatibilityApi.LocalizeRestoredPawnWithCompatibility(pawn);
         LocalizeHediffs(pawn);
         LocalizeAbilities(pawn);
     }

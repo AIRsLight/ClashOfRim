@@ -170,6 +170,10 @@ internal interface IMetadataKeyedRegistration
 
 public delegate bool PawnExchangePackageRegistrar(ModPawnExchangePackageDto package, out string message);
 
+/// <summary>Restore display-only state on an unspawned preview pawn. Do not register
+/// world objects, change live pawns/factions, or emit gameplay notifications.</summary>
+public delegate bool PawnPreviewRestorer(Pawn pawn, ModPawnExchangePackageDto package, out string message);
+
 public delegate void PawnExchangePackageNormalizer(ModPawnExchangePackageDto package);
 
 public delegate bool PawnExchangeLocalSaveOnlyLoadIdPredicate(string loadId);

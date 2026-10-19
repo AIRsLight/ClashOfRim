@@ -2,6 +2,7 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes;
 using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using System;
+using RimWorld;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Pawns;
@@ -36,5 +37,17 @@ internal sealed class BiotechPawnExchangeCompatibility
     {
         if (!enabled() || pawn?.genes is null || Find.UniqueIDsManager is null) return;
         BiotechGeneRuntime.ResetCustomXenotypeCaches(pawn);
+    }
+
+    internal bool RestorePreview(Pawn pawn, ModPawnExchangePackageDto package, out string message)
+    {
+        message = string.Empty;
+        if (!enabled() || pawn.genes is null) return true;
+        var payload = BiotechPawnExchangePayload.ReadCustomXenotype(package, warning);
+        if (payload is null) return true;
+        if (!BiotechSavedXenotypePackages.TryRead(payload, out var xenotype, out message)) return false;
+        BiotechGeneRuntime.SetPreviewCustomXenotype(pawn,
+            xenotype is not null && GeneUtility.PawnIsCustomXenotype(pawn, xenotype) ? xenotype : null);
+        return true;
     }
 }

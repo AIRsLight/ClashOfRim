@@ -151,7 +151,23 @@ internal static class RoyaltyPawnReferenceCompatibility
         }
 
         int restored = 0;
-        foreach (RoyaltyStateRecord record in ParseRoyaltyState(metadataValue!))
+        foreach (var state in ResolveState(metadataValue!))
+        {
+            pawn.royalty.SetTitle(state.Faction, state.Title, grantRewards: false, rewardsOnlyForNewestTitle: false, sendLetter: false);
+            pawn.royalty.SetFavor(state.Faction, state.Favor, notifyOnFavorChanged: false);
+            restored++;
+        }
+
+        return restored == 0
+            ? string.Empty
+            : ClashOfRimText.Key(
+                "ClashOfRim.PawnExchange.StatusRoyaltyRestored",
+                restored.ToString(CultureInfo.InvariantCulture).Named("COUNT"));
+    }
+
+    private static IEnumerable<(Faction Faction, RoyalTitleDef? Title, int Favor)> ResolveState(string value)
+    {
+        foreach (var record in ParseRoyaltyState(value))
         {
             Faction? faction = ResolveRoyaltyFaction(record.FactionDefName);
             if (faction is null)
@@ -167,16 +183,30 @@ internal static class RoyaltyPawnReferenceCompatibility
                 continue;
             }
 
-            pawn.royalty.SetTitle(faction, title, grantRewards: false, rewardsOnlyForNewestTitle: false, sendLetter: false);
-            pawn.royalty.SetFavor(faction, Math.Max(0, record.Favor), notifyOnFavorChanged: false);
-            restored++;
+            yield return (faction, title, Math.Max(0, record.Favor));
         }
+    }
 
-        return restored == 0
-            ? string.Empty
-            : ClashOfRimText.Key(
-                "ClashOfRim.PawnExchange.StatusRoyaltyRestored",
-                restored.ToString(CultureInfo.InvariantCulture).Named("COUNT"));
+    internal static bool RestorePreview(Pawn pawn, ModPawnExchangePackageDto package, out string message)
+    {
+        message = string.Empty;
+        if (!HasRemoteStateGuards) return true;
+        string? value = null;
+        package.Reference?.Metadata?.TryGetValue(PawnMetadataRoyaltyState, out value);
+        value ??= ResolveRoyaltyPawnExchangeExtensionMetadata(package, PawnMetadataRoyaltyState);
+        if (string.IsNullOrWhiteSpace(value)) return true;
+        pawn.royalty ??= new Pawn_RoyaltyTracker(pawn);
+        var favor = (Dictionary<Faction, int>)typeof(Pawn_RoyaltyTracker).GetField("favor", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(pawn.royalty)!;
+        // Only the detached tracker's collections change. SetTitle also selects
+        // heirs, updates permits/abilities and performs gameplay notifications.
+        pawn.royalty.AllTitlesForReading.Clear(); favor.Clear();
+        foreach (var state in ResolveState(value!))
+        {
+            pawn.royalty.AllTitlesForReading.RemoveAll(title => title.faction == state.Faction);
+            if (state.Title is not null) pawn.royalty.AllTitlesForReading.Add(new RoyalTitle { pawn = pawn, faction = state.Faction, def = state.Title });
+            favor[state.Faction] = state.Favor;
+        }
+        return true;
     }
 
     private static IEnumerable<KeyValuePair<Faction, int>> EnumerateRoyalFavor(Pawn_RoyaltyTracker tracker)

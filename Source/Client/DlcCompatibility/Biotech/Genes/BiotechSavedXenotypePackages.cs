@@ -50,6 +50,27 @@ internal static class BiotechSavedXenotypePackages
             return false;
         }
 
+        if (!TryRead(package, out CustomXenotype? loaded, out message)) return false;
+        if (loaded is null) return true;
+
+        Current.Game.customXenotypeDatabase ??= new CustomXenotypeDatabase();
+        if (Current.Game.customXenotypeDatabase.customXenotypes.Any(existing => SameXenotype(existing, loaded)))
+        {
+            message = ClashOfRimText.Key("ClashOfRim.Xenotype.StatusAlreadyExists");
+            return true;
+        }
+
+        Current.Game.customXenotypeDatabase.customXenotypes.Add(loaded);
+        message = ClashOfRimText.Key("ClashOfRim.Xenotype.StatusRegistered");
+        return true;
+    }
+
+    // Loading a custom definition is independent of registering it in a save.
+    internal static bool TryRead(BiotechSavedXenotypePackageDto? package, out CustomXenotype? loaded, out string message)
+    {
+        loaded = null;
+        message = string.Empty;
+        if (package is null || string.IsNullOrWhiteSpace(package.Xml)) return true;
         if (Encoding.UTF8.GetByteCount(package.Xml) > MaxXenotypeXmlBytes)
         {
             message = ClashOfRimText.Key("ClashOfRim.Xenotype.StatusXmlTooLarge");
@@ -63,7 +84,15 @@ internal static class BiotechSavedXenotypePackages
             return false;
         }
 
-        if (!TryLoadXenotypePackageXml(package.Xml, out CustomXenotype? loaded, out message))
+        // The native helper force-stops Scribe on errors, so reject a foreign
+        // active operation before entering it (including from preview callbacks).
+        if (Scribe.mode != LoadSaveMode.Inactive)
+        {
+            message = ClashOfRimText.Key("ClashOfRim.Xenotype.StatusLoadFailed",
+                nameof(InvalidOperationException).Named("TYPE"), "Scribe is already active.".Named("MESSAGE"));
+            return false;
+        }
+        if (!TryLoadXenotypePackageXml(package.Xml, out loaded, out message))
         {
             return false;
         }
@@ -74,15 +103,6 @@ internal static class BiotechSavedXenotypePackages
             return false;
         }
 
-        Current.Game.customXenotypeDatabase ??= new CustomXenotypeDatabase();
-        if (Current.Game.customXenotypeDatabase.customXenotypes.Any(existing => SameXenotype(existing, loaded)))
-        {
-            message = ClashOfRimText.Key("ClashOfRim.Xenotype.StatusAlreadyExists");
-            return true;
-        }
-
-        Current.Game.customXenotypeDatabase.customXenotypes.Add(loaded);
-        message = ClashOfRimText.Key("ClashOfRim.Xenotype.StatusRegistered");
         return true;
     }
 

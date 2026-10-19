@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.Gifts;
+using AIRsLight.ClashOfRim.Pawns;
 using AIRsLight.ClashOfRim.Modules.Trades;
 using RimWorld;
 using UnityEngine;
@@ -37,7 +37,7 @@ internal sealed class ClientPawnPreviewRuntime : IClientPawnPreviewRuntime
         catch { UnityEngine.Object.Destroy(texture); throw; }
     }
     public IClientPawnPreviewCard? Restore(ModPawnExchangePackageDto package, out string message)
-        => GiftPawnPackageUtility.TryRestoreTradePawn(package, out Pawn? pawn, out message) && pawn is not null ? new Card(pawn) : null;
+        => PawnPreviewScribeRestorer.TryRestore(package, out Pawn? pawn, out message) && pawn is not null ? new Card(pawn) : null;
     public void Show(IClientPawnPreviewCard card)
     { if (((Card)card).Value is { } pawn) Find.WindowStack.Add(new Dialog_InfoCard(pawn)); }
     public string Text(string key, params (string Name, object? Value)[] args)
@@ -56,7 +56,7 @@ internal sealed class ClientPawnPreviewRuntime : IClientPawnPreviewRuntime
         internal Pawn? Value { get; private set; }
         internal Card(Pawn value) => Value = value;
         // Drop only the cache reference. An already-open vanilla info card still
-        // owns this pawn; inbound restoration/relationship isolation is separate.
+        // owns this detached pawn. It is never committed to a world registry.
         public void Dispose() => Value = null;
     }
 }

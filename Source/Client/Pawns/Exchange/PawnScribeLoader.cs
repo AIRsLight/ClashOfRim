@@ -31,6 +31,14 @@ internal static class PawnScribeLoader
     }
 
     internal static bool TryLoad(PawnScribeDocument document, string label, [NotNullWhen(true)] out Pawn? pawn, out string message)
+        => Load(() => document.Build(ClashOfRimCompatibilityApi.IsPawnExchangeLocalSaveOnlyLoadId,
+            ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusScribeRootMissing")), label, out pawn, out message);
+
+    internal static bool TryLoadPreview(PawnScribeDocument document, string label, [NotNullWhen(true)] out Pawn? pawn, out string message)
+        => Load(() => document.BuildPreview(ClashOfRimCompatibilityApi.IsPawnExchangeLocalSaveOnlyLoadId,
+            ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusScribeRootMissing"), typeof(PawnPreviewIdeoTracker).FullName!), label, out pawn, out message);
+
+    private static bool Load(Func<string> build, string label, [NotNullWhen(true)] out Pawn? pawn, out string message)
     {
         pawn = null;
         message = string.Empty;
@@ -40,8 +48,7 @@ internal static class PawnScribeLoader
         bool started = false, finalized = false;
         try
         {
-            string xml = document.Build(ClashOfRimCompatibilityApi.IsPawnExchangeLocalSaveOnlyLoadId,
-                ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusScribeRootMissing"));
+            string xml = build();
             string directory = Path.Combine(Path.GetTempPath(), "ClashOfRim", "PawnExchangeScribe");
             Directory.CreateDirectory(directory);
             tempFile = Path.Combine(directory, Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture) + ".xml");

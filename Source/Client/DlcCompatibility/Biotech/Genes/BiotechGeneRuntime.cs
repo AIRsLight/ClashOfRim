@@ -65,6 +65,13 @@ internal static class BiotechGeneRuntime
         GeneCachedCustomXenotypeField?.SetValue(pawn.genes, null);
     }
 
+    internal static void SetPreviewCustomXenotype(Pawn pawn, CustomXenotype? xenotype)
+    {
+        if (pawn.genes is null) return;
+        GeneCachedHasCustomXenotypeField!.SetValue(pawn.genes, xenotype is not null);
+        GeneCachedCustomXenotypeField!.SetValue(pawn.genes, xenotype);
+    }
+
     internal static void ResetTrackerCaches(Pawn pawn)
     {
         if (pawn.genes is null)

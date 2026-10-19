@@ -44,6 +44,7 @@ internal static class IdeologyCompatibilityPackage
             IdeologyPawnReferenceCompatibility.RestorePawnReferenceMetadata);
         ClashOfRimCompatibilityApi.RegisterPawnExchangeExtensionAppender(IdeologyPawnReferenceCompatibility.AppendIdeologyPawnExchangeExtension);
         ClashOfRimCompatibilityApi.RegisterPawnExchangePackageNormalizer(IdeologyPawnReferenceCompatibility.NormalizeIdeologyPawnExchangePackage);
+        ClashOfRimCompatibilityApi.RegisterPawnPreviewRestorer(IdeologyPawnReferenceCompatibility.RestorePreview);
         ClashOfRimCompatibilityApi.RegisterPawnExchangeLocalSaveOnlyLoadIdPredicate(IdeologyPawnReferenceCompatibility.IsIdeologyLocalSaveOnlyLoadId);
         ClashOfRimCompatibilityApi.RegisterPawnSoldEffectHandler(IdeologyPawnReferenceCompatibility.ApplyPawnSoldEffects);
         ClashOfRimCompatibilityApi.RegisterTradeablePawnPredicate(IdeologyPawnReferenceCompatibility.IsTradeableSlavePawn);
