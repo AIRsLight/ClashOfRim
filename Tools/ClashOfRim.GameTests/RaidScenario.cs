@@ -16,17 +16,17 @@ internal sealed class RaidScenario(TestRun run, ScenarioPolling polling, Scenari
     IColonySnapshotIndexStore snapshots, DiplomacyRelationRegistry relations,
     IAuthoritativeEventLedger ledger, EventScenarioFixture eventFixture)
 {
-    internal async Task<RaidScenarioResult> RunAndReconnect(bool verifyLoss)
+    internal async Task<RaidScenarioResult> RunAndReconnect(bool verifyLoss, Func<string, Task>? inspectBattle = null)
     {
         int before = verifyLoss ? await colony.Stock("B", "Steel") : 0;
-        var result = await Run(verifyLoss);
+        var result = await Run(verifyLoss, inspectBattle);
         await entry.LoginExisting(true);
         if (verifyLoss)
             Check(result.DefenderLossCount is int loss && await colony.Stock("B", "Steel") == before - loss,
                 "Defender reload did not preserve battle loss exactly once.");
         return result;
     }
-    internal async Task<RaidScenarioResult> Run(bool verifyLoss)
+    internal async Task<RaidScenarioResult> Run(bool verifyLoss, Func<string, Task>? inspectBattle = null)
     {
         await polling.Idle("A"); await polling.Idle("B");
         string attackerColony = (await run.CallAsync("A", "clash.state")).String("colonyId");
@@ -76,6 +76,7 @@ internal sealed class RaidScenario(TestRun run, ScenarioPolling polling, Scenari
             string eventId = remote.GetProperty("session").String("relatedEventId");
             Check(remote.GetProperty("session").String("targetSnapshotId") == defenderSnapshot, "Raid loaded the wrong defender baseline.");
             await polling.Idle("A"); // The map opens before the departure snapshot transaction ends.
+            if (inspectBattle is not null) await inspectBattle(eventId);
             JsonElement loss = default;
             if (verifyLoss)
             {

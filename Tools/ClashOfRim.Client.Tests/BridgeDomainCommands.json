@@ -30,9 +30,19 @@
     "mode": "observe"
   },
   {
+    "method": "clash.combat",
+    "description": "Observe defense assignments, native pawn jobs, lords and faction relations on the selected map.",
+    "mode": "observe"
+  },
+  {
     "method": "clash.compatibility",
     "description": "Observe the original compatibility decision; only accepted language warnings offer continuation.",
     "mode": "observe"
+  },
+  {
+    "method": "clash.compatibility.close",
+    "description": "Close the original compatibility window and cancel its pending entry flow.",
+    "mode": "semantic"
   },
   {
     "method": "clash.compatibility.continue",
@@ -57,6 +67,16 @@
   {
     "method": "clash.fixture.bankDeadline",
     "description": "FIXTURE: shorten one existing unpaid quest's local deadline/next penalty to 10 ticks; leaves fees, stages, interval, ledger and punishment execution unchanged.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.combat",
+    "description": "FIXTURE: create assigned defenders, a manned mortar and friendly/hostile NPCs with native lords on the home map.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.combatTarget",
+    "description": "FIXTURE: move the existing hostile NPC into the hold defender's firing range on an active raid map.",
     "mode": "fixture"
   },
   {

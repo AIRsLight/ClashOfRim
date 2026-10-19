@@ -6,7 +6,7 @@ namespace ClashOfRim.GameTests;
 
 internal sealed class RemoteMapScenario(TestRun run, ScenarioPolling polling, ColonyScenarioFixture colony)
 {
-    internal async Task ObserveAlly(bool verifyIsolation)
+    internal async Task ObserveAlly(bool verifyIsolation, Func<Task>? inspectMap = null)
     {
         await polling.Idle("B"); await run.InvokeClientAsync("B", "StartManualSnapshotUpload"); await polling.Idle("B");
         await run.InvokeClientAsync("A", "StartSyncWorldMapMarkers");
@@ -20,6 +20,7 @@ internal sealed class RemoteMapScenario(TestRun run, ScenarioPolling polling, Co
         var remote = await polling.Wait("A", "clash.remote", null, s => s.Bool("active") && s.GetProperty("session").Bool("isObservation"));
         Check(remote.GetProperty("session").String("targetUserId") == "rimtest-B", "Wrong observation owner.");
         Check((await run.CallAsync("A", "game.state")).Int("mapCount") == before + 1, "Remote map did not open.");
+        if (inspectMap is not null) await inspectMap();
         if (verifyIsolation) await run.CallAsync("A", "clash.fixture.remoteLoss", new { acknowledgeFixture = true });
         Check((await run.CallAsync("A", "clash.remote.close")).Bool("invoked"), "Observation close was not accepted.");
         await polling.Wait("A", "clash.remote", null, s => !s.Bool("active"));

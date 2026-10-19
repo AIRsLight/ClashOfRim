@@ -27,6 +27,7 @@ internal static class ScenarioCatalog
     internal static readonly ScenarioGroup Account = ScenarioGroup.Cases("account", "account-password-change", "account-achievements-before-abandon",
         "account-liabilities-before-abandon", "account-abandon-owner", "account-rebuild-owner", "account-achievements-new-generation", "account-abandon-guest", "account-rebuild-guest");
     internal static readonly ScenarioGroup Bank = ScenarioGroup.Cases("bank", "bank-input-rejection", "bank-overdue-repayment", "bank-mercenary-debt", "mercenary-guard-purchase");
+    internal static readonly ScenarioGroup Combat = ScenarioGroup.Cases("combat", "baseline-entry-rejection", "alliance-request-accept", "combat-fixture", "remote-pawn-factions-ai", "caravan-load-travel", "raid-defense-points-ai");
     internal static readonly ScenarioGroup Relocation = ScenarioGroup.Cases("relocation", "relocation-caravan", "relocation-quest-site");
     internal static readonly ScenarioGroup Gravship = ScenarioGroup.Cases("gravship", "gravship-new-map", "gravship-quest-site");
     internal static readonly ScenarioGroup Transfers = ScenarioGroup.Cases("transfers", "alliance-request-accept", "remote-map-isolation-repeat", "pawn-state-fixture",
@@ -42,7 +43,7 @@ internal static class ScenarioCatalog
     // Reload last so a broken serialized world cannot hide independent live feature results.
     internal static readonly ScenarioGroup Finish = ScenarioGroup.Cases("finish", "snapshot-save-reload", "session-reconnect", "runtime-errors");
     private static readonly IReadOnlyDictionary<string, ScenarioGroup> stability = new[]
-    { Offline, Account, Bank, Relocation, Gravship, Transfers, SupportReturns, Catalog, CatalogSample, Stress, Items, Permanent, Death }
+    { Offline, Account, Bank, Combat, Relocation, Gravship, Transfers, SupportReturns, Catalog, CatalogSample, Stress, Items, Permanent, Death }
         .ToDictionary(g => g.Name, StringComparer.Ordinal);
     internal static bool SupportsStability(string kind) => stability.ContainsKey(kind);
     internal static ScenarioPlan Plan(SuiteProfile profile)

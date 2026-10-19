@@ -67,6 +67,8 @@ internal sealed class GameSuite
         var shopStress = new ShopStressScenario(run, colonyFixture, shopActions, serverState.ServerShop,
             (id, buyers) => ShopPersistenceProbe.Read(root, id, buyers), Path.Combine(root, "shop-stress.json"));
         var raids = new RaidScenario(run, polling, dialogs, caravanFixture, remoteMaps, entry, colonyFixture, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
+        var combat = new CombatScenario(run, polling, colonyFixture, remoteMaps, raids);
+        var compatibility = new CompatibilityBaselineScenario(run, polling, entry, serverState.CompatibilityBaseline, () => url, serverState.OnlinePresence.IsUserOnline);
         var accountAuthority = new AccountLifecycleAuthority(serverState.SnapshotStore, serverState.Players, serverState.WorldConfiguration,
             serverState.BankLoans, serverState.MercenaryContracts, serverState.OfflineAccounts, serverState.Ledger);
         var accountColonies = new AccountColonyScenario(run, polling, colonyFixture, economy, achievements, entry, chat, players, shopActions, accountAuthority, () => url);
@@ -100,6 +102,8 @@ internal sealed class GameSuite
             accounts.CreateSequence(),
             ScenarioCatalog.Bank.Bind(("bank-input-rejection", bank.InputBounds), ("bank-overdue-repayment", bank.OverdueRepayment),
                 ("bank-mercenary-debt", bank.MercenaryDebt), ("mercenary-guard-purchase", mercenaries.GuardPurchase)),
+            ScenarioCatalog.Combat.Bind(("baseline-entry-rejection", compatibility.RejectIncompatible), ("alliance-request-accept", diplomacy.Alliance),
+                ("combat-fixture", combat.Prepare), ("remote-pawn-factions-ai", combat.Observe), ("caravan-load-travel", caravanFixture.Travel), ("raid-defense-points-ai", combat.Raid)),
             ScenarioCatalog.Relocation.Bind(("relocation-caravan", () => relocation.Run("A", "caravan")), ("relocation-quest-site", () => relocation.Run("B", "site"))),
             ScenarioCatalog.Gravship.Bind(("gravship-new-map", () => gravship.Run("A", false)), ("gravship-quest-site", () => gravship.Run("B", true))),
             transfers.CreateSequence(withRaid: true), transfers.CreateSequence(withRaid: false),

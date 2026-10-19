@@ -338,6 +338,28 @@
       "snapshot-save-reload",
       "session-reconnect",
       "runtime-errors"
+    ],
+    "combat": [
+      "launch-profile",
+      "shared-world-entry",
+      "world-parameters",
+      "world-geometry",
+      "world-tile-data",
+      "world-feature-identities",
+      "storyteller-difficulty",
+      "culture-references",
+      "world-persistence",
+      "storyteller-permission",
+      "runtime-difficulty-sync",
+      "baseline-entry-rejection",
+      "alliance-request-accept",
+      "combat-fixture",
+      "remote-pawn-factions-ai",
+      "caravan-load-travel",
+      "raid-defense-points-ai",
+      "snapshot-save-reload",
+      "session-reconnect",
+      "runtime-errors"
     ]
   }
 }
