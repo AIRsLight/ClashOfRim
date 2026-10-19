@@ -1,0 +1,11 @@
+{
+  "id": "third-party-mvcf-active",
+  "features": false,
+  "stability": "third-party-pawns",
+  "mvcfEquipmentVerbs": true,
+  "thirdPartyCompatibility": true,
+  "mods": ["OskarPotocki.VanillaFactionsExpanded.Core", "erdelf.HumanoidAlienRaces", "Solaris.RatkinRaceMod", "Nals.FacialAnimation"],
+  "expansions": ["Royalty", "Ideology", "Biotech", "Anomaly", "Odyssey"],
+  "A": {"language": "English", "culture": "en-US"},
+  "B": {"language": "English", "culture": "fr-FR"}
+}

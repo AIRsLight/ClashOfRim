@@ -42,7 +42,7 @@ internal static class BridgeDomainModuleTests
                 || roots.Contains(Owner(t)) && Owner(t) != root);
             Check(violations.Count == 0, root.Name + " depends on a host or sibling domain: " + string.Join(Environment.NewLine, violations));
         }
-        Check(roots.Length == 16, "Missing command module in dependency verification.");
+        Check(roots.Length == 18, "Missing command module in dependency verification.");
     }
 
     private static void Admission()

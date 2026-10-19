@@ -14,6 +14,8 @@ internal static class DomainCommands
         Func<int> achievementVersion, Func<string> worldConfigurationId)
     {
         _ = new CompatibilityCommands(router, policy);
+        _ = new ThirdPartyCommands(router, objects, policy);
+        _ = new ThirdPartyMapCommands(router, policy);
         _ = new SupportCommands(router, objects, policy);
         _ = new MercenaryCommands(router, objects, policy);
         _ = new WorldStateCommands(router, objects, worldConfigurationId);

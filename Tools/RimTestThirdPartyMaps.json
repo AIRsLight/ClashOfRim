@@ -1,0 +1,11 @@
+{
+  "id": "third-party-maps",
+  "features": false,
+  "stability": "third-party-maps",
+  "thirdPartyCompatibility": true,
+  "thirdPartyPlugins": true,
+  "mods": ["OskarPotocki.VanillaFactionsExpanded.Core", "adaptive.storage.framework", "sbz.NeatStorage", "SmashPhil.VehicleFramework", "OskarPotocki.VanillaVehiclesExpanded", "co.uk.epicguru.meleeanimation"],
+  "expansions": [],
+  "A": {"language": "English", "culture": "en-US"},
+  "B": {"language": "English", "culture": "fr-FR"}
+}

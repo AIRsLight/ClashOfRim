@@ -1,0 +1,7 @@
+<Defs>
+  <MVCF.ModDef>
+    <defName>RimTest_MvcfEquipment</defName>
+    <label>RimTest MVCF equipment fixture</label>
+    <ActivateFeatures><li>ExtraEquipmentVerbs</li></ActivateFeatures>
+  </MVCF.ModDef>
+</Defs>

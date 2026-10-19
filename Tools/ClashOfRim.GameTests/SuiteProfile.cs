@@ -6,6 +6,7 @@ internal sealed record SuiteProfile
     public string Id { get; init; } = "core-features";
     public bool Features { get; init; } = true;
     public bool GiftReplay { get; init; }
+    public bool MvcfEquipmentVerbs { get; init; }
     public string? Stability { get; init; }
     public string[]? CatalogDefinitions { get; init; }
     public int Coverage { get; init; } = 30;

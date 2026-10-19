@@ -60,6 +60,11 @@
     "mode": "observe"
   },
   {
+    "method": "clash.fixture.alienStatue",
+    "description": "FIXTURE: generate an installed alien pawn and its ordinary CompStatue for cross-player item tests.",
+    "mode": "fixture"
+  },
+  {
     "method": "clash.fixture.bankCash",
     "description": "FIXTURE: replace spawned home silver with an explicit 0..20000 balance to test insufficient/exact payment; does not change bank records.",
     "mode": "fixture"
@@ -120,6 +125,11 @@
     "mode": "fixture"
   },
   {
+    "method": "clash.fixture.stopThirdPartyAnimation",
+    "description": "FIXTURE: end the native test duel after projection verification, before unrelated caravan simulation.",
+    "mode": "fixture"
+  },
+  {
     "method": "clash.fixture.supportDeath",
     "description": "FIXTURE: kill one active borrowed pawn through the game's death path; requires explicit acknowledgement.",
     "mode": "fixture"
@@ -127,6 +137,16 @@
   {
     "method": "clash.fixture.supportDue",
     "description": "FIXTURE: advance one active temporary support quest deadline to the next game tick; does not run or complete the quest.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.thirdPartyMap",
+    "description": "FIXTURE: prepare native adaptive storage, vehicle crew and a registered melee duel for remote projection tests.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.thirdPartyProbe",
+    "description": "FIXTURE: install read-only MVCF call observation for subsequent real pawn transfers.",
     "mode": "fixture"
   },
   {
@@ -273,6 +293,26 @@
     "method": "clash.support.return",
     "description": "Use the original quest early-return button, including completion tracking.",
     "mode": "semantic"
+  },
+  {
+    "method": "clash.thirdParty.map",
+    "description": "Observe native adaptive containers, vehicle passengers and active animations on one map.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.thirdParty.pawn",
+    "description": "Observe existing MVCF manager, verb ownership and restore calls without creating a manager.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.thirdParty.runtime",
+    "description": "Observe loaded third-party runtime types and installed compatibility patches; does not invoke adapters.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.thirdParty.statues",
+    "description": "Observe statue display pawns and alien appearance independently of transfer metadata.",
+    "mode": "observe"
   },
   {
     "method": "clash.trade.beacon",

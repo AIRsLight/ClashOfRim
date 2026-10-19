@@ -1,0 +1,8 @@
+[
+  { "id": "har", "mods": ["erdelf.HumanoidAlienRaces"], "types": ["AlienRace.HARStatueContainer"] },
+  { "id": "vef", "mods": ["OskarPotocki.VanillaFactionsExpanded.Core"], "types": ["VEF.VFEGlobal", "MVCF.Utilities.PawnVerbUtility", "MVCF.VerbManager"] },
+  { "id": "adaptive-storage", "mods": ["adaptive.storage.framework"], "types": ["AdaptiveStorage.ThingClass"] },
+  { "id": "vehicle-framework", "mods": ["SmashPhil.VehicleFramework"], "types": ["Vehicles.VehiclePawn"] },
+  { "id": "melee-animation", "mods": ["co.uk.epicguru.meleeanimation"], "types": ["AM.AnimationManager"] },
+  { "id": "facial-animation", "mods": ["Nals.FacialAnimation"], "types": ["FacialAnimation.HarmonyPatches+ExposableString"] }
+]

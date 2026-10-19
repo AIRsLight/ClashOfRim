@@ -68,6 +68,8 @@ internal sealed class GameSuite
             (id, buyers) => ShopPersistenceProbe.Read(root, id, buyers), Path.Combine(root, "shop-stress.json"));
         var raids = new RaidScenario(run, polling, dialogs, caravanFixture, remoteMaps, entry, colonyFixture, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
         var combat = new CombatScenario(run, polling, colonyFixture, remoteMaps, raids);
+        var thirdParty = new ThirdPartyScenario(run, polling, colonyFixture, tradeActions, support, profile.MvcfEquipmentVerbs);
+        var thirdPartyMaps = new ThirdPartyMapScenario(run, colonyFixture, remoteMaps, raids, () => url);
         var compatibility = new CompatibilityBaselineScenario(run, polling, entry, serverState.CompatibilityBaseline, () => url, serverState.OnlinePresence.IsUserOnline);
         var accountAuthority = new AccountLifecycleAuthority(serverState.SnapshotStore, serverState.Players, serverState.WorldConfiguration,
             serverState.BankLoans, serverState.MercenaryContracts, serverState.OfflineAccounts, serverState.Ledger);
@@ -104,6 +106,11 @@ internal sealed class GameSuite
                 ("bank-mercenary-debt", bank.MercenaryDebt), ("mercenary-guard-purchase", mercenaries.GuardPurchase)),
             ScenarioCatalog.Combat.Bind(("baseline-entry-rejection", compatibility.RejectIncompatible), ("alliance-request-accept", diplomacy.Alliance),
                 ("combat-fixture", combat.Prepare), ("remote-pawn-factions-ai", combat.Observe), ("caravan-load-travel", caravanFixture.Travel), ("raid-defense-points-ai", combat.Raid)),
+            ScenarioCatalog.ThirdPartyPawns.Bind(("alien-statue-fixture", thirdParty.PrepareStatue), ("statue-native-reload-control", thirdParty.NativeReload), ("alien-statue-cancel", thirdParty.CancelStatue),
+                ("alien-statue-delivery-reload", thirdParty.DeliverStatue), ("alliance-request-accept", diplomacy.Alliance),
+                ("caravan-load-travel", async () => await caravanFixture.Travel(await caravanFixture.PreparePawnState())), ("vef-pawn-support-restore", thirdParty.TransferPawn)),
+            ScenarioCatalog.ThirdPartyMaps.Bind(("alliance-request-accept", diplomacy.Alliance), ("third-party-map-fixture", thirdPartyMaps.Prepare),
+                ("third-party-map-projection", thirdPartyMaps.Observe), ("caravan-load-travel", caravanFixture.Travel), ("third-party-vehicle-defense", thirdPartyMaps.Raid)),
             ScenarioCatalog.Relocation.Bind(("relocation-caravan", () => relocation.Run("A", "caravan")), ("relocation-quest-site", () => relocation.Run("B", "site"))),
             ScenarioCatalog.Gravship.Bind(("gravship-new-map", () => gravship.Run("A", false)), ("gravship-quest-site", () => gravship.Run("B", true))),
             transfers.CreateSequence(withRaid: true), transfers.CreateSequence(withRaid: false),

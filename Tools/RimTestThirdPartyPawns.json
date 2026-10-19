@@ -1,0 +1,10 @@
+{
+  "id": "third-party-pawns",
+  "features": false,
+  "stability": "third-party-pawns",
+  "thirdPartyCompatibility": true,
+  "mods": ["OskarPotocki.VanillaFactionsExpanded.Core", "erdelf.HumanoidAlienRaces", "Solaris.RatkinRaceMod", "Nals.FacialAnimation"],
+  "expansions": ["Royalty", "Ideology", "Biotech", "Anomaly", "Odyssey"],
+  "A": {"language": "English", "culture": "en-US"},
+  "B": {"language": "English", "culture": "fr-FR"}
+}

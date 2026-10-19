@@ -1,0 +1,8 @@
+<ModMetaData>
+  <name>RimTest MVCF equipment fixture</name>
+  <author>ClashOfRim tests</author>
+  <packageId>AIRsLight.RimTest.MvcfEquipmentFixture</packageId>
+  <supportedVersions><li>1.7</li></supportedVersions>
+  <modDependencies><li><packageId>OskarPotocki.VanillaFactionsExpanded.Core</packageId><displayName>Vanilla Expanded Framework</displayName></li></modDependencies>
+  <description>Test-only native MVCF feature declaration. Activates equipment verbs during ordinary startup, before pawn and verb creation.</description>
+</ModMetaData>

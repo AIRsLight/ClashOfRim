@@ -9,7 +9,7 @@ internal sealed class SupportScenario(TestRun run, ScenarioPolling polling, Scen
     CaravanScenario caravanFixture, IAuthoritativeEventLedger ledger, EventScenarioFixture events)
 {
     internal Task Run() => Run("early", false);
-    internal async Task Run(string mode, bool verifyState)
+    internal async Task Run(string mode, bool verifyState, Func<string, Task>? inspectReceivedPawn = null)
     {
         await polling.Idle("A"); await polling.Idle("B");
         var previousEvents = Items(await run.CallAsync("B", "clash.events", new { limit = 200 })).Select(v => v.GetProperty("data").String("eventId")).ToHashSet();
@@ -67,6 +67,7 @@ internal sealed class SupportScenario(TestRun run, ScenarioPolling polling, Scen
             Check(receivedIdeo.ValueKind != JsonValueKind.Null, "Support lost pawn ideology.");
             foreach (string field in new[] { "culture", "foundation", "memes", "precepts" }) Equal(identity.GetProperty("ideology").GetProperty(field), receivedIdeo.GetProperty(field), "Support changed pawn ideology " + field);
         }
+        if (inspectReceivedPawn is not null) await inspectReceivedPawn(Items(assigned).Single(s => s.String("eventId") == id).String("pawnThingId"));
         if (mode == "death") await run.CallAsync("B", "clash.fixture.supportDeath", new { thingId = Items(assigned).Single(s => s.String("eventId") == id).String("pawnThingId"), acknowledgeFixture = true });
         if (mode is "expiry" or "death") await run.CallAsync("B", "clash.fixture.supportDue", new { eventId = id, acknowledgeFixture = true });
         else Check((await run.CallAsync("B", "clash.support.return", new { eventId = id })).Bool("accepted"), "Early support return rejected.");
