@@ -39,12 +39,40 @@ internal static class ClientColonySiteEventTests
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
                 foreach (var kind in Enum.GetValues<ClientColonySiteEvent>()) Events(kind).GetAwaiter().GetResult();
             }
+            Polling(harmony).GetAwaiter().GetResult();
         }
         finally
         {
             harmony.UnpatchAll(harmony.Id); ClientColonySiteEvents.Attach(binding); CultureInfo.CurrentCulture = culture;
             warnings.Clear(); dispatched = null; ClientSessionWork.Reset();
         }
+    }
+    private static async Task Polling(Harmony harmony)
+    {
+        using var runtime = new ClientGameComponentTestRuntime(harmony.Id);
+        harmony.Patch(AccessTools.Method(typeof(ClientColonySiteEvents), nameof(ClientColonySiteEvents.PollAsync)),
+            postfix: new HarmonyMethod(typeof(ClientColonySiteEventTests), nameof(Dispatched)));
+        var a = new ClientColonyAppearanceTests.Fixture(); var f = new ClientColonyRegistrationTests.Fixture();
+        a.Flow.SaveCurrent(new("Color", null, null, "#123abc"));
+        var events = new ClientColonySiteEvents(f.Registration, a.Flow); var game = New<Game>(); Current.Game = game; f.Ports.GameOwner = game;
+        var component = new ClashOfRimGameComponent(game);
+        async Task Tick(int ticks) { runtime.Ticks = ticks; dispatched = null; component.GameComponentTick(); await f.Ports.PumpUntil(dispatched ?? Task.CompletedTask); }
+        await Tick(0); Check(dispatched is null, "Unbound component dispatched site registration.");
+        ClientColonySiteEvents.Attach(events); await Tick(0); await Tick(9999);
+        Check(f.Calls.Count == 1 && f.CapturedAppearance?.ColorHex == "#123abc", "Component polling bypassed module or lost appearance.");
+        f.Sites[0].Label = "new label"; await Tick(10000); Check(f.Calls.Count == 2, "Component omitted due registration.");
+        Current.Game = New<Game>(); f.Ports.GameOwner = Current.Game; await Tick(20000);
+        Check(f.Calls.Count == 2, "Old component polled registration for the new game.");
+        component = new ClashOfRimGameComponent(Current.Game); await Tick(20000);
+        Check(f.Calls.Count == 3, "New game inherited an old registration deadline.");
+        ClientColonySiteEvents.Attach(new(f.Registration, a.Flow));
+        f.Sites[0].Label = "replacement";
+        await f.Ports.PumpUntil(events.PollAsync(Current.Game, 30000));
+        Check(f.Calls.Count == 3, "Detached event adapter polled registration.");
+        await Tick(30000); Check(f.Calls.Count == 4, "Replacement event adapter did not reuse registration.");
+        a.Once("read", () => f.Change("user")); await Tick(40000);
+        Check(f.Calls.Count == 4, "Preference read registered old appearance for another account.");
+        await Tick(40001); Check(f.Calls.Count == 5, "New account remained throttled by the old capture's deadline.");
     }
     private static async Task Events(ClientColonySiteEvent kind)
     {

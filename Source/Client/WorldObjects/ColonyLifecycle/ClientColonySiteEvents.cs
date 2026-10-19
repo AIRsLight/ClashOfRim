@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
@@ -14,9 +15,13 @@ internal sealed class ClientColonySiteEvents
     internal static ClientColonySiteEvents? Current { get; private set; }
     internal static void Attach(ClientColonySiteEvents? value) => Current = value;
     private readonly ClientColonyRegistration registration;
-    private readonly ClientColonyAppearance appearance;
+    private readonly Func<ModColonyAppearanceDto?> captureAppearance;
     internal ClientColonySiteEvents(ClientColonyRegistration registration, ClientColonyAppearance appearance)
-    { this.registration = registration; this.appearance = appearance; }
+    { this.registration = registration; captureAppearance = appearance.Capture; }
+
+    internal Task PollAsync(Game game, int ticks)
+        => ReferenceEquals(Current, this) && ReferenceEquals(game, Verse.Current.Game)
+            ? registration.PollSitesAsync(ticks, captureAppearance) : Task.CompletedTask;
 
     internal async Task NotifyAsync(MapParent? parent, Map? map, ClientColonySiteEvent kind)
     {
@@ -26,7 +31,7 @@ internal sealed class ClientColonySiteEvents
             if (ClashOfRimCompatibilityApi.IsPlayerColonySiteRegistrationSuppressedByCompatibility()) return null;
             string reason = ClashOfRimText.Key(kind == ClientColonySiteEvent.Settled
                 ? "ClashOfRim.WorldCatalog.ReasonPlayerColonyMapCreated" : "ClashOfRim.WorldCatalog.ReasonPlayerColonyMapRemoved");
-            var selected = appearance.Capture();
+            var selected = captureAppearance();
             return ReferenceEquals(Current, this) ? new(reason, selected) : null;
         }
         try { await registration.NotifySitesAsync(Capture).ConfigureAwait(false); }

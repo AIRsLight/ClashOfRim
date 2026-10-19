@@ -43,7 +43,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
     private string activeObservationTargetSnapshotId = string.Empty;
     private string lineageSnapshotId = string.Empty;
     private string lineageToken = string.Empty;
-    private int nextPlayerColonySiteRegistrationTick;
     private int nextRemoteWorldObjectOrphanCleanupTick;
     private readonly Game game;
     private bool worldMapWasSelected;
@@ -88,7 +87,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
         ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
         mod?.AdvanceRaidRecovery();
         TryStartAutomaticRuntimeSession();
-        TryRegisterPlayerColonySites(mod, ticks);
+        _ = ClientColonySiteEvents.Current?.PollAsync(game, ticks);
         mod?.PollWorldSynchronization(ticks);
         TryCleanupRemoteWorldObjectOrphans(ticks);
         TryFinishExpiredRaidBattle(mod);
@@ -872,20 +871,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
 
     private void TryStartAutomaticRuntimeSession()
         => _ = ClientAutomaticSessionStartup.Current?.PollAsync(game);
-
-    private void TryRegisterPlayerColonySites(ClashOfRimMod? mod, int ticks)
-    {
-        if (ticks < nextPlayerColonySiteRegistrationTick)
-        {
-            return;
-        }
-
-        nextPlayerColonySiteRegistrationTick = ticks + 10000;
-        if (mod?.CanRegisterPlayerColonySites == true)
-        {
-            mod.StartRegisterPlayerColonySites();
-        }
-    }
 
     private void TryRefreshWorldMapMarkers(ClashOfRimMod? mod)
     {

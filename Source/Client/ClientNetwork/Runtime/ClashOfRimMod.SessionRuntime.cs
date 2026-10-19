@@ -31,9 +31,6 @@ public sealed partial class ClashOfRimMod
         => _ = worldSynchronization.RequestAsync(ClientWorldSynchronizationKind.RuntimeObjects, "runtime-world-object-sync");
     internal void PollWorldSynchronization(int ticks) => _ = worldSynchronization.Poll(ticks);
 
-    internal void StartRegisterPlayerColonySites()
-        => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Sites, colonyAppearance.Capture());
-
     internal void StartSyncWorldConfigurationExtensions()
         => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Extensions);
 

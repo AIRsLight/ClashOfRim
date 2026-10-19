@@ -41,6 +41,7 @@ internal sealed class ClientColonyRegistration
     private readonly Pending?[] pending = new Pending?[2];
     private ClientColonyRegistrationKind? activeKind;
     private bool suppressed, muteNext;
+    private int nextSitePoll;
     internal event Action<string, bool>? Diagnostic;
     internal ClientColonyRegistration(ClientSessionLifecycle session, IClientWorldIdentity identity, ClientLocalMutationCoordinator mutations,
         IClientColonyRegistrationRuntime runtime, IClientColonyRegistrationTransport transport, ClientWorldPublication publication)
@@ -57,7 +58,7 @@ internal sealed class ClientColonyRegistration
     private void Clear()
     {
         for (int i = 0; i < 2; i++) { accepted[i] = null; revisions[i] = new(); pending[i] = null; }
-        activeKind = null; suppressed = muteNext = false;
+        activeKind = null; suppressed = muteNext = false; nextSitePoll = 0;
     }
     private bool Eligible(ClientColonyRegistrationKind kind, ClientRequestTracker<Boundary>.Scope scope)
     {
@@ -70,6 +71,16 @@ internal sealed class ClientColonyRegistration
     }
     private bool Unblocked(ClientColonyRegistrationKind kind) => kind == ClientColonyRegistrationKind.Sites
         ? !suppressed && !mutations.IsPending : !mutations.BlocksGameLifecycle;
+    internal Task PollSitesAsync(int ticks, Func<ModColonyAppearanceDto?> captureAppearance)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        var scope = requests.Capture();
+        if (ticks < nextSitePoll) return Task.CompletedTask;
+        nextSitePoll = ticks + 10000;
+        if (requests.Busy || !Eligible(ClientColonyRegistrationKind.Sites, scope) || !requests.TryApply(scope, static () => { })) return Task.CompletedTask;
+        var appearance = captureAppearance();
+        return requests.TryApply(scope, static () => { }) ? StartAsync(ClientColonyRegistrationKind.Sites, appearance) : Task.CompletedTask;
+    }
     internal Task StartAsync(ClientColonyRegistrationKind kind, ModColonyAppearanceDto? appearance = null)
     {
         using var publication = ClientSessionWork.EnterPublication();

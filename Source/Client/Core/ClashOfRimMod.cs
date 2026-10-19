@@ -547,7 +547,6 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool CanSyncRuntimeWorldObjects => worldSynchronization.CanStart(ClientWorldSynchronizationKind.RuntimeObjects);
 
-    internal bool CanRegisterPlayerColonySites => colonyRegistration.CanStart(ClientColonyRegistrationKind.Sites);
     internal bool CanSyncWorldConfigurationExtensions => colonyRegistration.CanStart(ClientColonyRegistrationKind.Extensions);
 
     internal bool CanRefreshCaravanArrivalTargets => worldSynchronization.CanStart(ClientWorldSynchronizationKind.CaravanTargets);

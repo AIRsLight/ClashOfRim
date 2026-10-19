@@ -77,23 +77,18 @@ internal static class ClientAutomaticSessionStartupTests
         Check(f.Calls.SequenceEqual(new[] { "login", "upload" }), "Rejected source check consumed the automatic opportunity: " + change);
     }
     private static readonly List<Task> observed = new();
-    private static int drains;
     private static async Task EngineEntrypoints()
     {
         var prior = ClientAutomaticSessionStartup.Current; var priorGame = Current.Game;
         var harmony = new Harmony("ClashOfRim.Tests.AutomaticSessionStartup");
-        void Prefix(System.Reflection.MethodBase method, string name) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientAutomaticSessionStartupTests), name));
-        Prefix(AccessTools.Method(typeof(LoadedModManager), nameof(LoadedModManager.GetMod), Type.EmptyTypes, new[] { typeof(ClashOfRimMod) }), nameof(NoMod));
-        Prefix(AccessTools.PropertyGetter(typeof(Find), nameof(Find.TickManager)), nameof(NoTicks));
-        Prefix(AccessTools.Method(typeof(ClashOfRimGameComponent), "RunMainThreadActions"), nameof(Drain));
-        Prefix(AccessTools.Method(typeof(ClashOfRimGameComponent), "TryCleanupRemoteWorldObjectOrphans"), nameof(Skip));
+        using var runtime = new ClientGameComponentTestRuntime(harmony.Id);
         harmony.Patch(AccessTools.Method(typeof(ClientAutomaticSessionStartup), nameof(ClientAutomaticSessionStartup.PollAsync)),
             postfix: new HarmonyMethod(typeof(ClientAutomaticSessionStartupTests), nameof(Observe)));
         try
         {
-            drains = 0; var game = New<Game>(); Current.Game = game;
+            var game = New<Game>(); Current.Game = game;
             var component = new ClashOfRimGameComponent(game); ClientAutomaticSessionStartup.Attach(null);
-            component.GameComponentTick(); Check(observed.Count == 0 && drains == 1, "Unbound component failed its normal queue callback.");
+            component.GameComponentTick(); Check(observed.Count == 0 && runtime.Drains == 1, "Unbound component failed its normal queue callback.");
             var f = ClientSessionStartupTests.AutomaticFixture(); f.Ports.GameOwner = game; f.HasMap = false;
             var adapter = new ClientAutomaticSessionStartup(f.Module); ClientAutomaticSessionStartup.Attach(adapter);
             component.GameComponentTick(); await Pump(f); Check(f.Calls.IsEmpty, "Component consumed startup before map readiness.");
@@ -119,10 +114,6 @@ internal static class ClientAutomaticSessionStartupTests
     }
     private static async Task Pump(ClientSessionStartupTests.Fixture f) { var work = Task.WhenAll(observed.ToArray()); observed.Clear(); await f.Ports.PumpUntil(work); }
     private static void Observe(Task __result) => observed.Add(__result);
-    private static bool NoMod(ref ClashOfRimMod? __result) { __result = null; return false; }
-    private static bool NoTicks(ref TickManager? __result) { __result = null; return false; }
-    private static bool Drain() { drains++; return false; }
-    private static bool Skip() => false;
     private static T New<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 }

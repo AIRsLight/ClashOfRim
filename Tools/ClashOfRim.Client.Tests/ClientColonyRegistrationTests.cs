@@ -19,6 +19,7 @@ internal static class ClientColonyRegistrationTests
         var culture = CultureInfo.CurrentCulture; scenarios = 0;
         try
         {
+            await PeriodicSites();
             foreach (string name in new[] { "en-US", "zh-CN", "fr-FR", "tr-TR" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name); Signatures();
@@ -36,6 +37,51 @@ internal static class ClientColonyRegistrationTests
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
     }
     private static readonly string[] Changes = { "user", "auth", "server", "colony", "login", "generation", "world-id", "game", "world", "reset", "unavailable", "snapshot" };
+    private static async Task PeriodicSites()
+    {
+        var f = new Fixture(); int captures = 0;
+        ModColonyAppearanceDto Appearance() { captures++; return new() { ColorHex = "123abc" }; }
+        Task Poll(int ticks) => f.Ports.PumpUntil(f.Registration.PollSitesAsync(ticks, Appearance));
+        await Poll(0); await Poll(0); await Poll(9999);
+        Check(captures == 1 && f.Calls.Count == 1 && f.CapturedAppearance?.ColorHex == "123abc", "Site polling lost its immediate/10000-tick cadence or appearance.");
+        await Poll(10000); Check(captures == 2 && f.Calls.Count == 1, "Periodic unchanged sites bypassed accepted-signature deduplication.");
+        f.Sites[0].Label = "changed"; await Poll(20000);
+        Check(captures == 3 && f.Calls.Count == 2, "Periodic changed sites were skipped.");
+        await f.Ports.PumpUntil(f.Registration.RequestAsync(ClientColonyRegistrationKind.Sites, "explicit"));
+        Check(f.Calls.Count == 3, "Periodic cadence throttled an explicit registration event.");
+        await Poll(29999); Check(captures == 3, "Explicit registration reset the polling deadline.");
+        f.Sites[0].Label = "failed"; f.Fault = "http"; await Poll(30000); f.Fault = null; await Poll(40000);
+        Check(f.Calls.Count == 5, "Periodic failure consumed the changed-site signature."); scenarios++;
+
+        foreach (string change in Changes)
+        {
+            var owner = new Fixture(); await owner.Ports.PumpUntil(owner.Registration.PollSitesAsync(100, () => null));
+            owner.Change(change);
+            await owner.Ports.PumpUntil(owner.Registration.PollSitesAsync(101, () => null));
+            Check(owner.Calls.Count == (change is "snapshot" or "unavailable" ? 1 : 2), "Site polling deadline crossed/reset the wrong ownership: " + change);
+            if (change is "snapshot" or "unavailable") continue;
+            var replacing = new Fixture();
+            await replacing.Ports.PumpUntil(replacing.Registration.PollSitesAsync(0, () => { replacing.Change(change); return new() { ColorHex = "stale" }; }));
+            Check(replacing.Calls.Count == 0, "Periodic appearance read crossed original ownership: " + change);
+            await replacing.Run(ClientColonyRegistrationKind.Sites);
+            Check(replacing.CapturedAppearance is null, "Rejected periodic capture retained appearance in the next request."); scenarios++;
+        }
+        foreach (string gate in new[] { "suppressed", "pending", "remote", "playing" })
+        {
+            var denied = new Fixture(); int reads = 0;
+            switch (gate)
+            {
+                case "suppressed": denied.Registration.Suppressed = true; break;
+                case "pending": denied.Mutations.Begin(LocalMutationKind.SnapshotRestore, "pending"); break;
+                case "remote": denied.Remote = true; break;
+                case "playing": denied.Playing = false; break;
+            }
+            Task Tick(int ticks) => denied.Ports.PumpUntil(denied.Registration.PollSitesAsync(ticks, () => { reads++; return null; }));
+            await Tick(0); denied.Registration.Suppressed = false; denied.Mutations.Reset(); denied.Remote = false; denied.Playing = true;
+            await Tick(9999); Check(reads == 0 && denied.Calls.Count == 0, "Denied polling captured preferences or retried every tick: " + gate);
+            await Tick(10000); Check(reads == 1 && denied.Calls.Count == 1, "Eligible site polling did not resume: " + gate); scenarios++;
+        }
+    }
     private static void Signatures()
     {
         var a = Site(); var b = Site(); b.TileLayerId = 7;

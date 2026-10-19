@@ -3302,3 +3302,13 @@ GameComponent 不再保存 `automaticSessionAttempted` 或分别询问 Mod 资�
 新增测试复用会话启动夹具，检查七种可恢复准入、来源失效、一次成功／失败、显式重试、回调重入、十种检查期间的归属变化，以及真实 GameComponent Tick 的未绑定、未就绪、同 Game 多组件、旧 Game／新 Game 和适配器替换。引擎测试替换 Mod 查找、TickManager、队列调度及无关孤儿清理，登录与上传通过原夹具运行真实业务模块；没有启动游戏场景。两项临时错误实现分别被 `An already used game automatically retried after session removal.`、`Old GameComponent started the replacement game's login.` 捕获，日志 `LocalOnly/module-migration/automatic-session-{once,game}-negative.log`，错误实现已恢复。
 
 **4 个相关单元组通过**：新增自动启动、会话启动、主线程入口交接和模块边界。最终日志 `LocalOnly/module-migration/automatic-session-tests.log`；守卫检查 1,655 个纯模块类型、127 个兼容能力类型、117 个页面／适配类型及 312 个事件适配类型。生产随测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，未推送。下一步 **M11o8b：世界视图刷新、站点定期登记及运行时对象轮询**，继续复用各自模块并从 GameComponent 收回相关状态；M11、M12 和最终审计仍开放。
+
+### M11o8b1：站点定期登记复用现有登记模块（2026-10-19）
+
+10000 tick 的站点轮询期限从 GameComponent 移入 `ClientColonyRegistration`，与原请求作用域一同重置。组件将原 Game 和 tick 交给现有 `ClientColonySiteEvents`，删除定期登记私有方法、计时字段及两个已无调用方的 Mod 资格／启动转发。适配器复用现有外观捕获，并缓存该委托避免每 tick 新建；旧组件或已替换的适配器不能轮询当前场景。
+
+定时入口只负责期限、准入及外观捕获前后的归属，随后调用原 `StartAsync`。忙碌／抑制／远端地图期间不读取偏好，也不向待办登记新意图；显式事件仍走原强制刷新，不受定时器限流。相同数据继续由既有接受签名去重，失败继续保留下一周期重试。归属切换清除旧期限，普通快照前进不重置期限；外观读取期间切换账户不会为新账户登记旧值，也不会把旧期限留给新账户。
+
+扩展现有登记和站点事件测试，覆盖首次及边界轮询、未变化／变化／失败重试、显式事件、各类归属变更、抑制及临时准入拒绝，并执行真实 GameComponent Tick 检查原 Game、适配器替换及外观读取回调。两个组件入口测试共享 `ClientGameComponentTestRuntime` 的引擎队列、计时及无关清理替身，登录／登记仍运行正式模块，未执行实际游戏场景。临时保留旧期限、删除捕获后归属检查分别被 `Site polling deadline crossed/reset the wrong ownership: user`、`Periodic appearance read crossed original ownership: user` 捕获，日志 `LocalOnly/module-migration/site-poll-{deadline,scope}-negative.log`，错误实现已恢复。
+
+**5 个相关单元组通过**：站点事件、登记业务／协议、自动登录入口和模块边界。最终日志 `LocalOnly/module-migration/site-poll-tests.log`；边界守卫数量保持 1,655／127／117／312。生产随测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，未推送。GameComponent 原有 Update 修改继续保留未暂存。下一步 **M11o8b2：世界视图刷新与运行时对象轮询**；后续袭击／聊天界面、网络／服务器门面、M12 和最终审计仍开放。
