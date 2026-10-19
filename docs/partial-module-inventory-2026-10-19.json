@@ -1,6 +1,6 @@
 {
   "date": "2026-10-19",
-  "head": "66496c68",
+  "head": "258305ca",
   "includes_existing_worktree_changes": true,
   "scope": [
     "Source",
@@ -14,7 +14,7 @@
     "1.6",
     "ThirdPartyCompat/1.6"
   ],
-  "source_files_scanned": 1851,
+  "source_files_scanned": 1861,
   "method": "Roslyn syntax declarations grouped by namespace and containing type. Lines span each type declaration including whitespace and nested types; do not sum nested fixture lines with parent types. Direct methods and fields only. Cross-part references count resolved symbols, not a complete MSBuild or runtime dependency graph.",
   "types": [
     {
@@ -499,39 +499,25 @@
     },
     {
       "Type": "ClashOfRim.GameTests.GameSuite",
-      "Parts": 9,
-      "Files": 9,
-      "Lines": 880,
-      "Methods": 39,
-      "Fields": 35,
+      "Parts": 6,
+      "Files": 6,
+      "Lines": 555,
+      "Methods": 19,
+      "Fields": 44,
       "ConstFields": 0,
-      "ReadOnlyFields": 31,
-      "CrossPartFields": 20,
-      "CrossFileCalls": 41,
+      "ReadOnlyFields": 40,
+      "CrossPartFields": 26,
+      "CrossFileCalls": 22,
       "FieldsByReach": [
         {
           "Name": "colonyFixture",
-          "Files": 8,
+          "Files": 5,
           "References": [
             "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.Features.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.Gravship.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.Relocation.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs"
-          ],
-          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
-        },
-        {
-          "Name": "run",
-          "Files": 4,
-          "References": [
-            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.Features.cs"
           ],
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
@@ -547,17 +533,6 @@
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
         {
-          "Name": "entry",
-          "Files": 4,
-          "References": [
-            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.Administration.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs"
-          ],
-          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
-        },
-        {
           "Name": "mercenaries",
           "Files": 3,
           "References": [
@@ -568,22 +543,32 @@
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
         {
-          "Name": "caravanFixture",
+          "Name": "diplomacy",
           "Files": 3,
           "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.Features.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs"
           ],
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
         {
-          "Name": "server",
+          "Name": "trades",
           "Files": 3,
           "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs",
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
+          "Name": "entry",
+          "Files": 3,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.Features.cs"
+            "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs"
           ],
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
@@ -597,11 +582,11 @@
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
         {
-          "Name": "dialogs",
+          "Name": "run",
           "Files": 2,
           "References": [
-            "Tools/ClashOfRim.GameTests/GameSuite.cs",
-            "Tools/ClashOfRim.GameTests/GameSuite.Features.cs"
+            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
           ],
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
@@ -615,11 +600,56 @@
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
         {
+          "Name": "passwords",
+          "Files": 2,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
+          "Name": "chat",
+          "Files": 2,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
+          "Name": "players",
+          "Files": 2,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
           "Name": "shop",
           "Files": 2,
           "References": [
             "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
+          "Name": "tradeActions",
+          "Files": 2,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
+          "Name": "complexItems",
+          "Files": 2,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.cs",
+            "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs"
           ],
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
@@ -634,6 +664,15 @@
         },
         {
           "Name": "shopStress",
+          "Files": 2,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.cs",
+            "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
+          "Name": "caravanFixture",
           "Files": 2,
           "References": [
             "Tools/ClashOfRim.GameTests/GameSuite.cs",
@@ -683,6 +722,15 @@
           "References": [
             "Tools/ClashOfRim.GameTests/GameSuite.cs",
             "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
+          "Name": "server",
+          "Files": 2,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs",
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
           ],
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
@@ -761,7 +809,31 @@
           "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
         },
         {
+          "Name": "dialogs",
+          "Files": 1,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
           "Name": "polling",
+          "Files": 1,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
+          "Name": "administration",
+          "Files": 1,
+          "References": [
+            "Tools/ClashOfRim.GameTests/GameSuite.cs"
+          ],
+          "Declaration": "Tools/ClashOfRim.GameTests/GameSuite.cs"
+        },
+        {
+          "Name": "appearance",
           "Files": 1,
           "References": [
             "Tools/ClashOfRim.GameTests/GameSuite.cs"
@@ -829,44 +901,23 @@
         {
           "File": "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
           "Line": 7,
-          "Lines": 154,
+          "Lines": 149,
           "Methods": 4,
           "Fields": 4
         },
         {
-          "File": "Tools/ClashOfRim.GameTests/GameSuite.Administration.cs",
-          "Line": 5,
-          "Lines": 39,
-          "Methods": 3,
-          "Fields": 0
-        },
-        {
           "File": "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs",
           "Line": 8,
-          "Lines": 93,
-          "Methods": 6,
-          "Fields": 0
-        },
-        {
-          "File": "Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs",
-          "Line": 7,
-          "Lines": 72,
-          "Methods": 3,
+          "Lines": 20,
+          "Methods": 1,
           "Fields": 0
         },
         {
           "File": "Tools/ClashOfRim.GameTests/GameSuite.cs",
           "Line": 15,
-          "Lines": 190,
+          "Lines": 202,
           "Methods": 10,
-          "Fields": 31
-        },
-        {
-          "File": "Tools/ClashOfRim.GameTests/GameSuite.Features.cs",
-          "Line": 15,
-          "Lines": 148,
-          "Methods": 9,
-          "Fields": 0
+          "Fields": 40
         },
         {
           "File": "Tools/ClashOfRim.GameTests/GameSuite.Gravship.cs",
@@ -896,28 +947,10 @@
         "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Idle",
         "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Invoke",
         "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Step",
-        "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs -> Tools/ClashOfRim.GameTests/GameSuite.Features.cs:Alliance",
-        "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs -> Tools/ClashOfRim.GameTests/GameSuite.Features.cs:CreateTrade",
-        "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs -> Tools/ClashOfRim.GameTests/GameSuite.Features.cs:PrivateChat",
-        "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs -> Tools/ClashOfRim.GameTests/GameSuite.Features.cs:TradeFulfill",
-        "Tools/ClashOfRim.GameTests/GameSuite.Administration.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Call",
-        "Tools/ClashOfRim.GameTests/GameSuite.Administration.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Idle",
-        "Tools/ClashOfRim.GameTests/GameSuite.Administration.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Invoke",
         "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Call",
-        "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Idle",
         "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Invoke",
-        "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs -> Tools/ClashOfRim.GameTests/GameSuite.Features.cs:CreateTrade",
-        "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs -> Tools/ClashOfRim.GameTests/GameSuite.Features.cs:TradeFulfill",
-        "Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Call",
-        "Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Idle",
-        "Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Invoke",
-        "Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Step",
         "Tools/ClashOfRim.GameTests/GameSuite.cs -> Tools/ClashOfRim.GameTests/GameSuite.Stability.cs:RunStability",
         "Tools/ClashOfRim.GameTests/GameSuite.cs -> Tools/ClashOfRim.GameTests/GameSuite.Stability.cs:StabilityCases",
-        "Tools/ClashOfRim.GameTests/GameSuite.Features.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Call",
-        "Tools/ClashOfRim.GameTests/GameSuite.Features.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Confirm",
-        "Tools/ClashOfRim.GameTests/GameSuite.Features.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Idle",
-        "Tools/ClashOfRim.GameTests/GameSuite.Features.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Invoke",
         "Tools/ClashOfRim.GameTests/GameSuite.Gravship.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Call",
         "Tools/ClashOfRim.GameTests/GameSuite.Gravship.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Confirm",
         "Tools/ClashOfRim.GameTests/GameSuite.Gravship.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Idle",
@@ -928,7 +961,6 @@
         "Tools/ClashOfRim.GameTests/GameSuite.Relocation.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Invoke",
         "Tools/ClashOfRim.GameTests/GameSuite.Relocation.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Step",
         "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs -> Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs:AccountLifecycle",
-        "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs -> Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs:ComplexItems",
         "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs -> Tools/ClashOfRim.GameTests/GameSuite.cs:Call",
         "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs -> Tools/ClashOfRim.GameTests/GameSuite.Gravship.cs:GravshipMove",
         "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs -> Tools/ClashOfRim.GameTests/GameSuite.Relocation.cs:Relocate"
@@ -1753,5 +1785,6 @@
         "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs -> Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs:RunRecoveryPreparation"
       ]
     }
-  ]
+  ],
+  "worktree_note": "Includes uncommitted chat, diplomacy and colony appearance scenario extraction and deletion of GameSuite.Features.cs. Committed HEAD still has 20 types, 49 declarations, 37 files and 7 GameSuite parts; this inventory is a static working-tree snapshot, not completion evidence for the pending migration."
 }
