@@ -3384,3 +3384,13 @@ GameComponent 的世界视图选中状态、30 秒期限和刷新私有方法收
 临时移除表单有效性和窗口去重检查分别被 `Closed menu form reopened or retained its password.`、`Opening entry duplicated windows or started login.` 捕获，日志 `LocalOnly/module-migration/menu-entry-{form,duplicate}-negative.log`，错误实现已恢复。**5 个相关单元组通过**：新菜单入口、菜单保存、原入口表单、入口启动（336 场景）及模块边界。最终日志 `LocalOnly/module-migration/menu-entry-tests.log`；守卫检查 1,670／127／136／312 个类型。未跑全量回归、专项 RimTest 或独立构建，未推送；冻结 1.6 和原有未提交修改继续保留。
 
 **下一步 M11o10：公共兼容 API 的会话读取与世界刷新接线。** `ClashOfRimCompatibilityApi` 仍通过 Mod 查询多人状态、管理员状态和请求世界基线刷新；按这些领域的现有模块迁移，避免新增聚合所有能力的门面。之后继续网络／服务器过渡门面、M12 和最终审计，完整目标仍未完成。
+
+### M11o10：公共兼容 API 直接连接领域所有者（2026-10-19）
+
+`ClashOfRimCompatibilityApi` 在装配时分别绑定原 `ClientSessionLifecycle`、`ClientAdminAccess` 和 `ClientWorldCatalog`，删除 Mod 查询及已无调用方的四个 Mod 资格／刷新转发。公共签名及第三方注册能力保持不变，不增加汇集全部能力的新门面。多人判断合并了被快照会话条件覆盖的活跃世界条件，继续包含观察与袭击地图；管理员查询沿用原权限所有权。暂时不可用时查询仍可返回已有管理员标志，但原管理操作准入继续拒绝执行。
+
+世界刷新继续执行原目录模块的准备、完整基线读取和发布流程。原因翻译放入原请求所有权内：翻译期间账户、世界或装配变化会拒绝旧请求；嵌套刷新先取得的后续请求不会被外层恢复执行覆盖。翻译异常释放该请求并由公开入口返回 false，允许随后重试。返回值仍表示是否接受分派，网络失败或缺少凭据不被误报成分派失败。
+
+专项测试复用现有目录夹具和翻译替身，检查普通／Unicode 原因、完整基线读取、多人状态、管理员权限的身份变化，以及翻译期间十二类变化、嵌套刷新、异常和重试。**3 个相关单元组通过**：兼容运行时入口、原目录刷新（876 场景）及模块边界；日志 `LocalOnly/module-migration/compatibility-runtime-final-tests.log`。守卫检查 1,671／127／141／312 个类型。生产随单元项目编译；未运行全量回归、专项 RimTest 或独立构建，未推送。冻结 1.6 和原有未提交修改保留。
+
+**下一步 M11o11：Ideology 共享世界资格与设置生命周期。** `ClassicIdeoSetupPatch` 所在命名空间尚未纳入兼容守卫，仍查找 Mod 并调用综合兼容 API；迁移到原会话／设置模块后补充对应依赖守卫。网络／服务器门面、M12 与最终审计仍待完成。

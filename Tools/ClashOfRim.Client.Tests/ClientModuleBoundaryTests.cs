@@ -183,6 +183,8 @@ internal static class ClientModuleBoundaryTests
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.MainMenu.ClientServerEntryWindows)
                 || t == typeof(AIRsLight.ClashOfRim.MainMenu.ClashOfRimMainMenuPatches)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.MainMenu.ClashOfRimMainMenuPatches)
+                || t == typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi)
+                || t.DeclaringType == typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.ClientNetwork.ClientAutomaticSessionStartup)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupPages)
                 || t == typeof(AIRsLight.ClashOfRim.MainMenu.ClashOfRimWorldSetupPatches)

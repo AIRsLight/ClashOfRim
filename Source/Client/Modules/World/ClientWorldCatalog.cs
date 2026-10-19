@@ -36,7 +36,27 @@ internal sealed class ClientWorldCatalog
         this.metadata = metadata;
     }
     internal Task RefreshAsync(string reason, bool generation = false)
-        => RefreshAsync(requests.Begin(replace: true)!, reason, generation);
+    {
+        TryRefresh(() => reason, generation, static () => true, out var work);
+        return work;
+    }
+    // Translate external reasons inside the same request ownership as the read.
+    // A reentrant refresh wins instead of being replaced when translation returns.
+    internal bool TryRefresh(Func<string> reason, bool generation, Func<bool> sourceCurrent, out Task work)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        var request = requests.Begin(replace: true)!;
+        work = Task.CompletedTask;
+        try
+        {
+            string text = reason();
+            if (!sourceCurrent() || !requests.TryApply(request, static () => { }))
+            { requests.End(request); return false; }
+            work = RefreshAsync(request, text, generation);
+            return true;
+        }
+        catch { requests.End(request); throw; }
+    }
 
     private async Task RefreshAsync(ClientRequestTracker<IClientWorldCatalogSession>.Request request, string reason, bool generation)
     {

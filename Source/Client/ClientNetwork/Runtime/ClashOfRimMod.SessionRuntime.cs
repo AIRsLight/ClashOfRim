@@ -38,13 +38,4 @@ public sealed partial class ClashOfRimMod
 
     internal void OpenAbandonPlayerColonyConfirmation(MapParent colony)
         => colonyAbandonment.Open(new ClientColonyAbandonTarget(colony));
-
-    internal void RequestServerWorldBaselineRefresh(string reason)
-    {
-        StartRefreshWorldConfigurationCatalog(reason, includeGenerationBaseline: true);
-    }
-
-    private void StartRefreshWorldConfigurationCatalog(string reason, bool includeGenerationBaseline = false)
-        => _ = worldCatalog.RefreshAsync(reason, includeGenerationBaseline);
-
 }

@@ -166,6 +166,8 @@ public sealed partial class ClashOfRimMod : Mod
         eventState = new ClientEventState(eventReader, eventReadPresentation);
         diagnostics = new ClientRuntimeDiagnostics(sessionLifecycle, eventState);
         adminAccess = new ClientAdminAccess(sessionLifecycle);
+        ClashOfRimCompatibilityApi.AttachSession(sessionLifecycle);
+        ClashOfRimCompatibilityApi.AttachAdministration(adminAccess);
         adminBaselineCapture = new ClientAdminBaselineCapture(sessionLifecycle, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime(), ClientMainThreadDispatcher.EnqueueSession);
         var localManifest = new ClientLocalCompatibilityManifest();
         compatibilityBaseline = new ClientCompatibilityBaseline(new ClientCompatibilityBaselineRuntime());
@@ -330,6 +332,7 @@ public sealed partial class ClashOfRimMod : Mod
         colonyRegistration.Diagnostic += (message, warning) => { if (warning) Log.Warning(message); else ClashLog.Message(message); };
         worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,
             new ClientWorldCatalogPresentation(message => diagnostics.WorldMapStatus = message), worldPublication, serverMetadata);
+        ClashOfRimCompatibilityApi.AttachCatalog(worldCatalog);
         var worldWritePresentation = new ClientWorldWritePresentation(message => administration.Message = message);
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
             storytellerConfiguration, worldPublication, worldWritePresentation, worldWritePresentation);
@@ -548,9 +551,6 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool ShouldShowMultiplayerMainButton => sessionLifecycle.HasConfiguredSession;
 
-    internal bool IsInActiveMultiplayerSession => sessionStartup.IsInActiveWorld;
-
-    internal bool CanUseVanillaMenuSnapshotUpload => snapshotSaving.CanUseMenu;
 
 
 

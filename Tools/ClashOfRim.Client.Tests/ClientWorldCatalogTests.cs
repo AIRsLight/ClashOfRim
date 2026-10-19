@@ -248,7 +248,7 @@ internal static class ClientWorldCatalogTests
         },
         Extensions = new() { new() { ProviderId = "pollution", PayloadJson = "{\"pollution\":0.25}" } }
     };
-    private sealed class Fixture : IClientWorldCatalogRuntime, IClientWorldCatalogPresentation, IClientWorldPreparationTransport,
+    internal sealed class Fixture : IClientWorldCatalogRuntime, IClientWorldCatalogPresentation, IClientWorldPreparationTransport,
         IClientWorldConfigurationRuntime, IClientWorldConfigurationStore, IClientStorytellerRuntime, IClientWorldFeatureCatalogTransport, IClientServerMetadata
     {
         internal readonly EventModuleTestPorts Ports = new();

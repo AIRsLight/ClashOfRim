@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("compatibility runtime entries use session permission and world catalog owners", CompatibilityRuntimeEntryTests.Run),
     ("main menu server entry binds native windows to the existing entry forms", ClientMainMenuEntryTests.Run),
     ("main menu saving and engine exits preserve original ownership and save workflow", ClientMainMenuSavingTests.Run),
     ("chat overlay owns game drafts and cadence while reusing account conversation", ClientChatOverlayTests.Run),

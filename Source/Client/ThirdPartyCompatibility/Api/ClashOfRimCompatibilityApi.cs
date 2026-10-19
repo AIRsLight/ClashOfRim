@@ -2,23 +2,25 @@ using AIRsLight.ClashOfRim.ThirdPartyCompatibility.RemoteMaps;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility.Pawns;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility.Things;
 using AIRsLight.ClashOfRim.Modules.Compatibility;
+using AIRsLight.ClashOfRim.Modules.Administration;
+using AIRsLight.ClashOfRim.Modules.Sessions;
+using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.RemoteMaps;
-using AIRsLight.ClashOfRim.Raids;
-using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim;
-using RimWorld;
-using RimWorld.Planet;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Xml.Linq;
-using UnityEngine;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 
 public static partial class ClashOfRimCompatibilityApi
 {
+    // Composition binds each existing domain directly. Public compatibility
+    // entry points do not own a second session, permission or catalog state.
+    private static ClientSessionLifecycle? session;
+    private static ClientAdminAccess? administration;
+    private static ClientWorldCatalog? catalog;
+    internal static void AttachSession(ClientSessionLifecycle? value) => session = value;
+    internal static void AttachAdministration(ClientAdminAccess? value) => administration = value;
+    internal static void AttachCatalog(ClientWorldCatalog? value) => catalog = value;
     private static readonly CompatibilityRegistrationScope Registrations = new(message => Log.Warning(message));
     private static readonly AdminBaselineCompatibility AdminBaseline = new(Registrations);
     private static readonly WorldConfigurationCompatibility WorldConfiguration = new(Registrations);
@@ -54,10 +56,9 @@ public static partial class ClashOfRimCompatibilityApi
         {
             try
             {
-                ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-                return mod is not null
-                    && (mod.IsInActiveMultiplayerSession
-                        || mod.CanUseVanillaMenuSnapshotUpload
+                var current = session;
+                return current is not null
+                    && (current.HasSnapshotSession(current.ReadContext())
                         || ClashOfRimGameComponent.HasActiveRemoteMapSession
                         || ClashOfRimGameComponent.HasActiveRaidBattleSession);
             }
@@ -74,7 +75,7 @@ public static partial class ClashOfRimCompatibilityApi
         {
             try
             {
-                return LoadedModManager.GetMod<ClashOfRimMod>()?.IsAdministrator == true;
+                return administration?.IsAdministrator == true;
             }
             catch
             {
@@ -84,28 +85,22 @@ public static partial class ClashOfRimCompatibilityApi
     }
 
     public static bool RequestServerWorldBaselineRefresh(string reason)
+        => RequestWorldBaseline(() => reason);
+
+    public static bool RequestServerWorldBaselineRefreshByKey(string translationKey)
+        => RequestWorldBaseline(() => ClashOfRimText.Key(translationKey));
+
+    private static bool RequestWorldBaseline(Func<string> reason)
     {
         try
         {
-            ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-            if (mod is null)
-            {
-                return false;
-            }
-
-            mod.RequestServerWorldBaselineRefresh(reason);
-            return true;
+            var current = catalog;
+            return current is not null && current.TryRefresh(reason, generation: true, () => ReferenceEquals(catalog, current), out _);
         }
         catch
         {
             return false;
         }
     }
-
-    public static bool RequestServerWorldBaselineRefreshByKey(string translationKey)
-    {
-        return RequestServerWorldBaselineRefresh(ClashOfRimText.Key(translationKey));
-    }
-
 
 }
