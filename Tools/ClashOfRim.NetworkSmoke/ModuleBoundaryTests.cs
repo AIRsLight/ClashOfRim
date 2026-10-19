@@ -45,8 +45,8 @@ internal static class ModuleBoundaryTests
                 or "AIRsLight.ClashOfRim.Network.Modules.Compatibility" or "AIRsLight.ClashOfRim.Network.Modules.Sessions"
                 or "AIRsLight.ClashOfRim.Network.Modules.World" or "AIRsLight.ClashOfRim.Network.Modules.Chat"
                 or "AIRsLight.ClashOfRim.Network.Modules.Achievements" or "AIRsLight.ClashOfRim.Network.Modules.Admin"
-            && t.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints" or "ChatEndpoints" or "AchievementEndpoints")
-            && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints" or "ChatEndpoints" or "AchievementEndpoints")).ToArray();
+                or "AIRsLight.ClashOfRim.Network.Modules.Events"
+            && !IsHttpEndpoint(t)).ToArray();
         var transportLeaks = ModuleDependencyGuard.FindViolations(business,
             t => t.Namespace?.StartsWith("Microsoft.AspNetCore.Http", StringComparison.Ordinal) == true);
         Require(transportLeaks.Count == 0, string.Join(Environment.NewLine, transportLeaks));
@@ -76,6 +76,17 @@ internal static class ModuleBoundaryTests
     }
 
     private sealed record EndpointContract(string Kind, string Route, string Method, bool OwnsRecovery);
+    private static bool IsHttpEndpoint(Type type)
+    {
+        // Async handlers can nest their state machine beneath a closure type.
+        for (Type? owner = type; owner is not null; owner = owner.DeclaringType)
+            if (owner.Name is "BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints"
+                or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints"
+                or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints"
+                or "ChatEndpoints" or "AchievementEndpoints" or "EventReadEndpoints" or "EventFailureEndpoints") return true;
+        return false;
+    }
+
     private static void Require(bool ok, string message) { if (!ok) throw new Exception(message); }
     private sealed class ForbiddenProbe { public static void Execute() { } }
     private sealed class SignatureProbe { public ForbiddenProbe? Result { get; set; } }

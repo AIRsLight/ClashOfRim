@@ -4,7 +4,6 @@ using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 using TestStore = SnapshotEndpointRecoveryPreparationTests.Store;
 
 internal static partial class EventFailureReportTests
@@ -128,14 +127,13 @@ internal static partial class EventFailureReportTests
         var request = new ReportEventApplicationFailureRequest(invalid.StartsWith("fields") ? "" : "key", f.Source.EventId,
             invalid == "body" ? "intruder" : f.Source.Target.UserId, f.Source.Target.ColonyId!, "current", "reason", null,
             invalid is "token" or "fields" ? "invalid" : f.AuthToken);
-        ReportEventApplicationFailureResponse reply;
-        try { reply = (ReportEventApplicationFailureResponse)((IValueHttpResult)typeof(ClashOfRimNetworkServer)
-            .GetMethod("ReportEventApplicationFailure", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.Invoke(null, [request, f.State])!).Value!; }
-        catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is not null)
-        { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
+        var reply = f.State.EventFailureReports.Report(request);
         Require(!reply.Result.Accepted && reply.AffectedEventCount == 0 && reply.TerminalStatus == ""
-            && reply.Result.ErrorCode == (invalid.StartsWith("fields") ? ProtocolErrorCode.ValidationFailed : ProtocolErrorCode.ServerRejected)
-            && before == f.Evidence() && f.Store.Writes == 0, "Invalid failure report recovered pending business."); f.AssertReleased();
+            && reply.Result.ErrorCode == (invalid.StartsWith("fields") ? ProtocolErrorCode.ValidationFailed
+                : invalid == "token" ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.ServerRejected)
+            && before == f.Evidence() && f.Store.Writes == 0,
+            $"Invalid failure report changed its response or pending business: {f.Kind}/{invalid}; "
+            + $"response={JsonSerializer.Serialize(reply)}, evidenceChanged={before != f.Evidence()}, writes={f.Store.Writes}."); f.AssertReleased();
     }
 
     private static void VerifyDelegatedRecovery(RecoveryFixture f, string change)

@@ -1,11 +1,8 @@
-using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 
 internal static class TradeFailureGraphTests
@@ -176,9 +173,8 @@ internal static class TradeFailureGraphTests
     {
         var party = root.Type == ServerEventType.Trade ? root.Actor : root.Target;
         var token = TradeCommandAuthTests.Token(state, party.UserId, party.ColonyId);
-        try { return (ReportEventApplicationFailureResponse)((IValueHttpResult)typeof(ClashOfRimNetworkServer).GetMethod("ReportEventApplicationFailure", BindingFlags.Static | BindingFlags.NonPublic)!
-            .Invoke(null, [new ReportEventApplicationFailureRequest("failure", root.EventId, party.UserId, party.ColonyId!, "snapshot", "landing failed", null, token), state])!).Value!; }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
+        return state.EventFailureReports.Report(new ReportEventApplicationFailureRequest(
+            "failure", root.EventId, party.UserId, party.ColonyId!, "snapshot", "landing failed", null, token));
     }
     private static ClashOfRimNetworkState State(IAuthoritativeEventLedger ledger) => new(ledger: ledger, serverConfiguration: new ClashOfRimServerConfiguration(tradeOrderExpiration: TimeSpan.Zero));
     private static IAuthoritativeEventLedger Open(string storage, string root) => storage switch

@@ -2,7 +2,6 @@ using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.Data.Sqlite;
-using System.Reflection;
 
 internal static class TradeClosureTests
 {
@@ -27,7 +26,7 @@ internal static class TradeClosureTests
                 Execute(database, $"create trigger fail_close before {phase} on events begin select raise(abort, 'injected closure failure'); end;");
                 bool failed = false;
                 try { Close(state, scenario, order, delivery); }
-                catch (Exception ex) when (ex is SqliteException || ex is TargetInvocationException { InnerException: SqliteException }) { failed = true; }
+                catch (SqliteException) { failed = true; }
                 Require(failed, "Closure failure was not injected.");
                 state = Open();
                 Require(state.Ledger.ListAll().Count == before.Count && before.All(pair => state.Ledger.Find(pair.Key)!.Status == pair.Value),
@@ -135,8 +134,6 @@ internal static class TradeClosureTests
 
     private static void Close(ClashOfRimNetworkState state, string scenario, AuthoritativeEvent order, AuthoritativeEvent? delivery)
     {
-        object? Invoke(string name, params object?[] args) => typeof(ClashOfRimNetworkServer)
-            .GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args);
         switch (scenario)
         {
             case "cancel": state.Trades.CancelTradeOrder(new CloseTradeOrderRequest("cancel", order.EventId,
@@ -147,9 +144,12 @@ internal static class TradeClosureTests
                     Array.Empty<TrapClassificationDto>()), DateTimeOffset.UtcNow); break;
             case "failure":
                 AuthoritativeEvent current = state.Ledger.Find(delivery!.EventId)!;
-                // The public endpoint returns DuplicateRequest once the durable failure batch is present.
-                if (current.Status == ServerEventStatus.Failed) return;
-                Invoke("FailEventApplicationGraph", state, current, null, "delivery failed", DateTimeOffset.UtcNow); break;
+                var party = current.Target;
+                var token = TradeCommandAuthTests.Token(state, party.UserId, party.ColonyId);
+                var result = state.EventFailureReports.Report(new ReportEventApplicationFailureRequest(
+                    "failure", current.EventId, party.UserId, party.ColonyId!, "current", "delivery failed", null, token));
+                Require(result.Result.Accepted, "Failure closure was rejected.");
+                break;
         }
     }
 

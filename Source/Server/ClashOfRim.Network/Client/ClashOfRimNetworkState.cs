@@ -209,6 +209,7 @@ public sealed class ClashOfRimNetworkState
             PendingConfirmations, shopCommits, AdminBaseline, Plugins, CompatibilityBaseline, RuntimeLogger, () => ServerConfiguration);
         EventDelivery = new EventDeliveryService(SnapshotAuthorization, SnapshotMutations, Ledger,
             EventNotifications, OnlinePresence, new SupportDeliveryReconciliation(Ledger, Players, EventNotifications));
+        EventFailureReports = new EventFailureReports(ColonyAuthorization, SnapshotMutations, Ledger, TradeLifecycle, EventNotifications, OnlinePresence);
         SessionPresence = new SessionPresence(SessionConnections, () => RuntimeLogger);
         SessionNotifications = new SessionNotifications(EventNotifications, ChatNotifications, WorldConfigurationNotifications, PlayerOnlineNotifications);
         Chat = new ChatService(ColonyAuthorization, SnapshotMutations, ChatMessages, Players, ChatNotifications);
@@ -275,6 +276,7 @@ public sealed class ClashOfRimNetworkState
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
     internal ColonySnapshotAuthorization SnapshotAuthorization { get; }
     internal EventDeliveryService EventDelivery { get; }
+    internal EventFailureReports EventFailureReports { get; }
     internal SessionPrincipalAuthorization SessionPrincipals { get; }
     internal SnapshotRequestAuthorization SnapshotRequests { get; }
     internal AdministratorAuthorization AdminAuthorization { get; }

@@ -26,4 +26,45 @@ internal static class EventFailureNotifications
             throw new InvalidOperationException("Failure notification conflicts with its source.");
     }
 
+    internal static IEnumerable<AuthoritativeEvent> Create(
+        IAuthoritativeEventLedger ledger, OnlinePresenceRegistry presence,
+        AuthoritativeEvent rootEvent,
+        IReadOnlyCollection<AuthoritativeEvent> affected,
+        string reason,
+        DateTimeOffset nowUtc)
+    {
+        IReadOnlyList<EventParty> targets = affected
+            .SelectMany(evt => new[] { evt.Actor, evt.Target })
+            .Where(target => !string.IsNullOrWhiteSpace(target.UserId)
+                && !string.Equals(target.UserId, "server", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(target => target.UserId + "\n" + target.ColonyId, StringComparer.Ordinal)
+            .Select(group => group.First())
+            .ToList();
+
+        foreach (EventParty target in targets)
+        {
+            string notificationId = $"event-application-failed:{rootEvent.EventId}:{target.UserId}:{target.ColonyId}";
+            if (ledger.FindByIdempotencyKey(notificationId) is { } existing)
+            {
+                ValidateFailureNotification(rootEvent, existing);
+                yield return existing;
+                continue;
+            }
+            AuthoritativeEvent notification = AuthoritativeEventFactory.CreateForLedger(ledger,
+                ServerEventType.ServerNotification,
+                new EventParty("server"),
+                target,
+                notificationId,
+                presence.IsUserOnline(target.UserId),
+                new ServerNotificationEventPayload(
+                    notificationId,
+                    ServerText.Format("Events.ApplicationFailedTitle"),
+                    ServerText.Format("Events.ApplicationFailedMessage", ("EVENT", rootEvent.EventId), ("REASON", reason)),
+                    ServerNotificationSeverity.Warning,
+                    FromAdministrator: false, RelatedEventId: rootEvent.EventId, RelatedEventType: rootEvent.Type),
+                nowUtc,
+                rootEvent.TargetContext);
+            yield return notification;
+        }
+    }
 }

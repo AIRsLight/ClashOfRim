@@ -1,11 +1,9 @@
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 
 internal static partial class EventFailureReportTests
@@ -301,9 +299,7 @@ internal static partial class EventFailureReportTests
         user ??= root.Target.UserId; colony ??= root.Target.ColonyId!;
         token ??= Token(state, user, colony);
         var request = new ReportEventApplicationFailureRequest("request-" + reason, root.EventId, user, colony, "current", reason, source, token);
-        try { return (ReportEventApplicationFailureResponse)((IValueHttpResult)typeof(ClashOfRimNetworkServer)
-            .GetMethod("ReportEventApplicationFailure", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [request, state])!).Value!; }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
+        return state.EventFailureReports.Report(request);
     }
     private static string Token(ClashOfRimNetworkState state, string user, string colony)
     { var now = DateTimeOffset.UtcNow; state.LoginSessions.TryCreate(user, colony, now, out var session); return state.AuthTokens.Issue(user, user, colony, session, now); }
