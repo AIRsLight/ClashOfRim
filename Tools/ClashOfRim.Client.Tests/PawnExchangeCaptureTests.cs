@@ -8,6 +8,7 @@ using System.Text;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.Pawns;
+using AIRsLight.ClashOfRim.Modules.Pawns;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using HarmonyLib;
 using RimWorld;
@@ -91,13 +92,14 @@ internal static class PawnExchangeCaptureTests
     private static void VerifyReferenceDecoding(IReadOnlyList<ModPawnScribePawnReferenceReplacementDto> references)
     {
         // Placeholder names are opaque map entries, including packages written by the old gift builder.
-        var read = typeof(PawnExchangeScribeRestorer).GetMethod("BuildPawnLoadDocument", BindingFlags.Static | BindingFlags.NonPublic)!;
         foreach (string placeholder in new[] { references[1].PlaceholderLoadId, "ClashOfRimGiftPlaceholderPawn_legacy" })
         {
             var replacement = new ModPawnScribePawnReferenceReplacementDto
             { SourceLoadId = references[1].SourceLoadId, PlaceholderLoadId = placeholder, Reference = references[1].Reference };
             string xml = "<pawn><gearOwner>" + replacement.SourceLoadId + "</gearOwner><oldOwner>" + placeholder + "</oldOwner><name>local</name></pawn>";
-            string restored = (string)read.Invoke(null, new object[] { xml, new[] { replacement } })!;
+            Require(PawnScribeDocument.Read(new() { Xml = xml, PawnReferenceReplacements = new() { replacement } }, out var document)
+                == PawnScribePayloadError.None, "Captured reference payload was rejected.");
+            string restored = document!.Build(static _ => false, "missing root");
             Require(!restored.Contains("gearOwner") && !restored.Contains("oldOwner") && restored.Contains("<name>local</name>"), "Decoder leaked an external pawn ID or interpreted a placeholder prefix.");
         }
     }

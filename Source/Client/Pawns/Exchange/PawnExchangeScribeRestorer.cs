@@ -3,11 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using System.Xml;
-using System.Xml.Linq;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
@@ -19,7 +15,6 @@ namespace AIRsLight.ClashOfRim.Pawns;
 
 internal static class PawnExchangeScribeRestorer
 {
-    private const int MaxScribeXmlBytes = 1024 * 1024;
     private const string RelationshipPlaceholderTagPrefix = "ClashOfRim.RelationshipPlaceholder:";
     private const string PawnGlobalIdTagPrefix = "ClashOfRim.PawnGlobalId:";
 
@@ -75,25 +70,7 @@ internal static class PawnExchangeScribeRestorer
     {
         pawn = null;
         message = string.Empty;
-        ModPawnScribePayloadDto? scribe = package.Scribe;
-        if (scribe is null || string.IsNullOrWhiteSpace(scribe.Xml))
-        {
-            message = ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusMissingScribe", label.Named("LABEL"));
-            return false;
-        }
-
-        if (Encoding.UTF8.GetByteCount(scribe.Xml) > MaxScribeXmlBytes)
-        {
-            message = ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusScribeTooLarge", label.Named("LABEL"));
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(scribe.XmlSha256)
-            && !string.Equals(ComputeSha256Hex(scribe.Xml), scribe.XmlSha256, StringComparison.OrdinalIgnoreCase))
-        {
-            message = ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusScribeHashMismatch", label.Named("LABEL"));
-            return false;
-        }
+        if (!PawnScribeLoader.TryPrepare(package.Scribe, label, out var document, out message)) return false;
 
         if (!ClashOfRimCompatibilityApi.TryRegisterPawnExchangePackageExtensions(package, out string extensionMessage))
         {
@@ -104,45 +81,9 @@ internal static class PawnExchangeScribeRestorer
             return false;
         }
 
-        string? tempFile = null;
-        bool initialized = false;
-        bool finalized = false;
         try
         {
-            ClashLog.Message(
-                "[ClashOfRim][PawnExchange] scribe restore begin label="
-                + label
-                + " global="
-                + (package.Reference?.GlobalId ?? "<null>")
-                + " replacements="
-                + (scribe.PawnReferenceReplacements?.Count ?? 0)
-                + ".");
-            string wrappedXml = BuildPawnLoadDocument(scribe.Xml, scribe.PawnReferenceReplacements);
-            string directory = Path.Combine(Path.GetTempPath(), "ClashOfRim", "PawnExchangeScribe");
-            Directory.CreateDirectory(directory);
-            tempFile = Path.Combine(directory, Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture) + ".xml");
-            File.WriteAllText(tempFile, wrappedXml, Encoding.UTF8);
-
-            Scribe.loader.InitLoading(tempFile);
-            initialized = true;
-            Pawn? restored = null;
-            ClashLog.Message("[ClashOfRim][PawnExchange] scribe deep look begin label=" + label + ".");
-            Scribe_Deep.Look(ref restored, "pawn");
-            ClashLog.Message("[ClashOfRim][PawnExchange] scribe finalize begin label=" + label + ".");
-            Scribe.loader.FinalizeLoading();
-            finalized = true;
-            ClashLog.Message(
-                "[ClashOfRim][PawnExchange] scribe restore loaded label="
-                + label
-                + " pawn="
-                + (restored?.ThingID ?? "<null>")
-                + ".");
-
-            if (restored is null)
-            {
-                message = ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusScribeReturnedNull", label.Named("LABEL"));
-                return false;
-            }
+            if (!PawnScribeLoader.TryLoad(document, label, out var restored, out message)) return false;
 
             if (!validator(restored))
             {
@@ -155,7 +96,7 @@ internal static class PawnExchangeScribeRestorer
                 restored.SetFaction(Faction.OfPlayer);
             }
 
-            if (!TryValidateRestoredPawnRuntimeState(restored, label, out message))
+            if (!PawnScribeLoader.ValidateRuntimeState(restored, label, out message))
             {
                 return false;
             }
@@ -226,310 +167,6 @@ internal static class PawnExchangeScribeRestorer
                 ex.GetType().Name.Named("TYPE"),
                 ex.Message.Named("MESSAGE"));
             return false;
-        }
-        finally
-        {
-            if (initialized && !finalized)
-            {
-                try
-                {
-                    Scribe.loader.ForceStop();
-                }
-                catch (Exception ex) when (ex is InvalidOperationException or NullReferenceException)
-                {
-                    Log.Warning("[ClashOfRim] Failed to force-stop Scribe loader after pawn exchange restore failure: " + ex);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(tempFile))
-            {
-                TryDelete(tempFile!);
-            }
-        }
-    }
-
-    private static string BuildPawnLoadDocument(
-        string xml,
-        IReadOnlyList<ModPawnScribePawnReferenceReplacementDto>? referenceReplacements)
-    {
-        XDocument source = ParseScribeXml(xml);
-        XElement root = source.Root ?? throw new InvalidOperationException(ClashOfRimText.Key("ClashOfRim.PawnExchange.StatusScribeRootMissing"));
-        XElement pawnElement = new(root)
-        {
-            Name = "pawn"
-        };
-        RemoveNestedPawnObjects(pawnElement);
-        ResetExchangePawnRuntimeState(pawnElement);
-        RemoveLocalSaveOnlyReferences(pawnElement);
-        RemoveExternalPawnReferenceElements(pawnElement, BuildExternalPawnLoadIdSet(referenceReplacements));
-        return new XDocument(new XElement("root", pawnElement)).ToString(SaveOptions.DisableFormatting);
-    }
-
-    private static XDocument ParseScribeXml(string xml)
-    {
-        var settings = new XmlReaderSettings
-        {
-            DtdProcessing = DtdProcessing.Prohibit,
-            MaxCharactersInDocument = MaxScribeXmlBytes,
-            XmlResolver = null
-        };
-
-        using var reader = XmlReader.Create(new StringReader(xml), settings);
-        return XDocument.Load(reader, LoadOptions.PreserveWhitespace);
-    }
-
-    private static void ResetExchangePawnRuntimeState(XElement pawnElement)
-    {
-        ReplaceElement(
-            pawnElement,
-            "pather",
-            new XElement("pather",
-                new XElement("moving", "False")));
-        ReplaceElement(
-            pawnElement,
-            "jobs",
-            new XElement("jobs",
-                new XElement("curJob", new XAttribute("IsNull", "True")),
-                new XElement("curDriver", new XAttribute("IsNull", "True")),
-                new XElement("jobQueue", new XElement("jobs")),
-                new XElement("posture", "Standing"),
-                new XElement("formingCaravanTick", "-1")));
-        ReplaceElement(
-            pawnElement,
-            "stances",
-            new XElement("stances",
-                new XElement("stunner",
-                    new XElement("showStunMote", "False"),
-                    new XElement("adaptationTicksLeft",
-                        new XElement("keys"),
-                        new XElement("values"))),
-                new XElement("stagger"),
-                new XElement("curStance", new XAttribute("Class", "Stance_Mobile"))));
-        ReplaceElement(
-            pawnElement,
-            "carryTracker",
-            new XElement("carryTracker",
-                new XElement("innerContainer",
-                    new XElement("innerList"))));
-        ResetMindState(pawnElement);
-        ResetDrafter(pawnElement);
-    }
-
-    private static bool TryValidateRestoredPawnRuntimeState(Pawn pawn, string label, out string message)
-    {
-        message = string.Empty;
-        try
-        {
-            _ = pawn.carryTracker?.GetDirectlyHeldThings();
-            _ = pawn.carryTracker?.CarriedThing;
-            _ = pawn.inventory?.innerContainer?.Count;
-            _ = pawn.equipment?.AllEquipmentListForReading?.Count;
-            _ = pawn.apparel?.WornApparel?.Count;
-            return true;
-        }
-        catch (Exception ex) when (ex is NullReferenceException or InvalidOperationException)
-        {
-            Log.Warning(
-                "[ClashOfRim][PawnExchange] restored pawn runtime state invalid label="
-                + label
-                + " pawn="
-                + pawn.ThingID
-                + ": "
-                + ex);
-            message = ClashOfRimText.Key(
-                "ClashOfRim.PawnExchange.StatusRestoreFailed",
-                label.Named("LABEL"),
-                ex.GetType().Name.Named("TYPE"),
-                ex.Message.Named("MESSAGE"));
-            return false;
-        }
-    }
-
-    private static void ResetMindState(XElement pawnElement)
-    {
-        XElement? mindState = pawnElement.Element("mindState");
-        if (mindState is null)
-        {
-            return;
-        }
-
-        SetNullElement(mindState, "meleeThreat");
-        SetNullElement(mindState, "enemyTarget");
-        SetNullElement(mindState, "knownExploder");
-        SetNullElement(mindState, "lastMannedThing");
-        SetNullElement(mindState, "droppedWeapon");
-        SetElement(mindState, "lastAttackedTarget", "null");
-        ReplaceElement(
-            mindState,
-            "thinkData",
-            new XElement("thinkData",
-                new XElement("keys"),
-                new XElement("values")));
-        SetElement(mindState, "lastJobTag", "Misc");
-        SetElement(mindState, "lastEngageTargetTick", "-99999");
-        SetElement(mindState, "lastAttackTargetTick", "-99999");
-        SetElement(mindState, "lastMeleeThreatHarmTick", "-99999");
-        SetElement(mindState, "lastRangedHarmTick", "-99999");
-        SetElement(mindState, "lastCombatantTick", "-99999");
-        SetElement(mindState, "exitMapAfterTick", "-99999");
-        SetElement(mindState, "forcedGotoPosition", "(-1000, -1000, -1000)");
-        SetDeepNullElement(mindState, "duty");
-        SetDeepNullElement(mindState, "breachingTarget");
-        SetDeepNullElement(mindState, "resurrectTarget");
-        ReplaceElement(
-            mindState,
-            "babyAutoBreastfeedMoms",
-            new XElement("babyAutoBreastfeedMoms",
-                new XElement("keys"),
-                new XElement("values")));
-        ReplaceElement(
-            mindState,
-            "babyCaravanBreastfeed",
-            new XElement("babyCaravanBreastfeed",
-                new XElement("keys"),
-                new XElement("values")));
-    }
-
-    private static void ResetDrafter(XElement pawnElement)
-    {
-        XElement? drafter = pawnElement.Element("drafter");
-        if (drafter is null)
-        {
-            return;
-        }
-
-        SetElement(drafter, "drafted", "False");
-    }
-
-    private static void RemoveNestedPawnObjects(XElement pawnElement)
-    {
-        foreach (XElement nestedPawn in pawnElement
-            .Descendants()
-            .Where(element => element != pawnElement && LooksLikeNestedPawnObject(element))
-            .ToList())
-        {
-            nestedPawn.Remove();
-        }
-    }
-
-    private static void RemoveLocalSaveOnlyReferences(XElement pawnElement)
-    {
-        foreach (XElement element in pawnElement
-            .Descendants()
-            .Where(element => !element.HasElements)
-            .Where(element => IsLocalSaveOnlyLoadId(element.Value))
-            .ToList())
-        {
-            element.Remove();
-        }
-    }
-
-    private static void RemoveExternalPawnReferenceElements(XElement pawnElement, HashSet<string> externalLoadIds)
-    {
-        if (externalLoadIds.Count == 0)
-        {
-            return;
-        }
-
-        foreach (XElement element in pawnElement
-            .Descendants()
-            .Where(element => !element.HasElements)
-            .Where(element => externalLoadIds.Contains((element.Value ?? string.Empty).Trim()))
-            .ToList())
-        {
-            XElement removable = NearestListItem(element) ?? element;
-            removable.Remove();
-        }
-    }
-
-    private static XElement? NearestListItem(XElement element)
-    {
-        XElement? current = element;
-        while (current is not null)
-        {
-            if (string.Equals(current.Name.LocalName, "li", StringComparison.Ordinal))
-            {
-                return current;
-            }
-
-            current = current.Parent;
-        }
-
-        return null;
-    }
-
-    private static void ReplaceElement(XElement parent, string name, XElement replacement)
-    {
-        XElement? element = parent.Element(name);
-        if (element is null)
-        {
-            parent.Add(replacement);
-        }
-        else
-        {
-            element.ReplaceWith(replacement);
-        }
-    }
-
-    private static void SetElement(XElement parent, string name, string value)
-    {
-        XElement? element = parent.Element(name);
-        if (element is null)
-        {
-            parent.Add(new XElement(name, value));
-        }
-        else
-        {
-            element.RemoveAttributes();
-            element.RemoveNodes();
-            element.Value = value;
-        }
-    }
-
-    private static void SetNullElement(XElement parent, string name)
-    {
-        SetElement(parent, name, "null");
-    }
-
-    private static void SetDeepNullElement(XElement parent, string name)
-    {
-        ReplaceElement(parent, name, new XElement(name, new XAttribute("IsNull", "True")));
-    }
-
-    private static HashSet<string> BuildExternalPawnLoadIdSet(
-        IReadOnlyList<ModPawnScribePawnReferenceReplacementDto>? referenceReplacements)
-    {
-        var result = new HashSet<string>(StringComparer.Ordinal);
-        if (referenceReplacements is null)
-        {
-            return result;
-        }
-
-        foreach (ModPawnScribePawnReferenceReplacementDto replacement in referenceReplacements)
-        {
-            AddEquivalentLoadIds(result, replacement.SourceLoadId);
-            AddEquivalentLoadIds(result, replacement.PlaceholderLoadId);
-        }
-
-        return result;
-    }
-
-    private static void AddEquivalentLoadIds(HashSet<string> values, string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return;
-        }
-
-        string trimmed = value?.Trim() ?? string.Empty;
-        values.Add(trimmed);
-        if (trimmed.StartsWith("Thing_", StringComparison.Ordinal))
-        {
-            values.Add(trimmed.Substring("Thing_".Length));
-        }
-        else
-        {
-            values.Add("Thing_" + trimmed);
         }
     }
 
@@ -904,57 +541,4 @@ internal static class PawnExchangeScribeRestorer
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
-    private static bool IsLocalSaveOnlyLoadId(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        string trimmed = value?.Trim() ?? string.Empty;
-        return trimmed.StartsWith("ApparelPolicy_", StringComparison.Ordinal)
-            || trimmed.StartsWith("DrugPolicy_", StringComparison.Ordinal)
-            || trimmed.StartsWith("FoodPolicy_", StringComparison.Ordinal)
-            || ClashOfRimCompatibilityApi.IsPawnExchangeLocalSaveOnlyLoadId(trimmed);
-    }
-
-    private static bool LooksLikeNestedPawnObject(XElement element)
-    {
-        XAttribute? classAttribute = element.Attribute("Class");
-        if (classAttribute is not null
-            && (string.Equals(classAttribute.Value, "Pawn", StringComparison.Ordinal)
-                || classAttribute.Value.EndsWith(".Pawn", StringComparison.Ordinal)))
-        {
-            return true;
-        }
-
-        return element.Element("id") is not null && element.Element("kindDef") is not null;
-    }
-
-    private static string ComputeSha256Hex(string text)
-    {
-        using SHA256 sha256 = SHA256.Create();
-        byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
-        var builder = new StringBuilder(bytes.Length * 2);
-        foreach (byte value in bytes)
-        {
-            builder.Append(value.ToString("x2", CultureInfo.InvariantCulture));
-        }
-
-        return builder.ToString();
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-    }
 }

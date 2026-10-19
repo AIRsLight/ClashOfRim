@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("pawn Scribe loading separates payload, native lifetime and arrival effects", PawnScribeLoaderTests.Run),
     ("pawn previews own requests, caches and engine publication", ClientPawnPreviewTests.Run),
     ("compatibility mismatch owns report, repairs and deferred continuations", ClientCompatibilityMismatchTests.Run),
     ("world entry forms own credentials, registration validation and window lifetime", ClientWorldEntryFormTests.Run),
