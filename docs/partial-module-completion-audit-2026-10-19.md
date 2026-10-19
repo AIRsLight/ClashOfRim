@@ -45,6 +45,14 @@
 - `LocalOnly/module-migration/final-compatibility-api-contract-audit.log`：从最初迁移基线核对公开 API 和注册契约，已明确分类新增预览 API，退出 0。
 - `LocalOnly/module-migration/final-frozen-legacy-audit.log`：77 个冻结文件校验。
 
+## M13b1：独立客户端单元项目漏接编解码模块（已修复）
+
+最终验收实际运行 `ClashOfRim.Client.Core.Tests` 时复现三个 CS0103：`ClientSnapshotPackageBuilder` 已改用拆分出的 `ClientSnapshotPayloadCodec`，但该独立项目只链接了打包器，没有链接新的编解码模块。来源为 `05729f1c` 的编解码复用，正常客户端项目按目录编译，所以仅运行客户端测试无法发现这个独立项目的构建缺口。这违反了不构造完整游戏也能验证纯模块的验收要求。
+
+在 Client.Core.Tests.csproj 中增加对同一生产 `ClientSnapshotPayloadCodec.cs` 的 Compile 链接，未复制压缩／哈希逻辑，也未引入游戏程序集。现有快照测试继续验证五种文化下的 Gzip 解码、SHA256、lineage、输入不变及畸形 XML；独立测试项目运行通过，退出 0，包括客户端／服务端 JSON 契约、语言头和会话发布检查。既有 WireContractTests 等未提交修改保留，不纳入本次提交。
+
+复现日志：`LocalOnly/module-migration/final-wire-core-build-reproduction.log`；通过日志：`LocalOnly/module-migration/final-wire-core-tests.log`。本次仅修复测试项目接线并运行该单元项目，没有完整回归或独立产品构建。其余最终契约核对继续进行，不能据此关闭最终验收。
+
 ## 下一步
 
 M13b 先完成剩余恢复归属差异、JSON／枚举、历史日志／回执、Harmony 和存档契约复核，再按上表收拢组合根、状态所有权及例外清单。若发现实际缺陷，按依赖顺序修复并运行相关单元后提交。本表中的未验证项全部补足前，不将目标标记完成。
