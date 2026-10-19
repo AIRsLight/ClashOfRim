@@ -96,6 +96,13 @@ await VerifyOnlinePresenceLeaseExpiryAsync();
 await VerifyDefaultPersistentServerStateAsync();
 await VerifyDiplomacyRelationCooldownAsync();
 
+static (string? Token, ProtocolErrorCode Code)[] InvalidColonyTokens(string otherOwnerToken) =>
+[
+    (null, ProtocolErrorCode.ServerRejected),
+    ("invalid-token", ProtocolErrorCode.SessionUnavailable),
+    (otherOwnerToken, ProtocolErrorCode.ServerRejected)
+];
+
 static void VerifyOfflineAccountsAllowLegacyPasswordLengths()
 {
     var accounts = new OfflineAccountRegistry();
@@ -2143,6 +2150,7 @@ try
     var sameSessionPresence = await client.MaintainPresenceAsync(new MaintainPresenceRequest(
         "user-b", "colony-b", "defender-snapshot-before", userBLogin.SessionId!));
     Require(!sameSessionPresence.Result.Accepted
+        && sameSessionPresence.Result.ErrorCode == ProtocolErrorCode.ServerRejected
         && state.LoginSessions.IsValid("user-b", "colony-b", userBLogin.SessionId!, DateTimeOffset.UtcNow),
         "相同会话的第二条驻留连接应被拒绝，且不能关闭原会话");
     MaintainPresenceResponse duplicatePresence = await client.MaintainPresenceAsync(new MaintainPresenceRequest(
@@ -2151,7 +2159,7 @@ try
         "defender-snapshot-before",
         "duplicate-smoke-session"));
     Require(!duplicatePresence.Result.Accepted, "在线玩家不应能建立第二条在线驻留连接");
-    Equal(ProtocolErrorCode.ServerRejected, duplicatePresence.Result.ErrorCode, "重复在线驻留应由服务器拒绝");
+    Equal(ProtocolErrorCode.SessionUnavailable, duplicatePresence.Result.ErrorCode, "伪造驻留会话应返回会话失效");
     ListPlayersResponse playersWithUserB = await client.ListPlayersAsync(new ListPlayersRequest(
         "user-a",
         "colony-a",
@@ -2447,11 +2455,11 @@ try
     Require(!rejectedForcedGift.Result.Accepted, "强投礼物拒绝接口应被服务器拒绝");
     Equal(ProtocolErrorCode.ServerRejected, rejectedForcedGift.Result.ErrorCode, "强投礼物不可拒绝应返回服务器拒绝");
 
-    foreach (string? invalidToken in new[] { null, "invalid-gift-token", userAAuthToken })
+    foreach (var (invalidToken, errorCode) in InvalidColonyTokens(userAAuthToken))
     {
         var rejectedAuth = await client.RejectGiftAsync(new RejectGiftRequest(gift.EventId!, "user-b", "colony-b",
             "defender-snapshot-before", "unauthorized rejection", authToken: invalidToken));
-        Require(!rejectedAuth.Result.Accepted && rejectedAuth.Result.ErrorCode == ProtocolErrorCode.ServerRejected,
+        Require(!rejectedAuth.Result.Accepted && rejectedAuth.Result.ErrorCode == errorCode,
             "HTTP 礼物拒收必须拒绝缺失、伪造及冒用令牌");
         Require(state.Ledger.Find(gift.EventId!)!.Status != ServerEventStatus.RejectedByTarget
             && state.Ledger.FindByIdempotencyKey(state.Ledger.Find(gift.EventId!)!.IdempotencyKey + ":return") is null,
@@ -2549,12 +2557,12 @@ try
     Require(state.Ledger.Find(supportPawn.EventId!)?.Payload is SupportPawnEventPayload, "支援 pawn 应进入账本");
     Equal(EventRejectionPolicy.RejectableByTarget, state.Ledger.Find(supportPawn.EventId!)!.RejectionPolicy, "临时控制支援 pawn 应可被目标拒绝");
 
-    foreach (string? badToken in new[] { null, "invalid-support-token", userAAuthToken })
+    foreach (var (badToken, errorCode) in InvalidColonyTokens(userAAuthToken))
     {
         var before = System.Text.Json.JsonSerializer.Serialize(state.Ledger.Find(supportPawn.EventId!));
         var denied = await client.RejectSupportPawnAsync(new RejectSupportPawnRequest(supportPawn.EventId!, "user-b", "colony-b",
             supportTargetSnapshotId, "unauthorized rejection", badToken));
-        Require(!denied.Result.Accepted && denied.Result.ErrorCode == ProtocolErrorCode.ServerRejected
+        Require(!denied.Result.Accepted && denied.Result.ErrorCode == errorCode
             && before == System.Text.Json.JsonSerializer.Serialize(state.Ledger.Find(supportPawn.EventId!)), "HTTP 支援拒绝必须校验认证身份");
     }
     RejectSupportPawnResponse rejectedSupport = await client.RejectSupportPawnAsync(new RejectSupportPawnRequest(
@@ -2640,12 +2648,12 @@ try
         autoReturnOnSettlement: true));
     Require(finishingSupport.Result.Accepted, "创建用于结束的支援 pawn 应成功");
     state.Ledger.ChangeStatus(finishingSupport.EventId!, ServerEventStatus.AppliedToSnapshot);
-    foreach (string? badToken in new[] { null, "invalid-support-token", userAAuthToken })
+    foreach (var (badToken, errorCode) in InvalidColonyTokens(userAAuthToken))
     {
         var before = System.Text.Json.JsonSerializer.Serialize(state.Ledger.Find(finishingSupport.EventId!));
         var denied = await client.FinishSupportPawnAsync(new FinishSupportPawnRequest("unauthorized", finishingSupport.EventId!, "user-b", "colony-b",
             supportTargetSnapshotId, "Expired", finishingSupportPawnGlobalKey, "support", false, finishingSupportPawnPackage, badToken));
-        Require(!denied.Result.Accepted && denied.Result.ErrorCode == ProtocolErrorCode.ServerRejected
+        Require(!denied.Result.Accepted && denied.Result.ErrorCode == errorCode
             && before == System.Text.Json.JsonSerializer.Serialize(state.Ledger.Find(finishingSupport.EventId!)), "HTTP 支援结束必须校验认证身份");
     }
     FinishSupportPawnResponse finishedSupport = await client.FinishSupportPawnAsync(new FinishSupportPawnRequest(
@@ -3091,12 +3099,12 @@ try
         && failedTradeLedger == JsonSerializer.Serialize(state.Ledger.ListAll())
         && state.EventNotifications.GetVersion("user-surface") > failedTradeBuyerVersion, "失败交易重试应校验原履约和返还并只重发通知");
 
-    foreach (string? badToken in new[] { null, "invalid-trade-token", userAAuthToken })
+    foreach (var (badToken, errorCode) in InvalidColonyTokens(userAAuthToken))
     {
         string before = JsonSerializer.Serialize(state.Ledger.ListAll());
         var denied = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest("unauthorized-accept", trade.EventId!,
             new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"), false, badToken));
-        Require(!denied.Result.Accepted && denied.Result.ErrorCode == ProtocolErrorCode.ServerRejected
+        Require(!denied.Result.Accepted && denied.Result.ErrorCode == errorCode
             && before == JsonSerializer.Serialize(state.Ledger.ListAll()), "未经认证不能代替其他玩家接单");
     }
     AcceptTradeOrderResponse acceptedTrade = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
@@ -3153,15 +3161,15 @@ try
     Require(marketAfterAccept.Result.Accepted, "有效市场会话应能查看接单人数：" + marketAfterAccept.Result.Message);
     Equal(2, marketAfterAccept.Orders.Single(order => order.EventId == trade.EventId).AcceptedMemoCount, "多人接取后市场应显示备忘录计数");
 
-    foreach (string? badToken in new[] { null, "invalid-trade-token", userBAuthToken })
+    foreach (var (badToken, errorCode) in InvalidColonyTokens(userBAuthToken))
     {
         string before = JsonSerializer.Serialize(state.Ledger.ListAll());
         var unauthorized = new CloseTradeOrderRequest("unauthorized-close", trade.EventId!,
             new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"), "unauthorized", badToken);
         var deniedCancel = await client.CancelTradeOrderAsync(unauthorized);
         var deniedComplete = await client.CompleteTradeOrderAsync(unauthorized);
-        Require(!deniedCancel.Result.Accepted && deniedCancel.Result.ErrorCode == ProtocolErrorCode.ServerRejected
-            && !deniedComplete.Result.Accepted && deniedComplete.Result.ErrorCode == ProtocolErrorCode.ServerRejected
+        Require(!deniedCancel.Result.Accepted && deniedCancel.Result.ErrorCode == errorCode
+            && !deniedComplete.Result.Accepted && deniedComplete.Result.ErrorCode == errorCode
             && before == JsonSerializer.Serialize(state.Ledger.ListAll()), "未经认证不能取消或完成其他玩家的交易");
     }
     long userBVersionBeforeCancel = state.EventNotifications.GetVersion("user-b");

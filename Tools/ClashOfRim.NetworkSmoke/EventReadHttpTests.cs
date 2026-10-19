@@ -39,7 +39,7 @@ internal static class EventReadHttpTests
             foreach (var invalid in new[]
             {
                 (Token: (string?)null, Colony: "home", Snapshot: "current", Code: ProtocolErrorCode.Unauthorized),
-                (Token: "invalid", Colony: "home", Snapshot: "current", Code: ProtocolErrorCode.Unauthorized),
+                (Token: "invalid", Colony: "home", Snapshot: "current", Code: ProtocolErrorCode.SessionUnavailable),
                 (Token: other, Colony: "home", Snapshot: "current", Code: ProtocolErrorCode.Unauthorized),
                 (Token: token, Colony: "retired", Snapshot: "current", Code: ProtocolErrorCode.Unauthorized),
                 (Token: token, Colony: "home", Snapshot: "stale", Code: ProtocolErrorCode.SnapshotMismatch),
@@ -112,7 +112,7 @@ internal static class EventReadHttpTests
                 else Snapshot("reader", "home", "new-current");
                 state.EventNotifications.SignalUser("reader");
                 var completed = await wait.WaitAsync(TimeSpan.FromSeconds(5));
-                Require(completed.Result.ErrorCode == (replaceSession ? ProtocolErrorCode.Unauthorized : ProtocolErrorCode.SnapshotMismatch)
+                Require(completed.Result.ErrorCode == (replaceSession ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.SnapshotMismatch)
                     && Empty(completed.EventQueue), "long poll did not revalidate after waiting");
             }
         }
