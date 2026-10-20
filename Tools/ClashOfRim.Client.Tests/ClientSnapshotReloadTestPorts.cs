@@ -39,7 +39,7 @@ internal sealed class ClientSnapshotReloadTestPorts : IClientSnapshotReloadRunti
         ClientSessionWork.Reset(); Connection = new(Ports); Session = new(Ports, this, Connection); View = new(Ports);
         if (!login) Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "borrowed" });
         Module = new(Session, Sync, Mutations, new(Session, Mutations, Sync, Ports, View), this,
-            new(this), new(Ports, Ports), this, this);
+            new(this), new(Ports), this, this);
         Module.Completed += receipt => { Receipt = receipt; Completed++; Hit("completed"); Done.TrySetResult(); };
     }
     internal Task Start() => Module.StartAsync(new("base", ClientSnapshotReloadPurpose.Raid));

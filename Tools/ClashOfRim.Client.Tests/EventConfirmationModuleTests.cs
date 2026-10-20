@@ -483,7 +483,7 @@ internal static class EventConfirmationModuleTests
         {
             View = new(Ports);
             Session = new(Ports, Ports, new ClientSessionConnection(Ports));
-            Confirmation = new(Session, Ports, new(Ports, Ports), Inbox, Protocol);
+            Confirmation = new(Session, Ports, new(Ports), Inbox, Protocol);
             Preparation = new(Session, Sync, Mutations, Confirmation);
             Recovery = new(Session, Mutations, Sync, Ports, View);
             Workflow = new(Session, Preparation, Confirmation, Mutations, Recovery, Inbox, Presentation, Effects);

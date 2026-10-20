@@ -251,7 +251,7 @@ internal static class ClientTradeMarketTests
             ClientSessionWork.Reset();
             Session = new(Ports, Ports, new ClientSessionConnection(Ports));
             State = new(Session, Ports, this);
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
             Market = new(Session, State, Mutations, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions), transactions, this, this);
             Market.Accepted += step => AcceptedNotices++;
         }

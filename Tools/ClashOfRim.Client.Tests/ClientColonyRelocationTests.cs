@@ -210,7 +210,7 @@ internal static class ClientColonyRelocationTests
             Publication = new(Cache.Session, Ports, () => Cache.WorldId, () => Cache.World, configuration, Cache.Cache);
             Registration = new(Cache.Session, Cache, Mutations, this, this, Publication.Flow);
             View = new(Ports);
-            var transactions = new ClientSnapshotTransaction(Cache.Session, Ports, new(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Cache.Session, Ports, new(Ports));
             var recovery = new ClientSnapshotFailureRecovery(Cache.Session, Mutations, Sync, Ports, View);
             Flow = new(Cache.Session, Cache, this, new(Cache.Session, Sync, Mutations, transactions), Sync, Mutations, transactions,
                 new(Ports, Ports, this, Sync), recovery, Registration, Publication.Flow, this, this);

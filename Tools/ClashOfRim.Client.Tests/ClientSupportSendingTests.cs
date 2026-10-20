@@ -131,7 +131,7 @@ internal static class ClientSupportSendingTests
         internal Fixture()
         {
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new ClientSessionConnection(Ports)); Failure = new(Ports);
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
             Sending = new(Session, Ports, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions), Sync, Mutations,
                 transactions, new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, Failure), this, this);
             Sending.Completed += () => { Check(!Sync.IsBusy && !Mutations.IsPending, "Completion preceded cleanup."); Completed++; Done.TrySetResult(); OnCompleted?.Invoke(); };

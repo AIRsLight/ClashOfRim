@@ -244,7 +244,7 @@ internal static class DiplomacyCreationModuleTests
         internal Fixture()
         {
             Session = new(Ports, Ports, new ClientSessionConnection(Ports));
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new(Ports));
             Module = new(new(Session, Sync, Mutations, transactions), transactions, Mutations, this, this);
             Module.RefreshRequired += step => { Refreshed++; OnRefresh?.Invoke(); };
         }

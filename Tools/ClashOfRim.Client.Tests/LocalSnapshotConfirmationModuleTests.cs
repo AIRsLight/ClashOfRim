@@ -181,7 +181,7 @@ internal static class LocalSnapshotConfirmationModuleTests
         internal Fixture()
         {
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new ClientSessionConnection(Ports)); View = new(Ports);
-            var transaction = new ClientSnapshotTransaction(Session, this, new ClientSnapshotPublication(Ports, this));
+            var transaction = new ClientSnapshotTransaction(Session, this, new ClientSnapshotPublication(Ports));
             Flow = new(Session, this, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transaction), Sync, Mutations, transaction,
                 new ClientSnapshotFailureRecovery(Session, Mutations, Sync, this, View), new ClientSnapshotUploader(Ports, this, this, Sync), this);
             Flow.Completed += () => { Completed++; Done.TrySetResult(); };

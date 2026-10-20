@@ -21,7 +21,7 @@ internal sealed class ClientSnapshotUploader
         IClientSnapshotTransport transport, ClientSynchronizationCoordinator synchronization)
     {
         this.store = store; this.game = game; this.transport = transport; this.synchronization = synchronization;
-        publication = new(store, game);
+        publication = new(store);
     }
 
     internal async Task<ClientSnapshotUploadResult> UploadAsync(bool removeRaidBattleSessions,

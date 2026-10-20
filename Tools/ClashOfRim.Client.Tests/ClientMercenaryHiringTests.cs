@@ -220,7 +220,7 @@ internal static class ClientMercenaryHiringTests
         {
             this.guard = guard; ClientSessionWork.Reset();
             Session = new(Ports, Ports, new ClientSessionConnection(Ports)); State = new(Session, Ports, this); View = new(Ports);
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
             Bank = new(Session, Ports, this);
             Hiring = new(State, Bank, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions),
                 Sync, Mutations, transactions, new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, View), this, this, this);

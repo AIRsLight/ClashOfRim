@@ -266,7 +266,7 @@ internal static class ClientEndgameAchievementTests
             Session = new(Ports, Ports, new ClientSessionConnection(Ports));
             Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "session" });
             View = new(Ports);
-            var transactions = new ClientSnapshotTransaction(Session, this, new ClientSnapshotPublication(Ports, this));
+            var transactions = new ClientSnapshotTransaction(Session, this, new ClientSnapshotPublication(Ports));
             var confirmation = new ClientLocalSnapshotConfirmation(Session, this, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions),
                 Sync, Mutations, transactions, new ClientSnapshotFailureRecovery(Session, Mutations, Sync, this, View), new ClientSnapshotUploader(Ports, this, this, Sync), this);
             Module = new(Session, this, this, this, confirmation);

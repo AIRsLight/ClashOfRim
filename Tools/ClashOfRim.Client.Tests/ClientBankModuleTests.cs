@@ -182,7 +182,7 @@ internal static class ClientBankModuleTests
             Failure = new EventModuleFailureView(Ports);
             var recovery = new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, Failure);
             State = new ClientBankState(Session, Ports, this);
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
             Bank = new ClientBankOperations(new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions), Sync, Mutations,
                 transactions, recovery, State, this, this, this);
             State.View = new() { BankLoansEnabled = true, MinLoanSilver = 10, ConfiguredMaxLoanSilver = 500, MaxLoanWealthRatio = .5f,

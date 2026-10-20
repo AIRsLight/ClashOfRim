@@ -7,13 +7,7 @@ namespace AIRsLight.ClashOfRim.Modules.Snapshots;
 internal sealed class ClientSnapshotPublication
 {
     private readonly IClientSnapshotStore store;
-    private readonly IClientSnapshotGame game;
-    internal ClientSnapshotPublication(IClientSnapshotStore store, IClientSnapshotGame game)
-    { this.store = store; this.game = game; }
-
-    // Domain confirmations call this from their existing owned main-thread callback.
-    internal void PublishCurrentGame(string snapshotId, string? lineageToken) =>
-        Publish(game.BindCurrentGame(), snapshotId, lineageToken, Array.Empty<ModSnapshotAchievementCandidateDto>());
+    internal ClientSnapshotPublication(IClientSnapshotStore store) => this.store = store;
 
     internal void Publish(IClientSnapshotGameSession session, string snapshotId, string? lineageToken,
         IReadOnlyList<ModSnapshotAchievementCandidateDto> submittedAchievements)

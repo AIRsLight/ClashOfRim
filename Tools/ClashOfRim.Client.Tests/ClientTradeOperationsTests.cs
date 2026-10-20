@@ -249,7 +249,7 @@ internal static class ClientTradeOperationsTests
         {
             ClientSessionWork.Reset(); Operation = operation; gameThread = Environment.CurrentManagedThreadId;
             Session = new(Ports, Ports, new ClientSessionConnection(Ports)); Failure = new(Ports);
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
             State = new(Session, Ports, this); PublishMarket(true);
             Operations = new(new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions), Sync, Mutations, transactions,
                 new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, Failure), State, this, this);

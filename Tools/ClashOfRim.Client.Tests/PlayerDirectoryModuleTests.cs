@@ -272,7 +272,7 @@ internal static class PlayerDirectoryModuleTests
         internal Fixture()
         {
             Session = new(Ports, Ports, new ClientSessionConnection(Ports)); Module = new(Session, Ports, Sync, Mutations, this, this, this, this);
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new(Ports));
             Actions = new(Module, new(new(Session, Sync, Mutations, transactions), transactions, Mutations, this, this));
         }
         public Task<ClashOfRimClientNetworkResult<ModDiplomacyEventResponseDto>> CreateAsync(ClashOfRimClientNetworkContext context, ClientDiplomacyCommand command, CancellationToken token)

@@ -127,7 +127,7 @@ internal static class ClientRaidSupportLossTests
             capturedCount = count;
             ClientSessionWork.Reset(); Input = Enumerable.Range(0, count).Select(i => new ClientRaidSupportLoss(i.ToString(CultureInfo.InvariantCulture), "global-" + i, "支援-" + i)).ToList();
             Session = new(Ports, Ports, new ClientSessionConnection(Ports));
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
             Check(Sync.TryBeginManual(out var lease), "No manual admission."); Attempt = transactions.Capture(lease!); Module = new(transactions, this);
         }
         internal ClientRaidSupportLosses.Batch Capture() => Module.Capture(Attempt, this)!;

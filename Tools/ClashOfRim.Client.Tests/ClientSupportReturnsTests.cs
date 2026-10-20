@@ -193,7 +193,7 @@ internal static class ClientSupportReturnsTests
         internal Fixture()
         {
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new ClientSessionConnection(Ports)); View = new(Ports);
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
             var admission = new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions);
             var recovery = new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, View);
             var local = new ClientLocalSnapshotConfirmation(Session, Ports, admission, Sync, Mutations, transactions, recovery, new ClientSnapshotUploader(Ports, Ports, this, Sync), this);

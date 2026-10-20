@@ -72,10 +72,11 @@ internal static class SnapshotUploaderModuleTests
         {
             f = new Fixture();
             f.Game.Achievements.Add(new() { AchievementId = "pending", EventKey = "event" });
-            var publication = new ClientSnapshotPublication(f.Store, f.Game);
-            publication.PublishCurrentGame(" ", "ignored");
+            var publication = new ClientSnapshotPublication(f.Store);
+            var session = f.Game.BindCurrentGame();
+            publication.Publish(session, " ", "ignored", Array.Empty<ModSnapshotAchievementCandidateDto>());
             Require(f.Trace.Count == 0, "Empty accepted snapshot published state.");
-            publication.PublishCurrentGame("domain-accepted", token);
+            publication.Publish(session, "domain-accepted", token, Array.Empty<ModSnapshotAchievementCandidateDto>());
             bool hasToken = !string.IsNullOrWhiteSpace(token);
             Require(f.Store.Snapshot == "domain-accepted" && f.Store.Token == (hasToken ? token : "old-lineage")
                 && f.Game.Snapshot == (hasToken ? "domain-accepted" : "base") && f.Store.Writes == 1

@@ -44,7 +44,7 @@ internal sealed class ClientRaidLaunchTestPorts : IClientRaidLaunchRuntime, ICli
     internal ClientRaidLaunchTestPorts()
     {
         ClientSessionWork.Reset(); Session = new(Ports, Ports, new ClientSessionConnection(Ports)); Failure = new(Ports);
-        var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+        var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
         Launch = new(Session, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions), Sync, Mutations,
             transactions, new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, Failure), new(this, this), this, this, () => Fault != "pvp");
         Launch.Completed += () => { Check(!Sync.IsBusy && !Mutations.IsPending, "Completion preceded release."); Completed++; Done.TrySetResult(); OnCompleted?.Invoke(); };

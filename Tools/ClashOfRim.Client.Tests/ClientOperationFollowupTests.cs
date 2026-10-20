@@ -95,7 +95,7 @@ internal static class ClientOperationFollowupTests
         foreach (string change in new[] { "none", "user", "server", "colony", "auth", "snapshot", "game", "login", "generation", "scope", "unrelated-admission" })
         {
             var f = New(false); bool scope = true;
-            var transaction = new ClientSnapshotTransaction(f.Session, f.Ports, new(f.Ports, f.Ports));
+            var transaction = new ClientSnapshotTransaction(f.Session, f.Ports, new(f.Ports));
             Require(f.Sync.TryBeginManual(out var lease), "Missing source admission.");
             var attempt = transaction.Capture(lease!);
             if (published) transaction.Publish(attempt, "saved", "lineage");
@@ -114,7 +114,7 @@ internal static class ClientOperationFollowupTests
         }
         foreach (string invalid in new[] { "released", "wrong-snapshot", "scope" })
         {
-            var f = New(false); var tx = new ClientSnapshotTransaction(f.Session, f.Ports, new(f.Ports, f.Ports));
+            var f = New(false); var tx = new ClientSnapshotTransaction(f.Session, f.Ports, new(f.Ports));
             f.Sync.TryBeginManual(out var lease); var attempt = tx.Capture(lease!);
             if (invalid == "released") lease!.Dispose();
             var step = tx.CaptureCompletion(attempt, invalid == "wrong-snapshot" ? "other" : "base", () => invalid != "scope");

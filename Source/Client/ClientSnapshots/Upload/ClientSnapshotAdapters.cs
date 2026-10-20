@@ -18,7 +18,7 @@ internal static class ClientSnapshotComposition
     internal static readonly ClientSynchronizationCoordinator Synchronization = new();
     internal static ClientSnapshotPreparationAdapter CreatePreparation() => new(new ClientSnapshotGame());
     internal static ClientSnapshotPublication CreatePublication(ClashOfRimSettings settings) =>
-        new(new ClientSnapshotStore(settings), new ClientSnapshotGame());
+        new(new ClientSnapshotStore(settings));
     internal static ClientSnapshotUploader Create(ClashOfRimSettings settings) =>
         new(new ClientSnapshotStore(settings), new ClientSnapshotGame(), new ClientSnapshotTransport(), Synchronization);
 }

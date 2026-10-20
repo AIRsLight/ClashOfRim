@@ -39,7 +39,7 @@ internal sealed class ClientGiftTestFixture : IClientGiftSource, IClientGiftTran
         Cargo = new(kind, "cargo", 4, 0, true);
         Session = new ClientSessionLifecycle(Ports, Ports, new ClientSessionConnection(Ports));
         Failure = new EventModuleFailureView(Ports);
-        var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+        var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
         Gifts = new ClientGiftOperations(new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions), Sync, Mutations,
             transactions, new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, Failure), this, this, () => Capabilities);
     }

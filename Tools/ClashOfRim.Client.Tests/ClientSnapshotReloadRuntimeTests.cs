@@ -84,7 +84,7 @@ internal static class ClientSnapshotReloadRuntimeTests
                         AccessTools.Field(typeof(Game), "components").SetValue(game, new List<GameComponent> { component });
                         ClashOfRimGameComponent.SetSnapshotLineage("old", "old-token");
                         var store = new EventModuleTestPorts();
-                        new ClientSnapshotPublication(store, new ClientSnapshotGame()).PublishRestoredGame(operation.Game, "snapshot", "");
+                        new ClientSnapshotPublication(store).PublishRestoredGame(operation.Game, "snapshot", "");
                         var lineage = ClashOfRimGameComponent.CopySnapshotLineage();
                         Check(lineage.SnapshotId == "snapshot" && lineage.Token == "", "Restored empty lineage retained the prior game's token.");
                     }

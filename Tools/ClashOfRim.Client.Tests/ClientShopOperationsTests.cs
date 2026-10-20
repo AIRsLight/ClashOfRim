@@ -257,7 +257,7 @@ internal static class ClientShopOperationsTests
             Listing = new() { ListingId = "listing", ListingKind = sale ? "BuyFromPlayer" : "SellToPlayer", PriceSilver = 10, PriceIncreaseRatio = 1, StockCount = 3,
                 Item = new() { DefName = "Steel", StackCount = 3, Metadata = new() { ["data"] = "original" } } };
             Session = new(Ports, Ports, new ClientSessionConnection(Ports)); State = new(Session, Ports, this); View = new(Ports);
-            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
+            var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports));
             Operations = new(State, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions), Sync, Mutations, transactions,
                 new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, View), this, this, this, this);
             Operations.Completed += step => { Require(!State.Busy && !Sync.IsBusy && !Mutations.IsPending, "Shop completed before cleanup."); Completed++; Completion.TrySetResult(); };
