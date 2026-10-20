@@ -86,7 +86,8 @@ jobs:
           }
 
           $encoded = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$token"))
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" submodule update --init --recursive
+          # Release builds do not require the optional private RimTest subproject.
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" submodule update --init --recursive -- ThirdPartyCompat
           if ($LASTEXITCODE -ne 0) {
             throw "Submodule checkout failed. If ThirdPartyCompat is private, add a SUBMODULES_TOKEN repository secret with read access to AIRsLight/ClashOfRim.ThirdPartyCompat."
           }
@@ -138,7 +139,8 @@ jobs:
           }
 
           $encoded = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$token"))
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" submodule update --init --recursive
+          # Release builds do not require the optional private RimTest subproject.
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" submodule update --init --recursive -- ThirdPartyCompat
           if ($LASTEXITCODE -ne 0) {
             throw "Submodule checkout failed. If ThirdPartyCompat is private, add a SUBMODULES_TOKEN repository secret with read access to AIRsLight/ClashOfRim.ThirdPartyCompat."
           }

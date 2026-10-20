@@ -110,7 +110,7 @@ If you cloned the repository without submodules, initialize the compatibility
 package first:
 
 ```powershell
-git submodule update --init --recursive
+git submodule update --init --recursive -- ThirdPartyCompat
 ```
 
 Build a Windows server package from the repository root:
@@ -186,6 +186,8 @@ For the 1.7 architecture defect register, implemented boundaries, regression com
 and remaining work, see [architecture remediation](docs/architecture-remediation.md).
 Run `pwsh ./Tools/Test-Regression.ps1` for portable regressions; add
 `-IncludeClient -RimWorldManagedDir <RimWorld directory>` for game-dependent client tests.
+
+The independent private [RimTest](RimTest/README.md) submodule powers the opt-in two-client real-game suite in `Tools/Test-RimTest.ps1`. Portable regressions also use its game-independent client and testing libraries, so initialize both test dependencies with `git submodule update --init --recursive -- ThirdPartyCompat RimTest`. Access to both private repositories is required; CI needs a `SUBMODULES_TOKEN` with read access. Normal mod/server builds do not require RimTest. See the [test guide and coverage catalog](docs/rimtest.md) for real-game prerequisites, assertions and remaining coverage.
 
 ## Acknowledgements
 

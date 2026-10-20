@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout compatibility test dependencies
+      - name: Checkout regression test dependencies
         shell: pwsh
         env:
           SUBMODULES_TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
@@ -21,8 +21,9 @@ jobs:
           $token = $env:SUBMODULES_TOKEN
           if ([string]::IsNullOrWhiteSpace($token)) { $token = $env:GITHUB_TOKEN }
           $encoded = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$token"))
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" submodule update --init --recursive
-          if ($LASTEXITCODE -ne 0) { throw 'Unable to checkout compatibility test dependencies.' }
+          # Save.Tests references GameTests, which uses the game-independent RimTest libraries.
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" submodule update --init --recursive -- ThirdPartyCompat RimTest
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to checkout regression dependencies. SUBMODULES_TOKEN must have read access to ThirdPartyCompat and RimTest.' }
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x

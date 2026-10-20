@@ -64,7 +64,7 @@ ClashOfRim 面向希望共享同一个 RimWorld 世界、但不想把游戏改�
 如果 clone 仓库时没有拉取子模块，先初始化兼容包：
 
 ```powershell
-git submodule update --init --recursive
+git submodule update --init --recursive -- ThirdPartyCompat
 ```
 
 在仓库根目录构建 Windows 服务端包：
@@ -126,6 +126,10 @@ Build\ClashOfRim.NetworkServer\win-x64
 ## 架构修复与回归验证
 
 缺陷、修复范围、验证结果与后续顺序见 [1.7 架构修复记录](docs/architecture-remediation.md)。运行 `pwsh ./Tools/Test-Regression.ps1` 执行可移植回归；追加 `-IncludeClient -RimWorldManagedDir <RimWorld目录>` 执行需要本地 1.7 游戏运行库的客户端测试。
+
+通用 RimWorld 自动化测试框架作为独立子项目 [RimTest](RimTest/README.md) 开发，通过 Git 子模块接入。普通回归也通过 `Save.Tests → GameTests` 引用其不依赖游戏的 Client 和 Testing 库，因此测试前需初始化两个依赖：`git submodule update --init --recursive -- ThirdPartyCompat RimTest`。需要两个私有仓库的读取权限；CI 的 `SUBMODULES_TOKEN` 也需具备对应权限。正常模组和服务端构建不依赖 RimTest。
+
+双客户端实机运行入口为 `Tools/Test-RimTest.ps1`；部署前置条件、专用语义接口、断言规则以及未覆盖项见 [ClashOfRim 实机自动化](docs/rimtest.md)。测试调用成功不等于业务成功，以真实库存、地图、事件和快照断言为准。
 
 ## 致谢
 
