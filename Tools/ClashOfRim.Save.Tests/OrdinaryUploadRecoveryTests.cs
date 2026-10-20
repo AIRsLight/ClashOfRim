@@ -37,12 +37,12 @@ internal static class OrdinaryUploadRecoveryTests
     {
         f.Fail(failure);
         ExpectFailure(() => f.Upload());
+        Require(f.State.SnapshotCommits.HasPendingUploads, "pending upload disappeared after failure");
+        f.ClearFailure();
         var intent = f.ReadIntent();
         Require(intent.Version == 10 && intent.Upload is not null && intent.Upload.Previous == f.Before.Envelope
             && intent.Upload.ConfirmationOperation == f.Operation && intent.Upload.AchievementCandidates.Single().AchievementId == Candidate.AchievementId
             && intent.PendingOperations!.Debts.Count == 1, "journal lost original upload context or confirmation batch");
-        Require(f.State.SnapshotCommits.HasPendingUploads, "pending upload disappeared after failure");
-        f.ClearFailure();
         f.AddDebt("later");
         if (reopen) f.Open();
         // A retry cannot replace the accepted operation or introduce new candidates.
@@ -215,7 +215,7 @@ internal static class OrdinaryUploadRecoveryTests
         public Action? OnProcess, OnPrepare;
         private CrashStore store = null!;
         private string? failure;
-        private FileStream? heldIntent;
+        private FileMutationBlock? heldIntent;
 
         public Fixture(string root, bool relocation, SaveSnapshotPackage package)
         {
@@ -241,7 +241,7 @@ internal static class OrdinaryUploadRecoveryTests
                 {
                     Contexts.Add(context); OnProcess?.Invoke();
                     if (failure == "processor") throw new IOException("injected processor failure");
-                    if (failure == "ack") heldIntent = new FileStream(Directory.EnumerateFiles(Journal, "*.json").Single(), FileMode.Open, FileAccess.Read, FileShare.Read);
+                    if (failure == "ack") heldIntent = new FileMutationBlock(Directory.EnumerateFiles(Journal, "*.json").Single());
                 });
             State = new ClashOfRimNetworkState(snapshotStore: store, snapshotCommits: new SnapshotCommitService(Journal),
                 ledger: new SqliteAuthoritativeEventLedger(Database), playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(Database), null),
@@ -321,7 +321,7 @@ internal static class OrdinaryUploadRecoveryTests
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception("Ordinary upload: " + message); }
     private static Exception ExpectFailure(Action action)
-    { try { action(); } catch (Exception ex) when (ex is IOException or InvalidDataException or SqliteException or InvalidOperationException) { return ex; } throw new Exception("Ordinary upload: fault not reached"); }
+    { try { action(); } catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or SqliteException or InvalidOperationException) { return ex; } throw new Exception("Ordinary upload: fault not reached"); }
     private static void Sql(string database, string sql)
     { using var connection = new SqliteConnection("Data Source=" + database); connection.Open(); using var command = connection.CreateCommand(); command.CommandText = sql; command.ExecuteNonQuery(); }
     private static void WithFixture(Func<string, SaveSnapshotPackage> fixture, bool relocation, Action<Fixture> action)

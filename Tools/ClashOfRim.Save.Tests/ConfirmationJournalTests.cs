@@ -52,6 +52,7 @@ internal static class ConfirmationJournalTests
         };
         f.Fail(fault); ExpectFailure(() => f.Confirm());
         Require(!f.State.SnapshotCommits.IsApplying && f.State.SnapshotCommits.HasPending, "failed application lost its pending state or leaked its applying scope");
+        f.Clear();
         var intent = f.Intent();
         Require(intent.Version == 11 && intent.Upload?.Confirmation is { } mutation && mutation.Request.Single == f.Single
             && mutation.Request.BaseSnapshotId == "before", "missing original confirmation intent");
@@ -61,7 +62,6 @@ internal static class ConfirmationJournalTests
             Require(f.State.Ledger.Find("trade")!.Status != ServerEventStatus.AppliedToSnapshot
                 && f.State.Ledger.Find("gift")!.Status != ServerEventStatus.AppliedToSnapshot,
                 "failed plan/ledger stage partially applied confirmations");
-        f.Clear();
         if (reopen) f.Open();
         int calls = f.PostCalls;
         var response = f.Confirm();
@@ -322,7 +322,7 @@ internal static class ConfirmationJournalTests
         public Action? OnPrepare, OnPost;
         private string? fault;
         private CrashStore store = null!;
-        private FileStream? held;
+        private FileMutationBlock? held;
         public IReadOnlyList<ConfirmEventApplicationEntry> Entries => Single ? [new("trade", "source", "exchanged")]
             : [new("gift", null, "ItemDeliveryAnchored"), new("trade", "source", "exchanged"), new("support", null, "SupportPawnArrived"),
                 new("reject", null, "not-anchored"), new("missing", "source", ""), new("foreign", null, "ItemDeliveryAnchored"),
@@ -368,7 +368,7 @@ internal static class ConfirmationJournalTests
                 { SnapshotPostUploadProcessors = [new Processor(() => { PostCalls++; OnPost?.Invoke(); if (fault == "processor") throw new IOException("processor"); if (fault == "plan") Hold(); })],
                     SaveIndexExtensions = [new PrepareHook(() => OnPrepare?.Invoke())] }]));
         }
-        private void Hold() => held ??= new FileStream(Directory.EnumerateFiles(Journal, "*.json").Single(), FileMode.Open, FileAccess.Read, FileShare.Read);
+        private void Hold() => held ??= new FileMutationBlock(Directory.EnumerateFiles(Journal, "*.json").Single());
         public ConfirmEventApplicationsResponse Confirm(IReadOnlyList<ConfirmEventApplicationEntry>? entries = null, string baseId = "before", SaveSnapshotPackage? package = null)
         {
             package ??= Package; entries ??= Entries;
