@@ -66,6 +66,8 @@ internal static class SupportPawnScribeRestorer
                     OtherPawnGlobalId = relationship.OtherPawnGlobalId,
                     OtherPawnName = relationship.OtherPawnName,
                     OtherPawnDead = relationship.OtherPawnDead,
+                    OtherPawnThingDef = relationship.OtherPawnThingDef,
+                    OtherPawnKindDef = relationship.OtherPawnKindDef,
                     RelationDef = relationship.RelationDef
                 }).ToList() ?? new System.Collections.Generic.List<ModPawnExchangeRelationshipStubDto>(),
             Scribe = package?.Scribe is null

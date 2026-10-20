@@ -40,10 +40,13 @@ internal static class PawnExchangeCaptureTests
             }), "Capture callbacks could not be registered.");
             foreach (string culture in new[] { "en-US", "zh-CN", "fr-FR", "tr-TR" })
             foreach (string path in new[] { "support-send", "support-return", "gift" })
+            foreach (string race in new[] { "Human", "TransferAlien", "TransferAnimal" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 serializations = extensions = 0; scribeMode = "";
                 Pawn pawn = NewPawn(1), relative = NewPawn(2), codedOwner = NewPawn(3), secondLayer = NewPawn(4);
+                relative.def = new ThingDef { defName = race, race = new RaceProperties() };
+                relative.kindDef = new PawnKindDef { defName = race + "Kind", race = relative.def };
                 pawn.relations = new Pawn_RelationsTracker(pawn);
                 relative.relations = new Pawn_RelationsTracker(relative);
                 var relationDef = new PawnRelationDef { defName = "Parent" };
@@ -70,7 +73,8 @@ internal static class PawnExchangeCaptureTests
                 Require(package.Identity!.ThingDef == "Human" && package.Identity.PawnKindDef == "Colonist" && package.Identity.Gender == "Female"
                     && package.Appearance!.DisplayName == "pawn-1" && package.Status!.Dead == false, "Structured pawn fields changed.");
                 Require(package.Equipment.Count == 3 && package.Apparel.Count == 1 && package.Relationships.Count == 2
-                    && package.Relationships.All(r => r.OtherPawnGlobalId == PawnGlobalIdUtility.Build("sender", relative) && r.RelationDef == "Parent"), "Equipment containers or one-layer relations changed.");
+                    && package.Relationships.All(r => r.OtherPawnGlobalId == PawnGlobalIdUtility.Build("sender", relative) && r.RelationDef == "Parent"
+                        && r.OtherPawnThingDef == race && r.OtherPawnKindDef == race + "Kind"), "Equipment containers or one-layer relation species changed.");
                 Require(package.Equipment[0].BiocodedPawnGlobalId == global, "Own coded weapon lost the explicit returning pawn identity.");
                 Require(package.Equipment[1].BiocodedPawnGlobalId == PawnGlobalIdUtility.Build("sender", codedOwner), "Gift rewrote the coded owner to the carrier.");
                 Require(package.Equipment[2].Biocoded == true && package.Equipment[2].BiocodedPawnGlobalId is null, "Unknown coded owner was invented.");

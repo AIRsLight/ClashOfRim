@@ -1928,12 +1928,14 @@ public sealed class PawnExchangeEquipmentItemDto
 
 public sealed class PawnExchangeRelationshipStubDto
 {
-    public PawnExchangeRelationshipStubDto(string otherPawnGlobalId, string? otherPawnName, bool otherPawnDead, string? relationDef)
+    public PawnExchangeRelationshipStubDto(string otherPawnGlobalId, string? otherPawnName, bool otherPawnDead, string? relationDef, string? otherPawnThingDef = null, string? otherPawnKindDef = null)
     {
         OtherPawnGlobalId = otherPawnGlobalId;
         OtherPawnName = otherPawnName;
         OtherPawnDead = otherPawnDead;
         RelationDef = relationDef;
+        OtherPawnThingDef = otherPawnThingDef;
+        OtherPawnKindDef = otherPawnKindDef;
     }
 
     public string OtherPawnGlobalId { get; }
@@ -1943,6 +1945,10 @@ public sealed class PawnExchangeRelationshipStubDto
     public bool OtherPawnDead { get; }
 
     public string? RelationDef { get; }
+
+    public string? OtherPawnThingDef { get; }
+
+    public string? OtherPawnKindDef { get; }
 }
 
 public sealed class PawnScribePayloadDto

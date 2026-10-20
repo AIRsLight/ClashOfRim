@@ -204,6 +204,12 @@ public sealed class ModPawnExchangeRelationshipStubDto
     [DataMember(Name = "otherPawnDead")]
     public bool OtherPawnDead { get; set; }
 
+    [DataMember(Name = "otherPawnThingDef")]
+    public string? OtherPawnThingDef { get; set; }
+
+    [DataMember(Name = "otherPawnKindDef")]
+    public string? OtherPawnKindDef { get; set; }
+
     [DataMember(Name = "relationDef")]
     public string? RelationDef { get; set; }
 }

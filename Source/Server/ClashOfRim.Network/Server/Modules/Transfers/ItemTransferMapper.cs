@@ -349,7 +349,9 @@ internal static class ItemTransferMapper
             stub.OtherPawnGlobalId,
             stub.OtherPawnName,
             stub.OtherPawnDead,
-            stub.RelationDef);
+            stub.RelationDef,
+            stub.OtherPawnThingDef,
+            stub.OtherPawnKindDef);
     }
 
     private static PawnScribePayloadDto? ToPawnScribePayloadDto(PawnScribePayload? scribe)
@@ -515,7 +517,9 @@ internal static class ItemTransferMapper
             dto.OtherPawnGlobalId,
             dto.OtherPawnName,
             dto.OtherPawnDead,
-            dto.RelationDef);
+            dto.RelationDef,
+            dto.OtherPawnThingDef,
+            dto.OtherPawnKindDef);
     }
 
     private static PawnScribePayload? ToPawnScribePayload(PawnScribePayloadDto? dto)

@@ -58,6 +58,8 @@ internal static class SupportPawnPayloadReader
             .Replace("\"otherPawnGlobalId\"", "\"OtherPawnGlobalId\"")
             .Replace("\"otherPawnName\"", "\"OtherPawnName\"")
             .Replace("\"otherPawnDead\"", "\"OtherPawnDead\"")
+            .Replace("\"otherPawnThingDef\"", "\"OtherPawnThingDef\"")
+            .Replace("\"otherPawnKindDef\"", "\"OtherPawnKindDef\"")
             .Replace("\"relationDef\"", "\"RelationDef\"")
             .Replace("\"xml\"", "\"Xml\"")
             .Replace("\"xmlSha256\"", "\"XmlSha256\"")
@@ -216,6 +218,12 @@ internal sealed class SupportPawnExchangeRelationshipStubSummary
 
     [DataMember(Name = "OtherPawnDead")]
     public bool OtherPawnDead { get; set; }
+
+    [DataMember(Name = "OtherPawnThingDef")]
+    public string? OtherPawnThingDef { get; set; }
+
+    [DataMember(Name = "OtherPawnKindDef")]
+    public string? OtherPawnKindDef { get; set; }
 
     [DataMember(Name = "RelationDef")]
     public string? RelationDef { get; set; }

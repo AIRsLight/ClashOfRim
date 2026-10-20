@@ -100,6 +100,8 @@ internal sealed class PawnExchangeCapture
             {
                 OtherPawnGlobalId = globalId(relation.otherPawn), OtherPawnName = relation.otherPawn.LabelShort,
                 OtherPawnDead = relation.otherPawn.Dead,
+                OtherPawnThingDef = relation.otherPawn.def.defName,
+                OtherPawnKindDef = relation.otherPawn.kindDef?.defName,
                 RelationDef = relation.def?.defName
             }).ToList() ?? new List<ModPawnExchangeRelationshipStubDto>();
 

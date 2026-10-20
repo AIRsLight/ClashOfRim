@@ -1503,6 +1503,12 @@ static void VerifyPawnExchangePackageSafety()
     Equal("Colonist", parsed.Package.Identity.PawnKindDef, "pawn 交换包保留 pawnKind");
     Equal("Parka", parsed.Package.Apparel.Single().Def, "pawn 交换包保留服装条目");
     Equal("parent", parsed.Package.Relationships.Single().RelationDef, "pawn 交换包保留关系占位符");
+    var animal = package with { Relationships = new[] { new PawnExchangeRelationshipStub(
+        "owner:user-a/pawn:LabradorRetriever123", "Pet", false, "Bond", "LabradorRetriever", "LabradorRetriever") } };
+    var animalRead = SafePawnExchangeSerializer.Deserialize(SafePawnExchangeSerializer.Serialize(animal));
+    Require(animalRead.Accepted, "动物关系元数据应通过受限 schema");
+    Equal("LabradorRetriever", animalRead.Package!.Relationships.Single().OtherPawnThingDef, "关系占位对象保留种族");
+    Equal("LabradorRetriever", animalRead.Package.Relationships.Single().OtherPawnKindDef, "关系占位对象保留 pawnKind");
     Require(parsed.Package.Extensions!.Any(extension => extension.Kind == "rimworld.ideology.pawn-reference"), "pawn 交换包保留文化兼容扩展");
     PawnExchangeExtensionPackage biotechExtension = parsed.Package.Extensions!.Single(extension => extension.Kind == "rimworld.biotech.pawn-exchange");
     Require(biotechExtension.PayloadJson?.Contains("<xenotype />", StringComparison.Ordinal) == true, "pawn 交换包应保留兼容包 payload");

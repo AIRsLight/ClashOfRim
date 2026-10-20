@@ -364,6 +364,12 @@ internal sealed class GiftPawnExchangeRelationshipStubSummary
     [DataMember(Name = "OtherPawnDead")]
     public bool OtherPawnDead { get; set; }
 
+    [DataMember(Name = "OtherPawnThingDef")]
+    public string? OtherPawnThingDef { get; set; }
+
+    [DataMember(Name = "OtherPawnKindDef")]
+    public string? OtherPawnKindDef { get; set; }
+
     [DataMember(Name = "RelationDef")]
     public string? RelationDef { get; set; }
 }

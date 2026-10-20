@@ -248,7 +248,9 @@ internal static class PawnExchangeScribeRestorer
 
         createdPlaceholder = true;
         string tag = RelationshipPlaceholderTagPrefix + relationship.OtherPawnGlobalId.Trim();
-        Pawn placeholder = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, Faction.OfPlayer);
+        PawnKindDef kind = ResolveRelationshipPawnKind(relationship);
+        Pawn placeholder = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, Faction.OfPlayer,
+            forceGenerateNewPawn: true, canGeneratePawnRelations: false));
         if (!string.IsNullOrWhiteSpace(relationship.OtherPawnName))
         {
             placeholder.Name = new NameSingle(relationship.OtherPawnName!.Trim());
@@ -274,6 +276,41 @@ internal static class PawnExchangeScribeRestorer
             pawn.health.SetDead();
             worldPawns?.Notify_PawnDestroyed(pawn);
         }
+    }
+
+    internal static PawnKindDef ResolveRelationshipPawnKind(ModPawnExchangeRelationshipStubDto relationship)
+    {
+        InvalidOperationException Unresolved() =>
+            new("Cannot resolve relationship pawn species: " + relationship.OtherPawnGlobalId);
+        PawnKindDef? kind = string.IsNullOrWhiteSpace(relationship.OtherPawnKindDef) ? null
+            : DefDatabase<PawnKindDef>.GetNamedSilentFail(relationship.OtherPawnKindDef);
+        ThingDef? race = string.IsNullOrWhiteSpace(relationship.OtherPawnThingDef) ? null
+            : DefDatabase<ThingDef>.GetNamedSilentFail(relationship.OtherPawnThingDef);
+        // An explicit race is authoritative, including when its mod is unavailable.
+        if (!string.IsNullOrWhiteSpace(relationship.OtherPawnThingDef) && race?.race is null)
+            throw Unresolved();
+        // Older payloads only carry a ThingID. Recover a loaded race from its exact
+        // def-name prefix plus numeric ID; prefer the longest prefix for modded names.
+        if (race is null && string.IsNullOrWhiteSpace(relationship.OtherPawnThingDef))
+        {
+            string id = ExtractGlobalPawnLocalThingId(relationship.OtherPawnGlobalId) ?? string.Empty;
+            if (id.StartsWith("Thing_", StringComparison.Ordinal)) id = id.Substring(6);
+            race = DefDatabase<ThingDef>.AllDefsListForReading
+                .Where(d => d.race is not null && id.StartsWith(d.defName, StringComparison.Ordinal)
+                    && id.Length > d.defName.Length && id.Substring(d.defName.Length).All(char.IsDigit))
+                .OrderByDescending(d => d.defName.Length).FirstOrDefault();
+        }
+        if (kind?.race?.race is not null && (race is null || kind.race == race)) return kind;
+        if (race is not null)
+        {
+            kind = DefDatabase<PawnKindDef>.AllDefsListForReading.FirstOrDefault(k => k.race == race);
+            if (kind is not null) return kind;
+        }
+        if (race is not null || !string.IsNullOrWhiteSpace(relationship.OtherPawnThingDef)
+            || !string.IsNullOrWhiteSpace(relationship.OtherPawnKindDef)
+            || relationship.RelationDef == "Bond")
+            throw Unresolved();
+        return PawnKindDefOf.Colonist;
     }
 
     private static Pawn? FindExistingPawnByGlobalId(string globalId)

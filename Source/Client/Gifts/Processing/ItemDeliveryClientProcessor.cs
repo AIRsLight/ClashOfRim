@@ -215,6 +215,8 @@ public static class ItemDeliveryClientProcessor
                     OtherPawnGlobalId = relation.OtherPawnGlobalId,
                     OtherPawnName = relation.OtherPawnName,
                     OtherPawnDead = relation.OtherPawnDead,
+                    OtherPawnThingDef = relation.OtherPawnThingDef,
+                    OtherPawnKindDef = relation.OtherPawnKindDef,
                     RelationDef = relation.RelationDef
                 }).ToList(),
                 Extensions = package.Extensions.Select(extension =>

@@ -36,7 +36,9 @@ internal static class ItemTransferModuleTests
             true, reference.GlobalId, true, "独特", ["trait"]);
         var pawn = new PawnExchangePackage(SafePawnExchangeSerializer.CurrentPackageVersion, reference,
             new("Human", "Colonist", "Player", "Female"), new("名字", "Thin", "Head", "Hair", null, "#ffffff", "#000000"),
-            new(false, 120000, 130000, null, "health"), [equipment], [equipment], [new("other", "他", false, "Sibling")],
+            new(false, 120000, 130000, null, "health"), [equipment], [equipment],
+            [new("other", "他", false, "Sibling", "TransferAlien", "TransferAlienColonist"),
+                new("pet", "宠物", false, "Bond", "LabradorRetriever", "LabradorRetriever")],
             new("<pawn><def>Human</def></pawn>", null, [new("Pawn_2", "other-placeholder", reference)]),
             [new("provider", "kind", new() { ["key"] = "value" }, "{\"v\":1}")]);
         byte[] xml = Encoding.UTF8.GetBytes("<thing><def>Gun</def><comps><state>复杂</state></comps></thing>");

@@ -15,6 +15,16 @@ internal static class WireContractTests
         { UserId = "reader", ColonyId = "home", CurrentSnapshotId = "base", AuthToken = "token", EventIds = ["event"] });
         RoundTrip<ModWaitForEventsRequestDto, WaitForEventsRequest>(new()
         { UserId = "reader", ColonyId = "home", CurrentSnapshotId = "base", AuthToken = "token", KnownNotificationVersion = 10, TimeoutSeconds = 5 });
+        RoundTrip<ModPawnExchangeRelationshipStubDto, PawnExchangeRelationshipStubDto>(new()
+        {
+            OtherPawnGlobalId = "owner:friend/pawn:LabradorRetriever123", OtherPawnName = "Pet",
+            RelationDef = "Bond", OtherPawnThingDef = "LabradorRetriever", OtherPawnKindDef = "LabradorRetriever"
+        });
+        var oldRelationship = JsonSerializer.Deserialize<PawnExchangeRelationshipStubDto>(
+            "{\"otherPawnGlobalId\":\"owner:friend/pawn:Human123\",\"otherPawnName\":\"Friend\",\"otherPawnDead\":false,\"relationDef\":\"Parent\"}", ServerJson)!;
+        if (oldRelationship.OtherPawnGlobalId != "owner:friend/pawn:Human123" || oldRelationship.RelationDef != "Parent"
+            || oldRelationship.OtherPawnThingDef is not null || oldRelationship.OtherPawnKindDef is not null)
+            throw new Exception("Legacy relationship payload no longer defaults absent species metadata.");
         var snapshot = new ModSnapshotPackageMetadataDto
         {
             PackageVersion = "fixture", OwnerId = "玩家", ColonyId = "colony", SnapshotId = "after",

@@ -22,6 +22,7 @@ internal static class PawnTransferIdentityTests
         if (Build("alice") != "owner:alice/pawn:Human42") throw new Exception("Empty tag replaced local identity.");
 
         VerifyRelationshipDeath();
+        PawnRelationshipSpeciesTests.Run();
     }
 
     private static void VerifyRelationshipDeath()

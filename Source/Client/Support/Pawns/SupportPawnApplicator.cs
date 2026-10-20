@@ -391,6 +391,8 @@ internal static class SupportPawnApplicator
                         OtherPawnGlobalId = relationship.OtherPawnGlobalId,
                         OtherPawnName = relationship.OtherPawnName,
                         OtherPawnDead = relationship.OtherPawnDead,
+                        OtherPawnThingDef = relationship.OtherPawnThingDef,
+                        OtherPawnKindDef = relationship.OtherPawnKindDef,
                         RelationDef = relationship.RelationDef
                     }).ToList() ?? new List<SupportPawnExchangeRelationshipStubSummary>(),
                 Scribe = package?.Scribe is null

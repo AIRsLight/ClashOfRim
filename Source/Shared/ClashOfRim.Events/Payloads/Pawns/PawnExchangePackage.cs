@@ -64,7 +64,9 @@ public sealed record PawnExchangeRelationshipStub(
     string OtherPawnGlobalId,
     string? OtherPawnName,
     bool OtherPawnDead,
-    string? RelationDef);
+    string? RelationDef,
+    string? OtherPawnThingDef = null,
+    string? OtherPawnKindDef = null);
 
 public sealed record PawnScribePayload(
     string Xml,
@@ -198,6 +200,8 @@ public static class SafePawnExchangeSerializer
         "OtherPawnGlobalId",
         "OtherPawnName",
         "OtherPawnDead",
+        "OtherPawnThingDef",
+        "OtherPawnKindDef",
         "RelationDef"
     };
 
@@ -676,6 +680,8 @@ public static class SafePawnExchangeSerializer
             RequireText(relationship.OtherPawnGlobalId, "relationships.otherPawnGlobalId");
             OptionalText(relationship.OtherPawnName, "relationships.otherPawnName");
             OptionalText(relationship.RelationDef, "relationships.relationDef");
+            OptionalText(relationship.OtherPawnThingDef, "relationships.otherPawnThingDef");
+            OptionalText(relationship.OtherPawnKindDef, "relationships.otherPawnKindDef");
         }
     }
 
