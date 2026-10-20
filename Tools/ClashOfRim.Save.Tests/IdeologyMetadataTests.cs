@@ -45,5 +45,23 @@ internal static class IdeologyMetadataTests
         var reloaded = IdeologyServerCompatibility.ReadWorldIdeoCatalog([extension]).Single();
         if (JsonSerializer.Serialize(reloaded, options) != JsonSerializer.Serialize(existing, options))
             throw new Exception("Persisted metadata changed during catalog roundtrip.");
+
+        complete["ownerUserId"] = "server"; complete["globalKey"] = "owner:server/ideo:7";
+        complete["factionBindings"] = JsonNode.Parse("""
+            [{"factionDefName":"Tribe","factionIndex":0,"ideoIndex":0},
+             {"factionDefName":"Tribe","factionIndex":1,"ideoIndex":1}]
+            """);
+        var server = Read(complete);
+        var normalized = IdeologyServerCompatibility.NormalizeWorldIdeo(server, "alice", "home", "world");
+        var serverExtension = IdeologyServerCompatibility.BuildWorldIdeoCatalogExtension([normalized])!;
+        var restored = IdeologyServerCompatibility.ReadWorldIdeoCatalog([serverExtension]).Single();
+        if (restored.FactionBindings is not { Count: 2 } || !restored.FactionBindings.SequenceEqual(server.FactionBindings!))
+            throw new Exception("NPC primary/minor references lost in normalization or persistence.");
+        complete["ownerUserId"] = "alice"; complete["globalKey"] = "owner:alice/ideo:7";
+        if (Read(complete).FactionBindings is not null)
+            throw new Exception("Player-owned ideology supplied authoritative NPC bindings.");
+        var legacy = complete.DeepClone(); legacy.AsObject().Remove("factionBindings");
+        if (Read(legacy).FactionBindings is not null)
+            throw new Exception("Legacy catalog lost the distinction between absent and empty bindings.");
     }
 }

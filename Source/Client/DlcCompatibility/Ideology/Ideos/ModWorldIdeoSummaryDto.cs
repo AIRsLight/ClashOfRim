@@ -45,6 +45,11 @@ public sealed class ModWorldIdeoSummaryDto
     [DataMember(Name = "factionDefName")]
     public string? FactionDefName { get; set; }
 
+    // Null denotes a legacy catalog. Indices follow faction creation order within
+    // a Def (persisted loadID order), and primary=0 / minor=1.. within its tracker.
+    [DataMember(Name = "factionBindings")]
+    public List<ModWorldFactionIdeoBindingDto>? FactionBindings { get; set; }
+
     [DataMember(Name = "iconDefName")]
     public string? IconDefName { get; set; }
 
@@ -86,4 +91,15 @@ public sealed class ModWorldIdeoSummaryDto
 
     [DataMember(Name = "preceptCount")]
     public int PreceptCount { get; set; }
+}
+
+[DataContract]
+public sealed class ModWorldFactionIdeoBindingDto
+{
+    [DataMember(Name = "factionDefName")]
+    public string FactionDefName { get; set; } = string.Empty;
+    [DataMember(Name = "factionIndex")]
+    public int FactionIndex { get; set; }
+    [DataMember(Name = "ideoIndex")]
+    public int IdeoIndex { get; set; }
 }

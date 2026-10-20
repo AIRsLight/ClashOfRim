@@ -343,6 +343,7 @@ internal static class IdeologyPawnReferenceCompatibility
                     : null,
                 FoundationDefName = ideo.foundation?.def?.defName,
                 FactionDefName = ownerFaction?.def?.defName,
+                FactionBindings = playerOwned ? null : ServerFactionIdeologyBindings.Capture(ideo),
                 IconDefName = ideo.iconDef?.defName,
                 IconPath = ideo.iconDef?.iconPath,
                 ColorDefName = ideo.colorDef?.defName,

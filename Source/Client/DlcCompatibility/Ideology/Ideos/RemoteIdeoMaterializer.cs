@@ -38,9 +38,11 @@ public static class RemoteIdeoMaterializer
             return 0;
         }
 
+        var catalog = serverIdeos.ToArray();
+        var bindings = new ServerFactionIdeologyBindings(catalog, completeCatalog: true);
         int applied = 0;
         var localIdeoPackageHashes = new Dictionary<Ideo, string?>();
-        foreach (ModWorldIdeoSummaryDto dto in serverIdeos)
+        foreach (ModWorldIdeoSummaryDto dto in catalog)
         {
             if (string.IsNullOrWhiteSpace(dto.GlobalKey))
             {
@@ -54,7 +56,7 @@ public static class RemoteIdeoMaterializer
                 {
                     applied++;
                 }
-                else if (!localOwner && TryGetOrCreate(dto, out _, localIdeoPackageHashes))
+                else if (!localOwner && TryGetOrCreate(dto, out _, localIdeoPackageHashes, bindings))
                 {
                     applied++;
                 }
@@ -65,6 +67,7 @@ public static class RemoteIdeoMaterializer
             }
         }
 
+        bindings.Apply();
         if (applied > 0)
         {
             Find.IdeoManager.SortIdeos();
@@ -93,13 +96,17 @@ public static class RemoteIdeoMaterializer
 
     public static bool TryGetOrCreate(ModWorldIdeoSummaryDto dto, out Ideo? ideo)
     {
-        return TryGetOrCreate(dto, out ideo, null);
+        var bindings = new ServerFactionIdeologyBindings(new[] { dto });
+        bool success = TryGetOrCreate(dto, out ideo, null, bindings);
+        if (success) bindings.Apply();
+        return success;
     }
 
     private static bool TryGetOrCreate(
         ModWorldIdeoSummaryDto dto,
         out Ideo? ideo,
-        Dictionary<Ideo, string?>? localIdeoPackageHashes)
+        Dictionary<Ideo, string?>? localIdeoPackageHashes,
+        ServerFactionIdeologyBindings bindings)
     {
         ideo = null;
         if (Find.IdeoManager is null || string.IsNullOrWhiteSpace(dto.GlobalKey))
@@ -107,21 +114,22 @@ public static class RemoteIdeoMaterializer
             return false;
         }
 
-        // Ideology setup can replace a faction's primary instance after world generation.
-        // Resolve the live faction before a still-registered but superseded catalog entry.
-        if (TryFindNativeServerFactionIdeo(dto, out ideo) && ideo is not null)
+        if (bindings.HasBindings(dto))
         {
-            // Different languages consume different name-generation randomness.
-            // Matching faction Defs alone does not establish canonical precepts.
-            // Copy into the native instance to retain faction/pawn references and ID.
-            if (!MatchesIdeologyDefinition(ideo, dto) && !IsPrimaryIdeoOfPlayer(ideo))
+            ideo = bindings.FindReusable(dto);
+            if (ideo is null)
+            {
+                ideo = TryCreateIdeo(dto);
+                if (ideo is null || !Find.IdeoManager.Add(ideo)) return false;
+            }
+            else if (!MatchesIdeologyDefinition(ideo, dto))
             {
                 Ideo? canonical = TryCreateIdeo(dto);
                 if (canonical is null) return false;
                 canonical.CopyTo(ideo);
             }
+            bindings.Resolve(dto, ideo);
             RemoteIdeoCatalog.Register(ideo, dto.GlobalKey, BuildDisplayMetadata(dto));
-            RemoveDuplicateUnreferencedShadows(dto, ideo);
             ClashLog.Message("[ClashOfRim][Ideo] Bound server ideo to localized faction ideo: "
                 + dto.GlobalKey
                 + ", faction="
@@ -191,23 +199,6 @@ public static class RemoteIdeoMaterializer
         RemoteIdeoCatalog.Register(ideo, dto.GlobalKey, BuildDisplayMetadata(dto));
         RemoveDuplicateUnreferencedShadows(dto, ideo);
         return true;
-    }
-
-    private static bool TryFindNativeServerFactionIdeo(ModWorldIdeoSummaryDto dto, out Ideo? ideo)
-    {
-        ideo = null;
-        if (!string.Equals(dto.OwnerUserId, "server", StringComparison.OrdinalIgnoreCase)
-            || string.IsNullOrWhiteSpace(dto.FactionDefName))
-        {
-            return false;
-        }
-
-        ideo = Find.FactionManager?.AllFactionsListForReading?
-            .Where(faction => faction?.def is not null)
-            .Where(faction => string.Equals(faction.def.defName, dto.FactionDefName, StringComparison.Ordinal))
-            .Select(faction => faction.ideos?.PrimaryIdeo)
-            .FirstOrDefault(candidate => candidate is not null);
-        return ideo is not null;
     }
 
     private static bool CanApplyRemoteShadowFields(Ideo ideo)

@@ -32,7 +32,8 @@ public sealed class WorldIdeoSummaryDto
         bool hidden,
         bool initialPlayerIdeo,
         int memeCount,
-        int preceptCount)
+        int preceptCount,
+        IReadOnlyList<WorldFactionIdeoBindingDto>? factionBindings = null)
     {
         GlobalKey = globalKey;
         OwnerUserId = ownerUserId;
@@ -61,6 +62,8 @@ public sealed class WorldIdeoSummaryDto
         InitialPlayerIdeo = initialPlayerIdeo;
         MemeCount = memeCount;
         PreceptCount = preceptCount;
+        FactionBindings = string.Equals(ownerUserId, "server", StringComparison.OrdinalIgnoreCase)
+            ? factionBindings?.ToArray() : null;
     }
 
     public string GlobalKey { get; }
@@ -93,6 +96,8 @@ public sealed class WorldIdeoSummaryDto
 
     public string? FactionDefName { get; }
 
+    public IReadOnlyList<WorldFactionIdeoBindingDto>? FactionBindings { get; }
+
     public string? IconDefName { get; }
 
     public string? IconPath { get; }
@@ -121,3 +126,5 @@ public sealed class WorldIdeoSummaryDto
 
     public int PreceptCount { get; }
 }
+
+public sealed record WorldFactionIdeoBindingDto(string FactionDefName, int FactionIndex, int IdeoIndex);

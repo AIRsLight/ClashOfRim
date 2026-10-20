@@ -95,7 +95,9 @@ internal static class WorldObservations
                 id = f.loadID,
                 defName = f.def.defName,
                 name = f.Name,
-                ideology = ModsConfig.IdeologyActive ? Ideology(f.ideos?.PrimaryIdeo) : null
+                ideology = ModsConfig.IdeologyActive ? Ideology(f.ideos?.PrimaryIdeo) : null,
+                minorIdeologies = ModsConfig.IdeologyActive
+                    ? f.ideos?.IdeosMinorListForReading.Select(Ideology).ToArray() ?? [] : []
             }).ToArray(),
             ideologies = ModsConfig.IdeologyActive ? Find.IdeoManager.IdeosListForReading.OrderBy(i => i.id).Select(Ideology).ToArray() : [],
             pawns = Find.Maps.Where(m => m.IsPlayerHome).SelectMany(m => m.mapPawns.FreeColonistsSpawned).OrderBy(p => p.ThingID).Select(p => new

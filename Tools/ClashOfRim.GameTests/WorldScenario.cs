@@ -238,19 +238,28 @@ internal sealed class WorldScenario(TestRun run, ScenarioPolling polling, SuiteP
             }
         }
         // Local player ideologies may differ; shared NPC factions must keep canonical culture/memes/precepts.
+        var identities = new List<(int Host, int Guest)>();
         foreach (string def in world.Current!.Factions.Select(f => f.DefName).Distinct(StringComparer.Ordinal))
         {
             var a = worldA.GetProperty("factions").EnumerateArray().Where(f => f.String("defName") == def).ToArray();
             var b = worldB.GetProperty("factions").EnumerateArray().Where(f => f.String("defName") == def).ToArray();
             Check(a.Length > 0 && a.Length == b.Length, "Shared faction missing/duplicated: " + def);
-            string Canonical(JsonElement faction)
+            string Canonical(JsonElement ideo)
             {
-                var ideo = faction.GetProperty("ideology");
                 if (ideo.ValueKind == JsonValueKind.Null) return "null";
                 return JsonSerializer.Serialize(new[] { "culture", "foundation", "memes", "precepts" }.Select(key => ideo.GetProperty(key)).ToArray());
             }
-            Check(a.Select(Canonical).Order(StringComparer.Ordinal).SequenceEqual(b.Select(Canonical).Order(StringComparer.Ordinal)), "Shared faction culture/memes/precepts differ: " + def);
+            foreach (var pair in a.Zip(b))
+            {
+                var host = new[] { pair.First.GetProperty("ideology") }.Concat(pair.First.GetProperty("minorIdeologies").EnumerateArray()).ToArray();
+                var guest = new[] { pair.Second.GetProperty("ideology") }.Concat(pair.Second.GetProperty("minorIdeologies").EnumerateArray()).ToArray();
+                Check(host.Select(Canonical).SequenceEqual(guest.Select(Canonical)), "Shared faction culture/memes/precepts differ: " + def);
+                identities.AddRange(host.Zip(guest).Where(p => p.First.ValueKind != JsonValueKind.Null).Select(p => (p.First.Int("id"), p.Second.Int("id"))));
+            }
         }
+        Check(identities.GroupBy(p => p.Host).All(g => g.Select(p => p.Guest).Distinct().Count() == 1)
+            && identities.GroupBy(p => p.Guest).All(g => g.Select(p => p.Host).Distinct().Count() == 1),
+            "Shared factions have different ideology reference relationships.");
     }
     static string GeometryDigest(WorldTileLayerGeometryDto layer)
     {

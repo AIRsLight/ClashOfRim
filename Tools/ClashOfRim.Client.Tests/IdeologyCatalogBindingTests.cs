@@ -26,6 +26,7 @@ internal static class IdeologyCatalogBindingTests
 
     public static void Run()
     {
+        ServerFactionIdeologyBindingTests.Run();
         var previous = ClientSharedIdeologyWorld.Current;
         var previousGame = Current.Game;
         ClientSharedIdeologyWorld.Attach(null); Current.Game = null; world = null!;

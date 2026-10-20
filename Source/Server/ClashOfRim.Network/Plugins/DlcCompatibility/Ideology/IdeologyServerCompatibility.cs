@@ -191,7 +191,8 @@ internal static class IdeologyServerCompatibility
                     ideo.Hidden,
                     ideo.InitialPlayerIdeo,
                     ideo.MemeCount,
-                    ideo.PreceptCount);
+                    ideo.PreceptCount,
+                    ideo.FactionBindings);
 
             if (byGlobalKey.TryGetValue(normalized.GlobalKey, out WorldIdeoSummaryDto? existing))
             {
@@ -260,7 +261,8 @@ internal static class IdeologyServerCompatibility
             ideo.Hidden,
             ideo.InitialPlayerIdeo,
             Math.Max(0, ideo.MemeCount),
-            Math.Max(0, ideo.PreceptCount));
+            Math.Max(0, ideo.PreceptCount),
+            ideo.FactionBindings);
     }
 
     public static IReadOnlyList<WorldIdeoSummaryDto> BuildWorldIdeosFromAcceptedSnapshot(
@@ -425,7 +427,8 @@ internal static class IdeologyServerCompatibility
             incoming.Hidden,
             incoming.InitialPlayerIdeo,
             incoming.MemeCount,
-            incoming.PreceptCount);
+            incoming.PreceptCount,
+            incoming.FactionBindings ?? (incoming.GlobalKey == equivalent.GlobalKey ? equivalent.FactionBindings : null));
     }
 
     private static string BuildIdeoGlobalKey(string ownerUserId, string? localId)
