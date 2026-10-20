@@ -27,7 +27,7 @@ RimWorld 1.7.4980 rev60，原生图形模式。RimTest 在真实窗口 Repaint �
 
 - 首轮中俄：`G:/RimTestRuns/ui-layout-2026-10-20/20261020-035916-68234da9`，198 个样本，确认上述缺陷。前两次探针/语言名配置失败保留在本地日志中，不计通过。
 - 修复后英日（基础游戏）：`G:/RimTestRuns/ui-layout-2026-10-20/20261020-040426-06dcd38a`，198 个样本无文字溢出，客户端运行错误检查通过。
-- 扩展俄韩全 DLC：`G:/RimTestRuns/ui-layout-expanded-2026-10-20/20261020-040740-9becba9f`，建图失败，未执行 UI 检查。俄语规则解析报 `Bad string pass when reading rule [tradeAdj_fem] [tradeNoun_fem]`，堆栈位于原版 `RulePack/NameGenerator/FactionGenerator`。未屏蔽该错误；俄韩后续限定 Biotech，其他语言继续全 DLC。
+- 扩展俄韩全 DLC：`G:/RimTestRuns/ui-layout-expanded-2026-10-20/20261020-040740-9becba9f`，建图阶段报错，入服错误检查失败，未执行 UI 检查。俄语规则解析报 `Bad string pass when reading rule [tradeAdj_fem] [tradeNoun_fem]`，堆栈位于原版 `RulePack/NameGenerator/FactionGenerator`。游戏随后继续执行 `Game.InitNewGame`，不能将此记录描述为进程崩溃或世界生成未完成。未屏蔽该错误；俄韩后续限定 Biotech，其他语言继续全 DLC。
 - 扩展俄韩 + Biotech：`G:/RimTestRuns/ui-layout-expanded-2026-10-20/20261020-040903-2f729c01`，264 个样本，复现第 8–10 项；不能计为通过。
 
 最终扩展矩阵目录：`G:/RimTestRuns/ui-layout-final-2026-10-20/20261020-041317-196e5400`。
@@ -47,7 +47,52 @@ RimWorld 1.7.4980 rev60，原生图形模式。RimTest 在真实窗口 Repaint �
 - 英文服主：`Loyalist, Structure_Animist, TreeConnection`。
 - 日文加入方：`FemaleSupremacy, Guilty, HumanPrimacy, Structure_Archist`。
 
-戒律、图标等也不同，因此不是单纯显示名称本地化。加入方 7 次世界观察均保留该组模因。完整原始值在该运行的 `trace.jsonl` / `report.json`；需独立排查 NPC 意识形态导入或替换时机，本次 UI 布局修复没有修改世界同步逻辑或放宽文化断言。另外，俄语全 DLC 建图阶段的规则解析错误仍未解决。
+戒律、图标等也不同，因此不是单纯显示名称本地化。加入方 7 次世界观察均保留该组模因。完整原始值在该运行的 `trace.jsonl` / `report.json`。本次 UI 布局修复没有修改世界同步逻辑或放宽文化断言。两项错误的后续定位见下节，仍未修复。
+
+## 后续根因核查（2026-10-20）
+
+本次仅核查上列两项失败的日志、源码与本机游戏数据，未修改游戏行为、安装目录或测试断言，未重新执行全量回归。两项问题均未修复。
+
+### NPC 信仰：不同服务端对象绑定到同一个本地对象
+
+英日运行的 `Clients/20261020-041739-ad82ece1/stdout.log` 给出了直接证据：
+
+- 第 855 行：`owner:server/ideo:2` 经 `TribeCivil` 绑定，名称为 `Loyaltism`。
+- 第 892 行：`owner:server/ideo:3` 经 `TribeRoughNeanderthal` 绑定，名称为 `Archotechnic Way`。
+- 第 1169 行：本地 `Ideo_2` 同时具有上述两个全局键，同时是这两个 NPC 派系的主信仰，最终名称为 `Archotechnic Way`。同样状态在后续同步中反复出现。
+- 对照英文服主 `Clients/20261020-041737-100bf939/stdout.log` 第 1535–1536 行，这两个派系分别引用独立的 `Ideo_2` 和 `Ideo_3`。
+
+调用链位于 `RemoteIdeoMaterializer.TryGetOrCreate`：先由 `TryFindNativeServerFactionIdeo` 按派系 Def 找到本地主信仰，再对其执行 `canonical.CopyTo(ideo)`，最后登记全局键。代码保留了对象引用，却没有确认该对象是否也被其他、应当使用不同服务端信仰的 NPC 派系引用。因此第二次 CopyTo 会直接覆盖第一次写入的模因、戒律等；重复请求或延迟重试无法解决这个冲突。
+
+本机 1.7 的 `FactionIdeosTracker.ChooseOrGenerateIdeo` 原本就允许 NPC 派系复用已有信仰：普通分支有 `Rand.Chance(0.2f)` 的复用机会，数量/隐藏派系条件也会进入复用选择。这不是每个派系必有独立信仰的模型。加入端仍调用原版 `WorldGenerator.GenerateWorld` 生成派系，再应用服务端配置。实测已证明两端引用关系不同；语言导致命名随机消耗不同是合理的触发解释，但本次没有逐个追踪随机调用，不能据此断言日语或某个特定模因本身有问题。
+
+协议也有对应缺口：`ReadCurrentWorldIdeos` 通过 `FindFactionForIdeo(...).FirstOrDefault(...)` 只导出一个 `FactionDefName`。它不能完整表达“一个信仰被多个派系共享”，接收端的 `FirstOrDefault` 也无法区分同一种 Def 的多个派系。仅遇冲突就克隆一个对象，仍无法完整恢复服务端的共享关系。
+
+修复方向：明确同步派系实例与主/次信仰全局键之间的关系，再通过现有包载入器和目录逻辑恢复引用；只在不会串改其他派系时原地更新。已有 pawn 的信仰引用也须按其所属关系处理。定向用例至少包含服务端独立/客户端共享、服务端共享/客户端独立、同 Def 多派系、重复应用、读档/重连，以及英日全 DLC 的原失败组合。不要用统一语言或反复重试掩盖引用关系缺失。
+
+### 俄语命名规则：Odyssey 自带翻译缺少规则前缀
+
+已直接读取本机 `E:/SteamLibrary/steamapps/common/RimWorld/Data/Odyssey/Languages/Russian (Русский).tar`。包内 `DefInjected/RulePackDef/RulePacks_Namers_Factions.xml` 第 136–138 行为：
+
+```xml
+<NamerFactionTradersGuild.rulePack.rulesStrings>
+  <li>r_name->[tradeAdj_mas] [tradeNoun_mas]</li>
+  <li>[tradeAdj_fem] [tradeNoun_fem]</li>
+```
+
+第二条缺少 `r_name->`；同一规则的正确结构应为 `r_name->[tradeAdj_fem] [tradeNoun_fem]`。原版 `TradersGuild` 的 `factionNameMaker` 正是 `NamerFactionTradersGuild`。该坏字符串在 Core 与五个 DLC 的俄语包扫描中只命中 Odyssey。
+
+错误链与日志完全一致：
+
+1. `Rule_String(string)` 要求 `keyword->output`，匹配失败后记录 `Bad string pass...` 并返回，留下空 keyword。
+2. `GrammarResolver.AddRule` 使用空键，产生 `ArgumentNullException`，记录 `Failed to resolve text. Trying again with English`。
+3. 日志随后进入选址页和 `Game.InitNewGame`。`shared-world-entry` 的失败来自 `ScenarioRuntimeDiagnostics.CheckEntry` 检测到首个 error；不存在该记录证明的进程崩溃。
+
+我们的 `InvariantGameDataCulturePatch` 仅暂时切换数值解析文化，不改写 `rawString`；本机压缩包本身已有上述坏条目。因而这是已安装 Odyssey 俄语数据的语法缺陷，和前述 NPC 信仰绑定错误独立。未另行启动纯原版对照进程；结论依据原始包、解析器和实际调用堆栈。
+
+如在模组中兼容，应仅修复这个已知规则中的精确坏字符串，保留其他翻译和原版英文回退，不全局吞掉语法错误，也不直接改 Steam 安装文件。可用俄语 + Odyssey 的最小组合和既有俄韩全 DLC 组合定向验证，再恢复 UI 矩阵的对应覆盖。
+
+证据身份：俄语 tar SHA-256 为 `d5d65a67ecb59052aedd59f6f6d97da8dc686fc58b330290b9113c49acf0b717`；上述成员 SHA-256 为 `b4758cf9f6881816c8ca10002585bd3e1bed38c2b7cc2730cb8835655f47526e`。当前 `Assembly-CSharp.dll` SHA-256 为 `eff7d97949f919fb2b151ebfb906e9be749b63410b7dbda78eeebb7972b245c3`；REA 元数据检查达到容量限制，方法行为另外使用本地 CIL 探针核对。提取的 XML、哈希和两段方法 IL 保存在 `LocalOnly/ui-error-diagnosis-2026-10-20/`，不加入发行包。
 
 ## 复跑
 
