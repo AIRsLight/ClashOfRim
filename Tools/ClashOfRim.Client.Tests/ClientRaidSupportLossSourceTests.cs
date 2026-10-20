@@ -49,7 +49,9 @@ internal static class ClientRaidSupportLossSourceTests
             assignments[2].AutoReturnOnSettlement = false;
             assignments[3].FinishInProgress = true;
             dead.Add(live["5"]); destroyed.Add(live["6"]); live.Remove("7");
-            maps[live["8"]] = null; var otherMap = Uninitialized<Map>(); otherMap.uniqueID = 8; maps[live["9"]] = otherMap;
+            maps[live["8"]] = null; var otherMap = Uninitialized<Map>(); otherMap.info = new MapInfo(); otherMap.uniqueID = 8; maps[live["9"]] = otherMap;
+            var pocket = Uninitialized<Map>(); pocket.info = new MapInfo { parent = new PocketMapParent { sourceMap = maps[live["1"]] } };
+            maps[live["2"]] = pocket;
             var source = new ClientRaidSupportLossSource(battle); var losses = source.Capture();
             Check(losses.Select(loss => loss.EventId).SequenceEqual(new[] { "1", "2" }), "Source selected non-returning, pending, missing, dead or other-map pawns.");
             source.InProgress(losses[0], true);
@@ -163,7 +165,7 @@ internal static class ClientRaidSupportLossSourceTests
         AccessTools.Field(typeof(Game), "components").SetValue(game, new List<GameComponent> { component });
         AccessTools.Field(typeof(ClashOfRimGameComponent), "activeSupportAssignments").SetValue(component, assignments);
         battle = new() { EventId = "raid", ClientMapId = "Map_7" }; ClashOfRimGameComponent.SetActiveRaidBattleSession(battle);
-        var map = Uninitialized<Map>(); map.uniqueID = 7;
+        var map = Uninitialized<Map>(); map.info = new MapInfo(); map.uniqueID = 7;
         for (int i = 1; i <= 9; i++)
         {
             string id = i.ToString(System.Globalization.CultureInfo.InvariantCulture);

@@ -1619,7 +1619,6 @@
   <ClashOfRim.RemoteSessionMap.StatusInvalidTile>대상 타일을 사용할 수 없습니다.</ClashOfRim.RemoteSessionMap.StatusInvalidTile>
   <ClashOfRim.RemoteSessionMap.StatusMissingDef>원격 지도 정보가 부족합니다.</ClashOfRim.RemoteSessionMap.StatusMissingDef>
   <ClashOfRim.RemoteSessionMap.StatusMissingPackage>원격 저장 내용이 없어 지도를 열 수 없습니다.</ClashOfRim.RemoteSessionMap.StatusMissingPackage>
-  <ClashOfRim.RemoteSessionMap.PocketMapBlocked>원격 지도는 아직 깊은 구덩이 또는 다른 하위 지도 진입을 지원하지 않습니다.</ClashOfRim.RemoteSessionMap.PocketMapBlocked>
   <ClashOfRim.RemoteMapProjection.StatusDecodeFailed>원격 지도 저장을 읽을 수 없습니다: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusDecodeFailed>
   <ClashOfRim.RemoteMapProjection.StatusInvalidXml>저장을 읽을 수 없습니다: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusInvalidXml>
   <ClashOfRim.RemoteMapProjection.StatusMapMissing>저장에서 대상 지도를 찾을 수 없습니다: {MAP}</ClashOfRim.RemoteMapProjection.StatusMapMissing>

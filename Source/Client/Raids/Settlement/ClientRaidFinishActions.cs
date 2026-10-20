@@ -45,6 +45,7 @@ internal sealed class ClientRaidFinishActions
     {
         var map = RemoteSessionMapUtility.FindActiveSessionMap(ActiveRemoteMapSession.FromRaidBattle(battle))?.Map;
         if (map?.mapPawns is null || Faction.OfPlayer is null) return 0;
-        return map.mapPawns.AllPawnsSpawned.Count(pawn => pawn is not null && !pawn.Dead && !pawn.Destroyed && pawn.Faction == Faction.OfPlayer);
+        return RemoteSessionPocketMapUtility.MapTree(map).SelectMany(child => child.mapPawns.AllPawnsSpawned)
+            .Count(pawn => pawn is not null && !pawn.Dead && !pawn.Destroyed && pawn.Faction == Faction.OfPlayer);
     }
 }

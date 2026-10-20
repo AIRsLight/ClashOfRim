@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("remote pocket maps share native lifetime, nested cleanup and snapshot pruning", RemotePocketMapTests.Run),
     ("client composition publishes complete owners only for the expected package", ClientCompositionTests.Run),
     ("mercenary quest engine callbacks preserve saved state and original ownership", ClientMercenaryQuestRuntimeTests.Run),
     ("mercenary quest lifecycle owns recall signals and ordered settlement", ClientMercenaryQuestLifecycleTests.Run),

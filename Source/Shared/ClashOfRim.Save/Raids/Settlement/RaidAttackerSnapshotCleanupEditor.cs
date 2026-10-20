@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Xml.Linq;
+using AIRsLight.ClashOfRim.Snapshots;
 
 namespace AIRsLight.ClashOfRim.Save;
 
@@ -52,6 +53,7 @@ public static class RaidAttackerSnapshotCleanupEditor
         }
 
         HashSet<string> removedWorldObjectLoadIds = RemoveRaidBattleWorldObjects(document);
+        var removedPocketParents = SavePocketMapTree.IncludeDescendantParents(document, removedWorldObjectLoadIds);
         HashSet<string> removedMapIds = FindMapUniqueIdsByParent(document, removedWorldObjectLoadIds);
         RaidBattleCleanupState battleState = ReadRaidBattleCleanupState(document);
         RaidAttackerSnapshotCleanupResult extractedResult = BuildCleanupResult(
@@ -64,6 +66,7 @@ public static class RaidAttackerSnapshotCleanupEditor
         deletedRemotePawnIds.ExceptWith(movedWorldPawns.MovedLocalIds);
         int cleanedDeletedPawnReferences = CleanupReferencesToDeletedRaidMapPawns(document, deletedRemotePawnIds);
         int removedMapCount = RemoveMapsByParent(document, removedWorldObjectLoadIds);
+        foreach (var parent in removedPocketParents) parent.Remove();
         int normalizedCurrentMapIndex = NormalizeCurrentMapIndex(document);
         cleanupResult = extractedResult with { RemovedMapCount = removedMapCount };
         int clearedComponents = ClearRaidBattleComponentState(document);

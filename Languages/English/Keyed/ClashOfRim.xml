@@ -1616,7 +1616,6 @@
   <ClashOfRim.RemoteSessionMap.StatusInvalidTile>The target tile cannot be used.</ClashOfRim.RemoteSessionMap.StatusInvalidTile>
   <ClashOfRim.RemoteSessionMap.StatusMissingDef>Distant map information is missing.</ClashOfRim.RemoteSessionMap.StatusMissingDef>
   <ClashOfRim.RemoteSessionMap.StatusMissingPackage>Distant save contents are missing, so the map cannot be opened.</ClashOfRim.RemoteSessionMap.StatusMissingPackage>
-  <ClashOfRim.RemoteSessionMap.PocketMapBlocked>Distant maps do not support entering deep pits or other child maps yet.</ClashOfRim.RemoteSessionMap.PocketMapBlocked>
   <ClashOfRim.RemoteMapProjection.StatusDecodeFailed>Distant map save could not be read: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusDecodeFailed>
   <ClashOfRim.RemoteMapProjection.StatusInvalidXml>The save could not be read: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusInvalidXml>
   <ClashOfRim.RemoteMapProjection.StatusMapMissing>The target map was not found in the save: {MAP}</ClashOfRim.RemoteMapProjection.StatusMapMissing>

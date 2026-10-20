@@ -13,6 +13,7 @@
   <Import Project="../../Tools/RimWorld.Client.props" />
 
   <ItemGroup>
+    <Compile Include="../Shared/ClashOfRim.Save/Structure/SavePocketMapTree.cs" Link="ClientSnapshots/SavePocketMapTree.cs" />
     <ProjectReference Include="..\Shared\ClashOfRim.Compatibility\ClashOfRim.Compatibility.csproj" />
     <ProjectReference Include="..\Shared\ClashOfRim.Protocol\ClashOfRim.Protocol.csproj" />
   </ItemGroup>

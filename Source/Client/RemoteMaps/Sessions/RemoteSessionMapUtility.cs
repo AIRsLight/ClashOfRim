@@ -165,7 +165,7 @@ public static class RemoteSessionMapUtility
             return null;
         }
 
-        RemoteSessionMapParent? current = Find.CurrentMap?.Parent as RemoteSessionMapParent;
+        RemoteSessionMapParent? current = RemoteSessionPocketMapUtility.FindSessionParent(Find.CurrentMap);
         if (MatchesSession(current, session))
         {
             return current;

@@ -1616,7 +1616,6 @@
   <ClashOfRim.RemoteSessionMap.StatusInvalidTile>目标地块有误，不能打开远方地图。</ClashOfRim.RemoteSessionMap.StatusInvalidTile>
   <ClashOfRim.RemoteSessionMap.StatusMissingDef>缺少远方地图信息，不能打开远方地图。</ClashOfRim.RemoteSessionMap.StatusMissingDef>
   <ClashOfRim.RemoteSessionMap.StatusMissingPackage>缺少远方存档内容，不能打开远方地图。</ClashOfRim.RemoteSessionMap.StatusMissingPackage>
-  <ClashOfRim.RemoteSessionMap.PocketMapBlocked>远方地图暂不支持进入深坑或其他子地图。</ClashOfRim.RemoteSessionMap.PocketMapBlocked>
   <ClashOfRim.RemoteMapProjection.StatusDecodeFailed>远程地图存档读取失败：{MESSAGE}</ClashOfRim.RemoteMapProjection.StatusDecodeFailed>
   <ClashOfRim.RemoteMapProjection.StatusInvalidXml>存档不是有效的 RimWorld 存档：{MESSAGE}</ClashOfRim.RemoteMapProjection.StatusInvalidXml>
   <ClashOfRim.RemoteMapProjection.StatusMapMissing>存档中找不到目标地图：{MAP}</ClashOfRim.RemoteMapProjection.StatusMapMissing>

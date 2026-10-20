@@ -1619,7 +1619,6 @@
   <ClashOfRim.RemoteSessionMap.StatusInvalidTile>Целевую клетку нельзя использовать.</ClashOfRim.RemoteSessionMap.StatusInvalidTile>
   <ClashOfRim.RemoteSessionMap.StatusMissingDef>Сведения удаленной карты отсутствуют.</ClashOfRim.RemoteSessionMap.StatusMissingDef>
   <ClashOfRim.RemoteSessionMap.StatusMissingPackage>Содержимое удаленного сохранения отсутствует, карта не может быть открыта.</ClashOfRim.RemoteSessionMap.StatusMissingPackage>
-  <ClashOfRim.RemoteSessionMap.PocketMapBlocked>Удаленные карты пока не поддерживают вход в глубокие ямы и другие дочерние карты.</ClashOfRim.RemoteSessionMap.PocketMapBlocked>
   <ClashOfRim.RemoteMapProjection.StatusDecodeFailed>Не удалось прочитать сохранение удаленной карты: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusDecodeFailed>
   <ClashOfRim.RemoteMapProjection.StatusInvalidXml>Не удалось прочитать сохранение: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusInvalidXml>
   <ClashOfRim.RemoteMapProjection.StatusMapMissing>Целевая карта не найдена в сохранении: {MAP}</ClashOfRim.RemoteMapProjection.StatusMapMissing>

@@ -175,12 +175,8 @@ public sealed class RemoteSessionMapParent : MapParent
             return false;
         }
 
-        if (Map.mapPawns.AnyPawnBlockingMapRemoval)
-        {
-            return false;
-        }
-
-        if (TransporterUtility.IncomingTransporterPreventingMapRemoval(Map))
+        if (RemoteSessionPocketMapUtility.MapTree(Map).Any(map => map.mapPawns.AnyPawnBlockingMapRemoval
+            || TransporterUtility.IncomingTransporterPreventingMapRemoval(map)))
         {
             return false;
         }

@@ -21,7 +21,6 @@ public static class RemoteSessionThingCleanup
             return;
         }
 
-        string tag = CleanupTag(parent.SessionId);
         int marked = 0;
         foreach (Thing thing in SnapshotCleanupCandidates(map))
         {
@@ -30,7 +29,7 @@ public static class RemoteSessionThingCleanup
                 continue;
             }
 
-            QuestUtility.AddQuestTag(ref thing.questTags, tag);
+            MarkThingForCleanup(thing, parent);
             marked++;
         }
 
@@ -39,6 +38,12 @@ public static class RemoteSessionThingCleanup
             + " transient things for cleanup in session "
             + parent.SessionId
             + ".");
+    }
+
+    internal static void MarkThingForCleanup(Thing thing, RemoteSessionMapParent? parent)
+    {
+        if (parent is not null && !string.IsNullOrWhiteSpace(parent.SessionId))
+            QuestUtility.AddQuestTag(ref thing.questTags, CleanupTag(parent.SessionId));
     }
 
     public static int DiscardMarkedMapThings(Map? map, RemoteSessionMapParent? parent, string reason)

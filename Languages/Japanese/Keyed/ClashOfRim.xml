@@ -1619,7 +1619,6 @@
   <ClashOfRim.RemoteSessionMap.StatusInvalidTile>対象タイルは使用できません。</ClashOfRim.RemoteSessionMap.StatusInvalidTile>
   <ClashOfRim.RemoteSessionMap.StatusMissingDef>遠隔マップ情報が不足しています。</ClashOfRim.RemoteSessionMap.StatusMissingDef>
   <ClashOfRim.RemoteSessionMap.StatusMissingPackage>遠隔セーブ内容が不足しているため、マップを開けません。</ClashOfRim.RemoteSessionMap.StatusMissingPackage>
-  <ClashOfRim.RemoteSessionMap.PocketMapBlocked>遠隔マップでは深穴などの子マップへの進入はまだ対応していません。</ClashOfRim.RemoteSessionMap.PocketMapBlocked>
   <ClashOfRim.RemoteMapProjection.StatusDecodeFailed>遠隔マップセーブを読み取れませんでした: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusDecodeFailed>
   <ClashOfRim.RemoteMapProjection.StatusInvalidXml>セーブを読み取れませんでした: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusInvalidXml>
   <ClashOfRim.RemoteMapProjection.StatusMapMissing>対象マップがセーブ内に見つかりません: {MAP}</ClashOfRim.RemoteMapProjection.StatusMapMissing>

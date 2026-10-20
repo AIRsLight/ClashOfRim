@@ -24,7 +24,7 @@ internal static class BiotechRemoteSessionMechanitorNotificationPatch
 
     public static bool Prefix(Pawn pawn, Map map)
     {
-        if (map?.Parent is not RemoteSessionMapParent)
+        if (!RemoteSessionGlobalStateGuard.IsRemoteMap(map))
         {
             return true;
         }

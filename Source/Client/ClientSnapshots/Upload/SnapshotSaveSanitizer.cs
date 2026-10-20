@@ -8,6 +8,7 @@ using System.Xml.Linq;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using Verse;
+using AIRsLight.ClashOfRim.Snapshots;
 
 namespace AIRsLight.ClashOfRim.ClientSnapshots;
 
@@ -57,15 +58,16 @@ public static class SnapshotSaveSanitizer
             ? RemoveRemoteSessionWorldObjects(document)
             : new HashSet<string>(StringComparer.Ordinal);
         HashSet<string> removedMapLoadIds = new(StringComparer.Ordinal);
+        int removedWorldObjects = removedWorldObjectLoadIds.Count;
+        var removedPockets = SavePocketMapTree.IncludeDescendantParents(document, removedWorldObjectLoadIds);
         int removedMaps = RemoveMapsByParent(document, removedWorldObjectLoadIds, removedMapLoadIds);
-        int removedPocketMaps = RemovePocketMapsBySourceMap(document, removedMapLoadIds, out HashSet<string> removedPocketMapParentLoadIds);
-        removedMaps += RemoveMapsByParent(document, removedPocketMapParentLoadIds, removedMapLoadIds);
+        foreach (var pocket in removedPockets) pocket.Remove();
         int clearedComponents = removeRaidBattleSessions
             ? ClearRaidBattleComponentState(document)
             : 0;
         int compatibilityChanges = ClashOfRimCompatibilityApi.SanitizeSnapshotSave(document);
 
-        result = new SnapshotSaveSanitizerResult(removedWorldObjectLoadIds.Count, removedMaps, clearedComponents);
+        result = new SnapshotSaveSanitizerResult(removedWorldObjects, removedMaps, clearedComponents);
         if (!result.Changed && compatibilityChanges <= 0)
         {
             return saveBytes;
@@ -88,7 +90,7 @@ public static class SnapshotSaveSanitizer
             + ", maps="
             + result.RemovedMaps
             + ", pocketMaps="
-            + removedPocketMaps
+            + removedPockets.Count
             + ", components="
             + result.ClearedComponents
             + ", compatibility="
@@ -225,52 +227,6 @@ public static class SnapshotSaveSanitizer
         }
 
         return maps.Count;
-    }
-
-    private static int RemovePocketMapsBySourceMap(
-        XDocument document,
-        HashSet<string> removedMapLoadIds,
-        out HashSet<string> removedPocketMapParentLoadIds)
-    {
-        removedPocketMapParentLoadIds = new HashSet<string>(StringComparer.Ordinal);
-        if (removedMapLoadIds.Count == 0)
-        {
-            return 0;
-        }
-
-        List<XElement> pocketMaps = document.Root?
-            .Element("game")?
-            .Element("world")?
-            .Element("pocketMaps")?
-            .Elements("li")
-            .Where(pocketMap => removedMapLoadIds.Contains(NormalizeLoadReference(pocketMap.Element("sourceMap")?.Value)))
-            .ToList() ?? new List<XElement>();
-
-        foreach (XElement pocketMap in pocketMaps)
-        {
-            string? id = pocketMap.Element("ID")?.Value?.Trim();
-            if (!string.IsNullOrWhiteSpace(id))
-            {
-                removedPocketMapParentLoadIds.Add("WorldObject_" + id);
-            }
-
-            pocketMap.Remove();
-        }
-
-        return pocketMaps.Count;
-    }
-
-    private static string NormalizeLoadReference(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
-
-        string normalized = value!.Trim();
-        return normalized.StartsWith("@", StringComparison.Ordinal)
-            ? normalized.Substring(1)
-            : normalized;
     }
 
     private static int ClearRaidBattleComponentState(XDocument document)

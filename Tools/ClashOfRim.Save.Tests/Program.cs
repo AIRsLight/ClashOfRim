@@ -266,6 +266,7 @@ var tests = new (string Name, Action Run)[]
     ("袭击超时夹具重开、持久决策与资源生命周期", () => RaidTimeoutFixtureTests.Run(RaidCleanupSnapshot.Create())),
     ("袭击超时维护、离线证据与清理恢复", () => RaidTimeoutRecoveryTests.Run(RaidCleanupSnapshot.Create())),
     ("袭击超时日志准备与最终状态复验", () => RaidTimeoutJournalPreparationTests.Run(RaidCleanupSnapshot.Create())),
+    ("袭击子地图清理包含嵌套地图及进攻支援损失", RaidPocketMapCleanupTests.Run),
     ("超时袭击攻击者快照只清理远程战场", VerifyRaidAttackerSnapshotCleanupOnlyRemovesRaidBattleMap),
     ("空远程地图会话不会触发袭击清理", VerifyRaidAttackerSnapshotCleanupIgnoresNullRemoteMapSession),
     ("消失判定忽略新增对象", VerifyDisappearanceDiff),

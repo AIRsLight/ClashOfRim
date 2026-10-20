@@ -5,6 +5,7 @@ using AIRsLight.ClashOfRim.Modules.Maps;
 using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.Pawns;
 using AIRsLight.ClashOfRim.Support;
+using AIRsLight.ClashOfRim.RemoteMaps;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.Raids;
@@ -28,7 +29,7 @@ internal sealed class ClientRaidSupportLossSource : IClientRaidSupportLossSource
             if (!assignment.AutoReturnOnSettlement || assignment.FinishInProgress) continue;
             var pawn = SupportPawnLookup.FindActive(assignment.PawnThingId);
             if (pawn is null || pawn.Dead || pawn.Destroyed || pawn.Map is null
-                || !ClientMapIdentity.MapIdsMatch("Map_" + pawn.Map.uniqueID, battle.ClientMapId)) continue;
+                || !ClientMapIdentity.MapIdsMatch("Map_" + RemoteSessionPocketMapUtility.RootMap(pawn.Map)!.uniqueID, battle.ClientMapId)) continue;
             var loss = new ClientRaidSupportLoss(assignment.EventId, assignment.PawnGlobalKey,
                 string.IsNullOrWhiteSpace(pawn.LabelShort) ? assignment.PawnLabel : pawn.LabelShort);
             captured.Add(loss.EventId, new(assignment, pawn, loss));

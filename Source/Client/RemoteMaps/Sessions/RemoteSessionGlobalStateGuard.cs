@@ -38,7 +38,7 @@ public static class RemoteSessionGlobalStateGuard
 
     public static bool IsRemoteMap(Map? map)
     {
-        return map?.Parent is RemoteSessionMapParent;
+        return RemoteSessionPocketMapUtility.FindSessionParent(map) is not null;
     }
 
     public static bool IsRemoteThing(Thing? thing)
@@ -53,7 +53,8 @@ public static class RemoteSessionGlobalStateGuard
 
     public static bool IsRemoteMapParent(MapParent? mapParent)
     {
-        return mapParent is RemoteSessionMapParent;
+        return mapParent is RemoteSessionMapParent
+            || mapParent is PocketMapParent pocket && IsRemoteMap(pocket.sourceMap);
     }
 
     private sealed class SuppressionScope : IDisposable

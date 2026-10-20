@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld.Planet;
 using Verse;
@@ -9,7 +10,27 @@ public static class RemoteSessionPocketMapUtility
 {
     public static bool IsRemoteSessionSourceMap(Map? map)
     {
-        return map?.Parent is RemoteSessionMapParent;
+        return FindSessionParent(map) is not null;
+    }
+
+    public static Map? RootMap(Map? map)
+    {
+        while (map?.Parent is PocketMapParent { sourceMap: not null } pocket)
+            map = pocket.sourceMap;
+        return map;
+    }
+
+    public static RemoteSessionMapParent? FindSessionParent(Map? map)
+        => RootMap(map)?.Parent as RemoteSessionMapParent;
+
+    public static IEnumerable<Map> MapTree(Map map)
+    {
+        yield return map;
+        foreach (Map child in map.ChildPocketMaps)
+        {
+            if (child is null) continue;
+            foreach (Map descendant in MapTree(child)) yield return descendant;
+        }
     }
 
     public static bool IsRemoteSessionPocketMap(Map? map)
@@ -39,18 +60,11 @@ public static class RemoteSessionPocketMapUtility
             Map? pocketMap = pocketMapParent.Map;
             if (pocketMap is not null && Current.Game.Maps.Contains(pocketMap))
             {
-                PrepareCurrentMapForRemoval(pocketMap, sourceMap);
-                RemoteSessionThingCleanup.DiscardMarkedMapThings(
-                    pocketMap,
-                    sourceMap.Parent as RemoteSessionMapParent,
-                    reason);
-                using (RemoteSessionGlobalStateGuard.BeginSuppressRemoteMapRemovalGlobalEffects())
-                {
-                    Current.Game.DeinitAndRemoveMap(pocketMap, notifyPlayer: false);
-                }
+                // The native removal patch applies the same cleanup for a collapse
+                // and for closing the owning remote session, including descendants.
+                PocketMapUtility.DestroyPocketMap(pocketMap);
             }
-
-            if (Find.World.pocketMaps.Contains(pocketMapParent))
+            else
             {
                 Find.World.pocketMaps.Remove(pocketMapParent);
             }
@@ -70,7 +84,7 @@ public static class RemoteSessionPocketMapUtility
         return closed;
     }
 
-    private static void PrepareCurrentMapForRemoval(Map map, Map sourceMap)
+    internal static void PrepareCurrentMapForRemoval(Map map, Map sourceMap)
     {
         if (!ReferenceEquals(Current.Game?.CurrentMap, map))
         {
