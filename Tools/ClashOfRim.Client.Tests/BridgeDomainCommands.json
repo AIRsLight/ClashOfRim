@@ -111,7 +111,7 @@
   },
   {
     "method": "clash.fixture.pocket",
-    "description": "FIXTURE: spawn and mature a pit gate, checking settling admission, and optionally generate its native child map.",
+    "description": "FIXTURE: prepare native pits, quest-generated hatches, source markers and signal controls; optionally unlock or generate a selected portal.",
     "mode": "fixture"
   },
   {

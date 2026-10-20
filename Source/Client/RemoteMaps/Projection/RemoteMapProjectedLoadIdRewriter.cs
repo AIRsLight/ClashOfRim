@@ -23,6 +23,7 @@ internal static class RemoteMapProjectedLoadIdRewriter
         var projectedThingIdentities = new List<RemoteMapProjectedThingIdentity>();
         int things = RewriteThingIds(mapElement, replacements, allocator, projectedThingIdentities) + RewriteThingIds(referencePawnsElement, replacements, allocator);
         int areas = RewriteAreaIds(mapElement, replacements, allocator);
+        RewriteLayoutIds(mapElement, replacements, allocator);
         int compatibilityIds = RewriteCompatibilityIntegerLoadIds(mapElement, referencePawnsElement, replacements, allocator);
         int hediffs = RewriteIntegerLoadIds(mapElement, referencePawnsElement, "Hediff_", IsHediffNode, () => Find.UniqueIDsManager.GetNextHediffID(), replacements, allocator);
         int jobs = RewriteIntegerLoadIds(mapElement, referencePawnsElement, "Job_", IsJobNode, () => Find.UniqueIDsManager.GetNextJobID(), replacements, allocator);
@@ -95,6 +96,22 @@ internal static class RemoteMapProjectedLoadIdRewriter
         return count;
     }
 
+    private static void RewriteLayoutIds(XElement root, IDictionary<string, string> replacements, RemoteMapProjectedIdAllocator allocator)
+    {
+        foreach (var id in root.Descendants("uniqueId").Where(e => e.Value.StartsWith("LayoutStructureSketch_", StringComparison.Ordinal)))
+        {
+            string old = id.Value;
+            id.Value = "LayoutStructureSketch_" + allocator.NextLoadId("LayoutStructureSketch_", () => Find.UniqueIDsManager.GetNextStructureSketchID());
+            AddReplacement(replacements, old, id.Value);
+        }
+        foreach (var id in root.Descendants("rooms").Elements("li").Elements("loadId"))
+        {
+            string old = "LayoutRoom_" + id.Value.Trim();
+            id.Value = allocator.NextLoadId("LayoutRoom_", () => Find.UniqueIDsManager.GetNextRoomID()).ToString();
+            AddReplacement(replacements, old, "LayoutRoom_" + id.Value);
+        }
+    }
+
     private static int RewriteCompatibilityIntegerLoadIds(
         XElement mapElement,
         XElement referencePawnsElement,
@@ -122,14 +139,8 @@ internal static class RemoteMapProjectedLoadIdRewriter
         IDictionary<string, string> replacements,
         RemoteMapProjectedIdAllocator allocator)
     {
-        XElement? areasRoot = mapElement.Descendants("areas").FirstOrDefault();
-        if (areasRoot is null)
-        {
-            return 0;
-        }
-
         int count = 0;
-        foreach (XElement area in areasRoot.Elements("li").ToList())
+        foreach (XElement area in mapElement.Descendants("areas").Elements("li").ToList())
         {
             XElement? idElement = area.Element("ID");
             if (idElement is null || !int.TryParse(idElement.Value.Trim(), out int oldId))
@@ -464,10 +475,12 @@ internal static class RemoteMapProjectedLoadIdRewriter
     {
         private readonly HashSet<int> usedThingIds = new();
         private readonly Dictionary<string, HashSet<int>> usedLoadIdsByPrefix = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, int> highWaterByPrefix = new(StringComparer.Ordinal);
 
         private RemoteMapProjectedIdAllocator()
         {
+            // Native LayoutRoom treats zero as an old missing ID and replaces
+            // it randomly during Scribe load, which would break merged links.
+            UsedLoadIds("LayoutRoom_").Add(0);
         }
 
         public static RemoteMapProjectedIdAllocator Create(params XElement[] roots)
@@ -494,18 +507,9 @@ internal static class RemoteMapProjectedLoadIdRewriter
                 return nextId();
             }
 
-            return NextUnique(UsedLoadIds(loadIdPrefix), () =>
-            {
-                int candidate = nextId();
-                int highWater = highWaterByPrefix.TryGetValue(loadIdPrefix, out int value) ? value : -1;
-                if (candidate <= highWater)
-                {
-                    candidate = highWater + 1;
-                }
-
-                highWaterByPrefix[loadIdPrefix] = candidate;
-                return candidate;
-            });
+            // Advance the engine counter for every allocated ID. Synthesizing an
+            // ID above it would collide with a later native map generation.
+            return NextUnique(UsedLoadIds(loadIdPrefix), nextId);
         }
 
         private static int NextUnique(HashSet<int> used, Func<int> nextId)
@@ -676,6 +680,8 @@ internal static class RemoteMapProjectedLoadIdRewriter
 
             foreach (XElement node in root.DescendantsAndSelf())
             {
+                if (node.Name == "loadId" && node.Parent?.Parent?.Name == "rooms" && int.TryParse(node.Value, out int roomId))
+                    ReserveLoadId("LayoutRoom_", roomId);
                 XElement? loadId = node.Element("loadID");
                 if (loadId is not null
                     && int.TryParse(loadId.Value.Trim(), out int numericLoadId))
@@ -732,7 +738,7 @@ internal static class RemoteMapProjectedLoadIdRewriter
                 return;
             }
 
-            foreach (string prefix in new[] { "Ability_", "Hediff_", "Gene_", "Job_", "Area_" })
+            foreach (string prefix in new[] { "Ability_", "Hediff_", "Gene_", "Job_", "Area_", "LayoutRoom_", "LayoutStructureSketch_" })
             {
                 int start = value.IndexOf(prefix, StringComparison.Ordinal);
                 if (start < 0)
@@ -760,10 +766,6 @@ internal static class RemoteMapProjectedLoadIdRewriter
             if (id >= 0)
             {
                 UsedLoadIds(prefix).Add(id);
-                if (!highWaterByPrefix.TryGetValue(prefix, out int highWater) || id > highWater)
-                {
-                    highWaterByPrefix[prefix] = id;
-                }
             }
         }
 

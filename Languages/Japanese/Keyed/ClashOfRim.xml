@@ -1925,4 +1925,5 @@
   <ClashOfRim.Diplomacy.CreationIncomplete>外交の応答が不完全です。プレイヤー関係を更新しています。</ClashOfRim.Diplomacy.CreationIncomplete>
   <ClashOfRim.Diplomacy.CreationException>外交メッセージでエラーが発生しました（{TYPE}）：{MESSAGE}</ClashOfRim.Diplomacy.CreationException>
   <ClashOfRim.Players.StatusIncomplete>プレイヤー一覧の応答が不完全です。以前の一覧を保持しました。</ClashOfRim.Players.StatusIncomplete>
+  <ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>防衛側がこのサブマップをまだ生成しておらず、遠隔セッションでの独立生成には対応していません。</ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>
 </LanguageData>

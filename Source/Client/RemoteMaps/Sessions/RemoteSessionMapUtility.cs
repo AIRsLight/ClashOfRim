@@ -111,7 +111,8 @@ public static class RemoteSessionMapUtility
             }
 
             long projectionMs = stopwatch.ElapsedMilliseconds;
-            RemoteObservationMapPostProcessor.Apply(map!, carrier, mode, package);
+            foreach (var projected in RemoteSessionPocketMapUtility.MapTree(map!))
+                RemoteObservationMapPostProcessor.Apply(projected, carrier, mode, package);
             long totalMs = stopwatch.ElapsedMilliseconds;
             ClashLog.Message("[ClashOfRim][RemoteSession][Timing] open session map mode="
                 + mode

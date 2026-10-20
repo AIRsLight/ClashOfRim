@@ -91,39 +91,42 @@ public static class RemoteMapSnapshotProjector
             return false;
         }
 
-        XElement mapElement = new XElement(sourceMap);
+        var tree = new RemoteMapProjectionTree(document, sourceMap, carrier.GetUniqueLoadID(),
+            () => Find.UniqueIDsManager.GetNextMapID(), () => Find.UniqueIDsManager.GetNextWorldObjectID());
         ISet<string> sourcePlayerFactionLoadIds = BuildSourcePlayerFactionLoadIds(document);
         RemoteFactionProjection factionProjection = BuildRemoteFactionProjection(
             document,
             carrier.Faction,
             sourcePlayerFactionLoadIds);
-        IReadOnlyList<RemoteNpcLordSnapshot> sourceNpcLordSnapshots = CaptureRemoteNpcLordSnapshots(
-            mapElement,
-            factionProjection,
-            sourcePlayerFactionLoadIds);
-        int localMapId = Find.UniqueIDsManager.GetNextMapID();
-        string sourceMapLoadId = "Map_" + (mapElement.Element("uniqueID")?.Value?.Trim() ?? "0");
-        SetElement(mapElement, "uniqueID", localMapId.ToString());
-        RewriteMapParentReference(mapElement, carrier);
-        RewriteMapReferences(mapElement, sourceMapLoadId, "Map_" + localMapId);
-        RewriteFactionReferences(mapElement, carrier.Faction, factionProjection, sourcePlayerFactionLoadIds);
-        SanitizeGuestFactionReferences(mapElement, carrier.Faction);
-        XElement referencePawnsElement = BuildReferencePawnsElement(document, mapElement);
+        var sourceNpcLordSnapshots = tree.Maps.Elements().SelectMany(element => CaptureRemoteNpcLordSnapshots(
+            element, factionProjection, sourcePlayerFactionLoadIds)).ToList();
+        RewriteFactionReferences(tree.Maps, carrier.Faction, factionProjection, sourcePlayerFactionLoadIds);
+        RewriteFactionReferences(tree.PocketParents, carrier.Faction, factionProjection, sourcePlayerFactionLoadIds);
+        SanitizeGuestFactionReferences(tree.Maps, carrier.Faction);
+        XElement referencePawnsElement = BuildReferencePawnsElement(document, tree.Maps);
+        tree.RewriteReferences(referencePawnsElement);
         MarkStage("copy-map-and-reference-pawns");
         RewriteFactionReferences(referencePawnsElement, carrier.Faction, factionProjection, sourcePlayerFactionLoadIds);
         SanitizeGuestFactionReferences(referencePawnsElement, carrier.Faction);
-        IReadOnlyList<ILoadReferenceable> mappedReferences = ClashOfRimCompatibilityApi
-            .RewriteRemoteMapProjectionReferences(package, document, mapElement)
+        IReadOnlyList<ILoadReferenceable> mappedReferences = tree.Maps.Elements()
+            .SelectMany(element => ClashOfRimCompatibilityApi.RewriteRemoteMapProjectionReferences(package, document, element))
             .Concat(ClashOfRimCompatibilityApi.RewriteRemoteMapProjectionReferences(package, document, referencePawnsElement))
             .Distinct()
             .ToList();
-        SanitizeSingleMapRuntimeState(mapElement);
-        ClearUnresolvedGlobalReferences(mapElement);
+        foreach (var element in tree.Maps.Elements())
+        {
+            SanitizeSingleMapRuntimeState(element);
+            ClearUnresolvedGlobalReferences(element);
+        }
         SanitizeReferencePawnRuntimeState(referencePawnsElement);
         ClearUnresolvedGlobalReferences(referencePawnsElement);
-        ClashOfRimCompatibilityApi.SanitizeRemoteMapProjection(package, mapElement, referencePawnsElement);
+        foreach (var element in tree.Maps.Elements())
+            ClashOfRimCompatibilityApi.SanitizeRemoteMapProjection(package, element, referencePawnsElement);
+        RemoteMapQuestIsolation.Sanitize(tree.Maps, carrier.GetUniqueLoadID());
+        RemoteMapQuestIsolation.Sanitize(tree.PocketParents, carrier.GetUniqueLoadID());
+        RemoteMapQuestIsolation.Sanitize(referencePawnsElement, carrier.GetUniqueLoadID());
         IReadOnlyList<RemoteMapProjectedThingIdentity> projectedThingIdentities =
-            RemoteMapProjectedLoadIdRewriter.Rewrite(mapElement, referencePawnsElement);
+            RemoteMapProjectedLoadIdRewriter.Rewrite(tree.Maps, referencePawnsElement);
         if (carrier is RemoteSessionMapParent remoteSessionMapParent)
         {
             remoteSessionMapParent.SetRemoteNpcLordSnapshots(
@@ -134,9 +137,10 @@ public static class RemoteMapSnapshotProjector
         string tempPath = Path.Combine(Path.GetTempPath(), "clashofrim-remote-map-" + Guid.NewGuid().ToString("N") + ".rws");
         try
         {
-            WriteSingleMapDocument(tempPath, mapElement, referencePawnsElement);
+            new XDocument(new XElement("savegame", referencePawnsElement, tree.PocketParents, tree.Maps))
+                .Save(tempPath, SaveOptions.DisableFormatting);
             MarkStage("write-temp-save");
-            if (!RemoteMapRuntimeLoader.TryLoadSingleMap(tempPath, carrier, factionProjection.RemoteFactions, mappedReferences, out map, out failureReason))
+            if (!RemoteMapRuntimeLoader.TryLoadTree(tempPath, carrier, factionProjection.RemoteFactions, mappedReferences, out map, out failureReason))
             {
                 return false;
             }
@@ -162,10 +166,13 @@ public static class RemoteMapSnapshotProjector
             + target.MapId
             + ", localMap=Map_"
             + map!.uniqueID);
-        ClashOfRimGameComponent.RegisterRemoteMapThingIdentities(
-            carrier as RemoteSessionMapParent,
-            map.uniqueID.ToString(),
-            projectedThingIdentities);
+        foreach (var element in tree.Maps.Elements())
+        {
+            string localId = element.Element("uniqueID")!.Value;
+            var ids = element.Descendants("clashOfRimProjectedThingId").Select(e => e.Value).ToHashSet(StringComparer.Ordinal);
+            ClashOfRimGameComponent.RegisterRemoteMapThingIdentities(carrier as RemoteSessionMapParent, localId,
+                projectedThingIdentities.Where(i => ids.Contains(i.ProjectedThingId)), tree.SourceMapIds[localId]);
+        }
         return true;
     }
 
@@ -295,41 +302,6 @@ public static class RemoteMapSnapshotProjector
         else
         {
             element.Value = value;
-        }
-    }
-
-    private static void RewriteMapParentReference(XElement mapElement, MapParent carrier)
-    {
-        XElement? mapInfo = mapElement.Element("mapInfo");
-        if (mapInfo is null)
-        {
-            return;
-        }
-
-        XElement? parent = mapInfo.Element("parent");
-        if (parent is null)
-        {
-            mapInfo.Add(new XElement("parent", carrier.GetUniqueLoadID()));
-        }
-        else
-        {
-            parent.Value = carrier.GetUniqueLoadID();
-        }
-    }
-
-    private static void RewriteMapReferences(XElement mapElement, string sourceMapLoadId, string localMapLoadId)
-    {
-        if (string.IsNullOrWhiteSpace(sourceMapLoadId) || string.Equals(sourceMapLoadId, localMapLoadId, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        foreach (XElement element in mapElement.Descendants())
-        {
-            if (string.Equals(element.Value.Trim(), sourceMapLoadId, StringComparison.Ordinal))
-            {
-                element.Value = localMapLoadId;
-            }
         }
     }
 
@@ -1107,6 +1079,9 @@ public static class RemoteMapSnapshotProjector
             .ToList();
         var selectedIds = new HashSet<string>(StringComparer.Ordinal);
         var pending = new Queue<string>(initialReferenceIds);
+        // Every direct reference is part of the imported graph (notably corpse
+        // contents). Only expansion into additional world-pawn relations is capped.
+        int referenceLimit = Math.Max(MaxReferencePawns, initialReferenceIds.Count);
         bool truncated = false;
 
         while (pending.Count > 0)
@@ -1117,7 +1092,7 @@ public static class RemoteMapSnapshotProjector
                 continue;
             }
 
-            if (selectedIds.Count >= MaxReferencePawns)
+            if (selectedIds.Count >= referenceLimit)
             {
                 truncated = pending.Count > 0;
                 break;
@@ -1507,15 +1482,6 @@ public static class RemoteMapSnapshotProjector
             element.RemoveNodes();
             element.Value = "null";
         }
-    }
-
-    private static void WriteSingleMapDocument(string path, XElement mapElement, XElement referencePawnsElement)
-    {
-        var document = new XDocument(
-            new XElement("savegame",
-                referencePawnsElement,
-                new XElement("maps", mapElement)));
-        document.Save(path, SaveOptions.DisableFormatting);
     }
 
     private static bool HashMatches(byte[] payload, string expectedSha256)

@@ -1925,4 +1925,5 @@
   <ClashOfRim.Diplomacy.CreationIncomplete>외교 응답이 불완전합니다. 플레이어 관계를 새로 고칩니다.</ClashOfRim.Diplomacy.CreationIncomplete>
   <ClashOfRim.Diplomacy.CreationException>외교 메시지 오류 ({TYPE}): {MESSAGE}</ClashOfRim.Diplomacy.CreationException>
   <ClashOfRim.Players.StatusIncomplete>플레이어 목록 응답이 불완전합니다. 이전 목록을 유지했습니다.</ClashOfRim.Players.StatusIncomplete>
+  <ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>방어자가 아직 이 하위 지도를 생성하지 않았으며 원격 세션에서는 이 유형의 독립적인 생성을 지원하지 않습니다.</ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>
 </LanguageData>

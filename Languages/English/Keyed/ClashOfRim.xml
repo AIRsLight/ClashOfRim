@@ -1934,4 +1934,5 @@
   <ClashOfRim.Diplomacy.CreationIncomplete>The diplomacy receipt is incomplete. Refreshing player relations.</ClashOfRim.Diplomacy.CreationIncomplete>
   <ClashOfRim.Diplomacy.CreationException>Diplomacy message failed ({TYPE}): {MESSAGE}</ClashOfRim.Diplomacy.CreationException>
   <ClashOfRim.Players.StatusIncomplete>The player list response is incomplete. The previous list has been retained.</ClashOfRim.Players.StatusIncomplete>
+  <ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>The defender has not generated this submap, and its independent generation is not supported during a remote session.</ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>
 </LanguageData>

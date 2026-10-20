@@ -46,7 +46,11 @@ public static class RemoteSessionThingCleanup
         // into a disposable projection pawn.
         if (thing is Pawn pawn && ShouldLetVanillaUnloadPawn(pawn)) return;
         if (parent is not null && !string.IsNullOrWhiteSpace(parent.SessionId))
+        {
             QuestUtility.AddQuestTag(ref thing.questTags, CleanupTag(parent.SessionId));
+            if (thing is Corpse { InnerPawn: not null } corpse)
+                MarkThingForCleanup(corpse.InnerPawn, parent);
+        }
     }
 
     public static int DiscardMarkedMapThings(Map? map, RemoteSessionMapParent? parent, string reason)
@@ -117,7 +121,9 @@ public static class RemoteSessionThingCleanup
         int kept = 0;
         foreach (Pawn pawn in pawns.Where(pawn => pawn is not null).Distinct().ToList())
         {
-            if (pawn.Destroyed || pawn.Discarded)
+            // Dead pawns normally have Destroyed=true, but corpses serialize a
+            // reference to them and still require a world-pawn save owner.
+            if (pawn.Discarded)
             {
                 continue;
             }
@@ -217,7 +223,7 @@ public static class RemoteSessionThingCleanup
 
     private static void DiscardPawn(Pawn pawn, string reason)
     {
-        if (pawn.Destroyed || pawn.Discarded)
+        if (pawn.Discarded)
         {
             return;
         }
@@ -255,7 +261,7 @@ public static class RemoteSessionThingCleanup
             return;
         }
 
-        pawn.Destroy(DestroyMode.Vanish);
+        if (!pawn.Destroyed) pawn.Destroy(DestroyMode.Vanish);
     }
 
     private static void NotifyPawnDiscardedSilently(Pawn pawn)

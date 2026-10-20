@@ -14,7 +14,7 @@ internal static class RemoteMapRuntimeLoader
     private static readonly FieldInfo? LoadedObjectDirectoryField =
         typeof(CrossRefHandler).GetField("loadedObjectDirectory", BindingFlags.Instance | BindingFlags.NonPublic);
 
-    internal static bool TryLoadSingleMap(
+    internal static bool TryLoadTree(
         string tempPath,
         MapParent carrier,
         IReadOnlyCollection<Faction> remoteNpcFactions,
@@ -31,7 +31,9 @@ internal static class RemoteMapRuntimeLoader
             return false;
         }
         List<Map>? maps = null;
+        List<PocketMapParent>? pockets = null;
         List<Pawn>? referencePawns = null;
+        Map? previousMap = carrier.Map;
 
         try
         {
@@ -57,7 +59,12 @@ internal static class RemoteMapRuntimeLoader
                 }
 
                 Scribe_Collections.Look(ref referencePawns, ReferencePawnsNodeName, LookMode.Deep);
+                Scribe_Collections.Look(ref pockets, "pocketMaps", LookMode.Deep);
                 Scribe_Collections.Look(ref maps, "maps", LookMode.Deep);
+                // Match native Game loading: PostLoadInit checks parent.HasMap
+                // and otherwise clears already-resolved MapPortal.pocketMap links.
+                foreach (var pocket in pockets ?? new List<PocketMapParent>()) Find.World.pocketMaps.Add(pocket);
+                foreach (var loaded in maps ?? new List<Map>()) Current.Game.AddMap(loaded);
                 Scribe.loader.FinalizeLoading();
             }
         }
@@ -76,6 +83,12 @@ internal static class RemoteMapRuntimeLoader
                 Log.Warning("[ClashOfRim] Failed to force-stop Scribe after remote map projection failure: " + forceStopEx);
             }
 
+            // SpawnSetup has not run yet; unregister the incomplete graph without
+            // running normal map disposal against uninitialized runtime managers.
+            foreach (var loaded in maps ?? new List<Map>()) Current.Game.Maps.Remove(loaded);
+            foreach (var pocket in pockets ?? new List<PocketMapParent>()) Find.World.pocketMaps.Remove(pocket);
+            Find.ColonistBar.MarkColonistsDirty();
+
             return false;
         }
 
@@ -90,22 +103,25 @@ internal static class RemoteMapRuntimeLoader
         map.generatorDef ??= carrier.MapGeneratorDef;
         RemoteSessionThingCleanup.KeepReferencePawnsForCleanup(referencePawns, carrier as RemoteSessionMapParent);
 
-        if (carrier.HasMap)
+        if (previousMap is not null)
         {
+            RemoteSessionPocketMapUtility.ClosePocketMapsForSource(previousMap, "replace remote projection");
             using (RemoteSessionGlobalStateGuard.BeginSuppressRemoteMapRemovalGlobalEffects())
             {
-                Current.Game.DeinitAndRemoveMap(carrier.Map, notifyPlayer: false);
+                Current.Game.DeinitAndRemoveMap(previousMap, notifyPlayer: false);
             }
         }
 
         using (RemoteMapProjectionLoadScope.Begin())
         {
-            Current.Game.AddMap(map);
-            map.FinalizeLoading();
+            foreach (var loaded in maps!)
+            {
+                loaded.generatorDef ??= loaded.Parent.MapGeneratorDef;
+                loaded.FinalizeLoading();
+                loaded.Parent.FinalizeLoading();
+                RemoteSessionThingCleanup.MarkMapThingsForCleanup(loaded, carrier as RemoteSessionMapParent);
+            }
         }
-
-        carrier.FinalizeLoading();
-        RemoteSessionThingCleanup.MarkMapThingsForCleanup(map, carrier as RemoteSessionMapParent);
         Current.Game.CurrentMap = map;
         return true;
     }

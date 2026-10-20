@@ -507,7 +507,8 @@ public sealed class ClashOfRimGameComponent : GameComponent
     internal static void RegisterRemoteMapThingIdentities(
         RemoteSessionMapParent? parent,
         string? mapUniqueId,
-        IEnumerable<RemoteMapProjectedThingIdentity>? identities)
+        IEnumerable<RemoteMapProjectedThingIdentity>? identities,
+        string? sourceMapId = null)
     {
         if (parent is null || identities is null)
         {
@@ -546,7 +547,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
                 SessionId = parent.SessionId ?? string.Empty,
                 RelatedEventId = parent.RelatedEventId ?? string.Empty,
                 Mode = parent.Mode ?? string.Empty,
-                SourceMapId = NormalizeRemoteMapId(parent.SourceMapId),
+                SourceMapId = NormalizeRemoteMapId(sourceMapId ?? parent.SourceMapId),
                 MapUniqueId = normalizedMapId,
                 ProjectedThingId = projectedThingId,
                 OriginalThingId = originalThingId

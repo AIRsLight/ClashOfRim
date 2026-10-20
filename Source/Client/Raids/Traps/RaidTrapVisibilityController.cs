@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
+using AIRsLight.ClashOfRim.RemoteMaps;
 
 namespace AIRsLight.ClashOfRim.Raids;
 
@@ -67,12 +68,20 @@ public static class RaidTrapVisibilityController
             return RaidTrapVisibilityApplyResult.MissingMap;
         }
 
+        Map rootMap = RemoteSessionPocketMapUtility.FindSessionParent(currentMap)?.Map ?? currentMap;
+        string rootMapLoadId = rootMap.GetUniqueLoadID();
+        bool appendChild = currentMap != rootMap
+            && CurrentRaidEventId == eventId && CurrentTargetSnapshotId == snapshotId
+            && CurrentTargetMapLoadId == rootMapLoadId;
         CurrentRaidEventId = eventId;
         CurrentTargetSnapshotId = snapshotId;
-        CurrentTargetMapLoadId = currentMap.GetUniqueLoadID();
+        CurrentTargetMapLoadId = rootMapLoadId;
 
-        HiddenThingKeys.Clear();
-        RevealedThingKeys.Clear();
+        if (!appendChild)
+        {
+            HiddenThingKeys.Clear();
+            RevealedThingKeys.Clear();
+        }
         foreach (Thing thing in hiddenThings)
         {
             AddKnownKeys(thing, HiddenThingKeys);
@@ -223,6 +232,8 @@ public static class RaidTrapVisibilityController
     private static bool IsThingOnCurrentTargetMap(Thing thing)
     {
         return string.IsNullOrWhiteSpace(CurrentTargetMapLoadId) ||
-            (thing.Spawned && string.Equals(thing.Map.GetUniqueLoadID(), CurrentTargetMapLoadId, StringComparison.Ordinal));
+            (thing.Spawned && string.Equals(
+                (RemoteSessionPocketMapUtility.FindSessionParent(thing.Map)?.Map ?? thing.Map).GetUniqueLoadID(),
+                CurrentTargetMapLoadId, StringComparison.Ordinal));
     }
 }

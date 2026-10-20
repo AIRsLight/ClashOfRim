@@ -9,6 +9,7 @@ using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.Raids;
 using HarmonyLib;
+using RimWorld;
 using RimWorld.Planet;
 using Verse;
 
@@ -17,6 +18,7 @@ internal static class RemotePocketMapTests
     private static readonly List<Map> maps = new();
     private static readonly List<Map> removed = new();
     private static readonly List<Map> cleaned = new();
+    private static readonly List<Pawn> references = new();
     private static bool fail;
     private static RemoteSessionMapParent owner = null!;
     internal static void Run()
@@ -44,6 +46,19 @@ internal static class RemotePocketMapTests
                 && RemoteSessionGlobalStateGuard.IsRemoteMapParent(nested.Parent)
                 && !RemoteSessionGlobalStateGuard.IsRemoteMap(localPocket), "Nested ownership escaped the remote guard or included local pockets.");
             Check(RemoteSessionPocketMapUtility.MapTree(root).SequenceEqual(new[] { root, child, nested }), "Map tree omitted descendants.");
+            var nativeExit = New<CaveExit>(); var unsupported = New<MapPortal>();
+            foreach (var portal in new MapPortal[] { nativeExit, unsupported })
+                AccessTools.Field(typeof(Thing), "mapIndexOrState").SetValue(portal, (sbyte)maps.IndexOf(child));
+            Check(RemotePocketMapAdmission.Allows(nativeExit) && !RemotePocketMapAdmission.Allows(unsupported),
+                "Generation admission blocked an existing native return path or allowed an unknown entrance.");
+            var point = new Thing { def = new ThingDef { defName = "DefensePoint" }, thingIDNumber = 15 };
+            RaidTrapVisibilityController.ApplyHiddenThingSession("raid", "snapshot", root, new[] { point });
+            int hidden = RaidTrapVisibilityController.HiddenCount;
+            RaidTrapVisibilityController.ApplyHiddenThingSession("raid", "snapshot", child, Array.Empty<Thing>());
+            Check(hidden > 0 && RaidTrapVisibilityController.HiddenCount == hidden
+                && RaidTrapVisibilityController.CurrentTargetMapLoadId == root.GetUniqueLoadID(),
+                "Child map postprocessing erased root defense-point concealment.");
+            RaidTrapVisibilityController.EndHiddenTrapSession();
             var pawn = New<Pawn>(); pawn.def = new ThingDef { defName = "TestPawn" }; pawn.thingIDNumber = 17;
             RemoteSessionPocketMapPawnPatch.Postfix(pawn, nested);
             Check(RemoteSessionThingCleanup.HasRemoteSessionCleanupTag(pawn), "New child pawn missed cleanup identity.");
@@ -51,10 +66,16 @@ internal static class RemotePocketMapTests
             ClashOfRimGameComponent.SetActiveRaidBattleSession(new ActiveRaidBattleSession { EventId = "battle", AttackPawnThingIds = new List<string> { pawn.ThingID } });
             RemoteSessionPocketMapPawnPatch.Postfix(pawn, nested);
             Check(!RemoteSessionThingCleanup.HasRemoteSessionCleanupTag(pawn), "Owned attacker became disposable after native portal entry.");
+            ClashOfRimGameComponent.RegisterRemoteMapThingIdentities(owner, "1", new[] { new RemoteMapProjectedThingIdentity("Thing11", "Thing1") }, "10");
+            ClashOfRimGameComponent.RegisterRemoteMapThingIdentities(owner, "2", new[] { new RemoteMapProjectedThingIdentity("Thing12", "Thing2") }, "20");
+            ClashOfRimGameComponent.RegisterRemoteMapThingIdentities(owner, "3", new[] { new RemoteMapProjectedThingIdentity("Thing13", "Thing3") }, "30");
+            Check(ClashOfRimGameComponent.CopyRemoteMapThingIdentities().Select(i => i.SourceMapId).SequenceEqual(new[] { "10", "20", "30" }),
+                "Child identities were assigned to the root source map or replaced another map's identities.");
             RemoteSessionPocketMapUtility.ClosePocketMapsForSource(root, "test");
             Check(removed.SequenceEqual(new[] { nested, child }) && cleaned.SequenceEqual(removed)
                 && maps.SequenceEqual(new[] { root, home, localPocket }) && Find.World.pocketMaps.Single() == localPocket.Parent,
                 "Native close failed child-first ordering or removed local maps.");
+            Check(ClashOfRimGameComponent.CopyRemoteMapThingIdentities().Single().MapUniqueId == "1", "Pocket close retained stale identities or removed root identities.");
             RemoteSessionPocketMapUtility.ClosePocketMapsForSource(root, "repeat");
             Check(removed.Count == 2 && !RemoteSessionGlobalStateGuard.SuppressRemoteMapRemovalGlobalEffects, "Close repeated effects or leaked scope.");
             var retry = Pocket(root, 6); fail = true;
@@ -64,10 +85,40 @@ internal static class RemotePocketMapTests
                 && !RemoteSessionGlobalStateGuard.SuppressRemoteMapRemovalGlobalEffects, "Failed native unload lost retry ownership or leaked scope.");
             fail = false; PocketMapUtility.DestroyPocketMap(retry);
             Check(!maps.Contains(retry), "Native collapse retry failed.");
+            ReferencePawnLifetime(harmony);
             SnapshotTree();
+            ProjectionTree();
         }
-        finally { harmony.UnpatchAll(harmony.Id); Current.Game = previous; maps.Clear(); removed.Clear(); cleaned.Clear(); fail = false; }
+        finally { harmony.UnpatchAll(harmony.Id); Current.Game = previous; maps.Clear(); removed.Clear(); cleaned.Clear(); references.Clear(); fail = false; }
     }
+    private static void ReferencePawnLifetime(Harmony harmony)
+    {
+        Find.World.worldPawns = New<WorldPawns>();
+        harmony.Patch(AccessTools.Method(typeof(WorldPawns), nameof(WorldPawns.Contains)), prefix: Method(nameof(ContainsReference)));
+        harmony.Patch(AccessTools.Method(typeof(WorldPawns), nameof(WorldPawns.PassToWorld)), prefix: Method(nameof(KeepReference)));
+        harmony.Patch(AccessTools.PropertyGetter(typeof(WorldPawns), nameof(WorldPawns.AllPawnsAliveOrDead)), prefix: Method(nameof(ReferencePawns)));
+        harmony.Patch(AccessTools.Method(typeof(WorldPawns), nameof(WorldPawns.RemoveAndDiscardPawnViaGC)), prefix: Method(nameof(RemoveReference)));
+        harmony.Patch(AccessTools.Method(typeof(AIRsLight.ClashOfRim.Pawns.PawnExchangeLifecycleService), nameof(AIRsLight.ClashOfRim.Pawns.PawnExchangeLifecycleService.CleanupRelationshipPlaceholdersAfterRemoval)), prefix: Method(nameof(NoRelationships)));
+        var dead = New<Pawn>(); var discarded = New<Pawn>();
+        dead.def = discarded.def = new ThingDef { defName = "ReferencePawn" };
+        dead.thingIDNumber = 31; discarded.thingIDNumber = 32;
+        AccessTools.Field(typeof(Thing), "mapIndexOrState").SetValue(dead, (sbyte)-2);
+        AccessTools.Field(typeof(Thing), "mapIndexOrState").SetValue(discarded, (sbyte)-3);
+        Check(dead.Destroyed && !dead.Discarded, "Fixture does not represent native dead-pawn storage.");
+        Check(RemoteSessionThingCleanup.KeepReferencePawnsForCleanup(new[] { dead, discarded, dead }, owner) == 1
+            && references.Single() == dead && RemoteSessionThingCleanup.HasRemoteSessionCleanupTag(dead),
+            "Dead corpse reference was not retained for save, or an already discarded pawn was retained.");
+        RemoteSessionThingCleanup.KeepReferencePawnsForCleanup(new[] { dead }, owner);
+        Check(references.Count == 1, "Reference retention registered the same pawn twice.");
+        Check(RemoteSessionThingCleanup.DiscardMarkedReferencePawns(owner, "test") == 1 && references.Count == 0,
+            "Session close leaked a retained dead reference pawn.");
+    }
+    private static bool ContainsReference(Pawn p, ref bool __result) { __result = references.Contains(p); return false; }
+    private static bool KeepReference(Pawn pawn, PawnDiscardDecideMode discardMode)
+    { Check(discardMode == PawnDiscardDecideMode.KeepForever, "Reference pawn was not protected from GC."); references.Add(pawn); return false; }
+    private static bool ReferencePawns(ref IEnumerable<Pawn> __result) { __result = references; return false; }
+    private static bool RemoveReference(Pawn p) { references.Remove(p); return false; }
+    private static bool NoRelationships(ref int __result) { __result = 0; return false; }
     private static void SnapshotTree()
     {
         var world = new XElement("world", new XElement("worldObjects", new XElement("li", new XElement("def", "ClashOfRim_RemoteRaidBattleMapParent"),
@@ -85,6 +136,48 @@ internal static class RemotePocketMapTests
         Check(ReferenceEquals(output, SnapshotSaveSanitizer.RemoveTransientObservationState(output, out _, true)), "Repeated save cleanup changed bytes.");
     }
     private static XElement PocketXml(int id, int source) => new("li", new XElement("ID", id), new XElement("sourceMap", "Map_" + source));
+    private static void ProjectionTree()
+    {
+        XElement M(int id, int parent) => new("li", new XElement("uniqueID", id), new XElement("mapInfo", new XElement("parent", "WorldObject_" + parent)));
+        var root = M(1, 10); var child = M(2, 20); var nested = M(3, 30);
+        root.Add(new XElement("portal", new XElement("pocketMap", "Map_2"), new XElement("exit", "Thing_Exit3")));
+        nested.Add(new XElement("portal", new XElement("pitGate", "Thing_Gate1"), new XElement("map", "@Map_2")));
+        var source = new XDocument(new XElement("savegame", new XElement("game", new XElement("maps", root, child, nested, M(4, 40)),
+            new XElement("world", new XElement("pocketMaps", PocketXml(30, 2), PocketXml(20, 1), PocketXml(40, 9))))));
+        root = source.Descendants("maps").Elements().First();
+        string original = source.ToString(); int mapId = 1, parentId = 29;
+        var tree = new RemoteMapProjectionTree(source, root, "WorldObject_20", () => ++mapId, () => ++parentId);
+        Check(source.ToString() == original && tree.Maps.Elements().Count() == 3 && tree.PocketParents.Elements().Count() == 2,
+            "Tree projection mutated its source or included unrelated maps.");
+        Check(tree.Maps.Elements().First().Element("mapInfo")!.Element("parent")!.Value == "WorldObject_20"
+            && tree.Maps.Descendants("pocketMap").Single().Value == "Map_3"
+            && tree.Maps.Descendants("map").Single().Value == "@Map_3"
+            && tree.PocketParents.Elements().Select(p => p.Element("sourceMap")!.Value).OrderBy(v => v).SequenceEqual(new[] { "Map_2", "Map_3" }),
+            "Overlapping source/local IDs broke cross-map links.");
+        var signals = XElement.Parse("<things><questTags><li>Quest9</li></questTags><hackingCompletedSignal>Quest9.Hacked</hackingCompletedSignal><threatSignal>RoomThreat3</threatSignal><signalTag>RoomThreat3</signalTag><quest>Quest_9</quest><questDef>AncientStockpile</questDef><sendSignal>true</sendSignal></things>");
+        RemoteMapQuestIsolation.Sanitize(signals, "session");
+        Check(signals.Element("questTags")!.Element("li")!.Value + ".Hacked" == signals.Element("hackingCompletedSignal")!.Value
+            && signals.Element("threatSignal")!.Value == signals.Element("signalTag")!.Value
+            && signals.Element("quest")!.Value == "null" && signals.Element("questDef")!.Value == "AncientStockpile"
+            && signals.Element("sendSignal")!.Value == "true", "Quest isolation broke local signals or retained a foreign quest reference.");
+        Current.Game.uniqueIDsManager = new UniqueIDsManager();
+        var layout = XElement.Parse("<maps><li><layoutStructureSketches><li><uniqueId>LayoutStructureSketch_0</uniqueId><structureLayout><rooms><li><id>7</id><loadId>0</loadId><sketch>LayoutStructureSketch_0</sketch><merged><li>LayoutRoom_0</li></merged></li></rooms></structureLayout></li></layoutStructureSketches></li></maps>");
+        RemoteMapProjectedLoadIdRewriter.Rewrite(layout, new XElement("references"));
+        string sketchId = layout.Descendants("uniqueId").Single().Value;
+        string roomId = layout.Descendants("loadId").Single().Value;
+        Check(sketchId != "LayoutStructureSketch_0" && roomId != "0"
+            && layout.Descendants("sketch").Single().Value == sketchId
+            && layout.Descendants("merged").Elements().Single().Value == "LayoutRoom_" + roomId
+            && layout.Descendants("id").Single().Value == "7"
+            && Find.UniqueIDsManager.GetNextRoomID() > int.Parse(roomId), "Layout remapping broke local room indices, references or native ID allocation.");
+        var manyReferences = new XElement("maps", Enumerable.Range(0, 300).Select(i => new XElement("corpsePawn", "Thing_Human" + i)));
+        var referenceSource = new XDocument(new XElement("savegame", new XElement("game", new XElement("world",
+            new XElement("worldPawns", new XElement("pawnsDead", Enumerable.Range(0, 300).Select(i => new XElement("li",
+                new XElement("id", "Human" + i), new XElement("kindDef", "Drifter"), new XElement("pather"), new XElement("jobs")))))))));
+        var referencePawns = (XElement)AccessTools.Method(typeof(RemoteMapSnapshotProjector), "BuildReferencePawnsElement")
+            .Invoke(null, new object[] { referenceSource, manyReferences })!;
+        Check(referencePawns.Elements().Count() == 300, "World-pawn expansion budget truncated mandatory corpse references across the map tree.");
+    }
     private static Map Map(MapParent parent, int id) { var map = New<Map>(); map.info = new MapInfo { parent = parent }; map.uniqueID = id; maps.Add(map); return map; }
     private static Map Pocket(Map source, int id) { var parent = new PocketMapParent { sourceMap = source }; Find.World.pocketMaps.Add(parent); return Map(parent, id); }
     private static T New<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
