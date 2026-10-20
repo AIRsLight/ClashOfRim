@@ -38,6 +38,7 @@ internal sealed class PocketMapCommands
             quests = Find.QuestManager.QuestsListForReading.Select(q => new { id = q.id, state = q.State.ToString() }).ToArray(),
             fixtureLetters = Find.LetterStack.LettersListForReading.Where(l => l.Label.ToString().StartsWith("RimTest pocket signal")).Select(l => l.Label.ToString()).ToArray(),
             removable = RemoteSessionMapUtility.FindActiveSessionMap()?.ShouldRemoveMapNow(out _) ?? false,
+            pendingMaps = RemoteSessionMapUtility.FindActiveSessionMap()?.DeferredPockets.Count ?? 0,
             temporaryWorldPawns = Find.WorldPawns.AllPawnsAliveOrDead.Where(RemoteSessionThingCleanup.HasRemoteSessionCleanupTag).Select(p => p.ThingID).ToArray()
         });
         router.Register("clash.fixture.pocket", "FIXTURE: prepare native pits, quest-generated hatches, source markers and signal controls; optionally unlock or generate a selected portal.", "fixture", a =>

@@ -14,6 +14,7 @@ internal static class RemotePocketMapAdmission
         // a child and intentionally have no MapPortal.PocketMap of their own.
         if (portal is PocketMapExit) return true;
         if (!RemoteSessionPocketMapUtility.IsRemoteSessionSourceMap(portal.Map) || portal.PocketMap is not null) return true;
+        if (RemoteSessionPocketMapUtility.FindSessionParent(portal.Map)!.DeferredPockets.Contains(portal)) return true;
         // Only generators exercised without the source world's quest manager may
         // create a new remote map. Existing imported maps use vanilla admission.
         if (portal.GetType() == typeof(PitGate))
@@ -45,6 +46,12 @@ internal static class RemotePocketMapGenerationAdmissionPatch
 {
     internal static bool Prefix(MapPortal __instance, ref Map? __result)
     {
+        var owner = RemoteSessionPocketMapUtility.FindSessionParent(__instance.Map);
+        if (__instance.PocketMap is null && owner?.DeferredPockets.Contains(__instance) == true)
+        {
+            __result = owner.DeferredPockets.Load(__instance, owner);
+            return false;
+        }
         if (RemotePocketMapAdmission.Allows(__instance)) return true;
         __result = null;
         return false;

@@ -26,6 +26,8 @@ public sealed class RemoteSessionMapParent : MapParent
     public string RelatedEventId = string.Empty;
     public string SourceLabel = string.Empty;
     private List<RemoteNpcLordSnapshot> remoteNpcLordSnapshots = new();
+    private RemoteMapDeferredPockets deferredPockets = new();
+    internal RemoteMapDeferredPockets DeferredPockets => deferredPockets;
 
     public override string Label => string.IsNullOrWhiteSpace(SourceLabel)
         ? ClashOfRimText.Key(LabelKey, OwnerUserId.Named("OWNER"))
@@ -41,6 +43,8 @@ public sealed class RemoteSessionMapParent : MapParent
     public override void ExposeData()
     {
         base.ExposeData();
+        Scribe_Deep.Look(ref deferredPockets, "clashOfRimDeferredPockets");
+        deferredPockets ??= new();
 #pragma warning disable CS8601
         Scribe_Values.Look(ref SessionId, "clashOfRimSessionId");
         Scribe_Values.Look(ref Mode, "clashOfRimMode");

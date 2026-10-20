@@ -88,6 +88,7 @@ internal static class RemotePocketMapTests
             ReferencePawnLifetime(harmony);
             SnapshotTree();
             ProjectionTree();
+            DeferredTree(harmony);
         }
         finally { harmony.UnpatchAll(harmony.Id); Current.Game = previous; maps.Clear(); removed.Clear(); cleaned.Clear(); references.Clear(); fail = false; }
     }
@@ -136,6 +137,61 @@ internal static class RemotePocketMapTests
         Check(ReferenceEquals(output, SnapshotSaveSanitizer.RemoveTransientObservationState(output, out _, true)), "Repeated save cleanup changed bytes.");
     }
     private static XElement PocketXml(int id, int source) => new("li", new XElement("ID", id), new XElement("sourceMap", "Map_" + source));
+    private static void DeferredTree(Harmony harmony)
+    {
+        var source = XDocument.Parse(@"
+            <savegame><game><world><pocketMaps><li><ID>20</ID><sourceMap>Map_1</sourceMap></li><li><ID>30</ID><sourceMap>Map_2</sourceMap></li></pocketMaps></world><maps>
+            <li><uniqueID>1</uniqueID><mapInfo><parent>WorldObject_10</parent></mapInfo><things><thing><id>Gate1</id><pocketMap>Map_2</pocketMap><exit>Thing_Exit2</exit></thing></things></li>
+            <li><uniqueID>2</uniqueID><mapInfo><parent>WorldObject_20</parent></mapInfo><things><thing><id>Exit2</id><pitGate>Thing_Gate1</pitGate></thing><thing><id>Gate2</id><pocketMap>Map_3</pocketMap><exit>Thing_Exit3</exit></thing></things></li>
+            <li><uniqueID>3</uniqueID><mapInfo><parent>WorldObject_30</parent></mapInfo><things><thing><id>Exit3</id><pitGate>Thing_Gate2</pitGate></thing></things></li>
+            </maps></game></savegame>
+            ");
+        int id = 0, parentId = 30;
+        var tree = new RemoteMapProjectionTree(source, source.Descendants("maps").Elements().First(), "WorldObject_100", () => ++id, () => ++parentId);
+        int before = maps.Count;
+        owner.DeferredPockets.Prepare(tree, new AIRsLight.ClashOfRim.ClientNetwork.ModSnapshotPackageMetadataDto { SnapshotId = "snapshot" }, owner);
+        Check(owner.DeferredPockets.Count == 2 && maps.Count == before && tree.Maps.Elements().Count() == 1 && !tree.PocketParents.HasElements
+            && tree.Maps.Descendants("pocketMap").Single().Value == "null" && tree.Maps.Descendants("exit").Single().Value == "null",
+            "Deferring a tree instantiated pockets or retained unresolved forward portal links.");
+        var pending = (XElement)AccessTools.Field(typeof(RemoteMapDeferredPockets), "pockets").GetValue(owner.DeferredPockets)!;
+        Check(pending.Elements().First().Descendants("pocketMap").Single().Value == "null"
+            && pending.Elements().First().Descendants("pitGate").Single().Value == "Thing_Gate1",
+            "Staging one child retained a forward link to its unvisited child or erased its exit back to the surface.");
+        var portal = New<MapPortal>(); portal.def = new ThingDef { defName = "Gate" }; portal.thingIDNumber = 1;
+        AccessTools.Field(typeof(Thing), "mapIndexOrState").SetValue(portal, (sbyte)0);
+        Check(owner.DeferredPockets.Contains(portal) && RemotePocketMapAdmission.Allows(portal),
+            "Existing saved content was subjected to the unknown-generator restriction.");
+        var load = AccessTools.Method(typeof(RemoteMapRuntimeLoader), "TryLoad");
+        var postprocess = AccessTools.Method(typeof(RemoteObservationMapPostProcessor), "Apply");
+        harmony.Patch(load, prefix: Method(nameof(LoadDeferredFixture)));
+        harmony.Patch(postprocess, prefix: Method(nameof(FailDeferredPostprocess)));
+        harmony.Patch(AccessTools.Method(typeof(Log), nameof(Log.Error), new[] { typeof(string) }), prefix: Method(nameof(Skip)));
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            Map? result = null;
+            Check(!RemotePocketMapGenerationAdmissionPatch.Prefix(portal, ref result) && result is null
+                && owner.DeferredPockets.Count == 2 && maps.Count == before
+                && !owner.DeferredPockets.Retains(removed.Last()),
+                "Failed import fell back to generation, lost its retry snapshot, leaked a map or cached disposed objects for retry.");
+        }
+        harmony.Unpatch(load, HarmonyPatchType.Prefix, harmony.Id);
+        harmony.Unpatch(postprocess, HarmonyPatchType.Prefix, harmony.Id);
+        // A successful parent-map load consumes its entry; later collapse also drops its unvisited child.
+        pending.Elements().First().Remove();
+        owner.DeferredPockets.NotifyMapRemoved("Map_2");
+        Check(owner.DeferredPockets.Count == 0, "Collapsing a loaded map retained pending descendants.");
+        owner.DeferredPockets.Prepare(new RemoteMapProjectionTree(source, source.Descendants("maps").Elements().First(),
+            "WorldObject_100", () => ++id, () => ++parentId), new AIRsLight.ClashOfRim.ClientNetwork.ModSnapshotPackageMetadataDto(), owner);
+        owner.DeferredPockets.ForgetDescendants("Map_4");
+        Check(owner.DeferredPockets.Count == 0, "Dropping an unvisited tree left nested snapshots behind.");
+    }
+    private static bool LoadDeferredFixture(ref Map? map, ref string failureReason,
+        Action<IEnumerable<ILoadReferenceable>> rememberReferences, ref bool __result)
+    {
+        map = Pocket(maps[0], 2); failureReason = "";
+        rememberReferences(new ILoadReferenceable[] { map }); __result = true; return false;
+    }
+    private static bool FailDeferredPostprocess() => throw new InvalidOperationException("postprocess fault");
     private static void ProjectionTree()
     {
         XElement M(int id, int parent) => new("li", new XElement("uniqueID", id), new XElement("mapInfo", new XElement("parent", "WorldObject_" + parent)));

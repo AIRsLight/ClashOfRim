@@ -30,7 +30,7 @@ public static class RemoteMapSnapshotProjector
         ModSnapshotPackageMetadataDto package,
         byte[] payload,
         ModWorldMapMarkerDto target,
-        MapParent carrier,
+        RemoteSessionMapParent carrier,
         out Map? map,
         out string failureReason)
     {
@@ -134,28 +134,12 @@ public static class RemoteMapSnapshotProjector
         }
         MarkStage("rewrite-and-sanitize");
 
-        string tempPath = Path.Combine(Path.GetTempPath(), "clashofrim-remote-map-" + Guid.NewGuid().ToString("N") + ".rws");
-        try
-        {
-            new XDocument(new XElement("savegame", referencePawnsElement, tree.PocketParents, tree.Maps))
-                .Save(tempPath, SaveOptions.DisableFormatting);
-            MarkStage("write-temp-save");
-            if (!RemoteMapRuntimeLoader.TryLoadTree(tempPath, carrier, factionProjection.RemoteFactions, mappedReferences, out map, out failureReason))
-            {
-                return false;
-            }
-            MarkStage("scribe-load-and-finalize");
-        }
-        finally
-        {
-            try
-            {
-                File.Delete(tempPath);
-            }
-            catch (IOException)
-            {
-            }
-        }
+        carrier.DeferredPockets.Prepare(tree, package, carrier);
+        var projection = new XDocument(new XElement("savegame", referencePawnsElement, tree.PocketParents, tree.Maps));
+        if (!RemoteMapRuntimeLoader.TryLoad(projection, carrier,
+            mappedReferences.Concat(factionProjection.RemoteFactions).ToList(), out map, out failureReason,
+            carrier.DeferredPockets.RememberReferences)) return false;
+        MarkStage("scribe-load-and-finalize");
 
         ClashLog.Message(
             "[ClashOfRim][RemoteMapProjection] Loaded remote map target="
@@ -168,10 +152,7 @@ public static class RemoteMapSnapshotProjector
             + map!.uniqueID);
         foreach (var element in tree.Maps.Elements())
         {
-            string localId = element.Element("uniqueID")!.Value;
-            var ids = element.Descendants("clashOfRimProjectedThingId").Select(e => e.Value).ToHashSet(StringComparer.Ordinal);
-            ClashOfRimGameComponent.RegisterRemoteMapThingIdentities(carrier as RemoteSessionMapParent, localId,
-                projectedThingIdentities.Where(i => ids.Contains(i.ProjectedThingId)), tree.SourceMapIds[localId]);
+            RemoteMapDeferredPockets.RegisterIdentities(carrier, element, tree.SourceMapIds[element.Element("uniqueID")!.Value]);
         }
         return true;
     }
@@ -779,7 +760,8 @@ public static class RemoteMapSnapshotProjector
             }
         }
 
-        return Find.WorldObjects?.AllWorldObjects?.Any(worldObject => worldObject.Faction == faction) == true;
+        return Find.WorldObjects?.AllWorldObjects?.Any(worldObject => worldObject.Faction == faction
+            || worldObject is RemoteSessionMapParent remote && remote.DeferredPockets.Retains(faction)) == true;
     }
 
     public static void EnsureRemoteNpcRelation(Faction faction, Faction other)

@@ -50,7 +50,10 @@ internal static class RemoteSessionPocketMapRemovalPatch
                 && map.Parent is PocketMapParent parent && !Find.World.pocketMaps.Contains(parent))
                 Find.World.pocketMaps.Add(parent);
             if (__exception is null)
+            {
                 ClashOfRimGameComponent.RemoveRemoteMapThingIdentities(mapUniqueId: map.uniqueID.ToString());
+                RemoteSessionPocketMapUtility.FindSessionParent(map)?.DeferredPockets.NotifyMapRemoved(map.GetUniqueLoadID());
+            }
         }
         finally { __state.Dispose(); }
     }

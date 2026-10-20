@@ -6,7 +6,7 @@ using AIRsLight.ClashOfRim.Snapshots;
 
 namespace AIRsLight.ClashOfRim.RemoteMaps;
 
-// One Scribe graph preserves native portal/exit and cross-map pawn references.
+// Reserve and rewrite IDs together, before splitting the graph into maps loaded on entry.
 internal sealed class RemoteMapProjectionTree
 {
     internal XElement Maps { get; }

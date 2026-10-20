@@ -26,6 +26,16 @@ internal sealed class PocketMapScenario(TestRun run, ScenarioPolling polling, Co
             await colony.PauseWhenIdle("A");
             string root = (await run.CallAsync("A", "clash.remote")).GetProperty("session").String("clientMapId");
             var state = await Read();
+            VerifyDeferred(state, 0);
+            var pit = state.GetProperty("portals").EnumerateArray().Single(p => p.String("mapId") == root && p.String("kind") == "PitGate");
+            Check(pit.GetProperty("childId").ValueKind == JsonValueKind.Null && pit.GetProperty("exitId").ValueKind == JsonValueKind.Null,
+                "Unvisited source pocket was already instantiated.");
+            string importedChild = (await Create(root, portalId: pit.String("id"))).String("childMapId");
+            state = await Read(); VerifyDeferred(state, 1);
+            var importedHatch = state.GetProperty("portals").EnumerateArray().Single(p => p.String("mapId") == importedChild && p.String("kind") == "AncientHatch");
+            Check(importedHatch.GetProperty("childId").ValueKind == JsonValueKind.Null, "Entering the cave eagerly loaded its nested vault.");
+            await Create(importedChild, portalId: importedHatch.String("id"));
+            state = await Read();
             Check(state.GetProperty("pockets").GetArrayLength() == 3
                 && state.GetProperty("pockets").EnumerateArray().Where(p => p.String("mapId") != local).All(p => p.Bool("guarded") && p.GetProperty("pawns").EnumerateArray().All(n => n.Bool("marked"))),
                 "Remote child generation lost ownership or cleanup tags.");
@@ -45,10 +55,25 @@ internal sealed class PocketMapScenario(TestRun run, ScenarioPolling polling, Co
             string child = state.GetProperty("pockets").EnumerateArray().Single(p => p.String("sourceMapId") == root).String("mapId");
             var gate = state.GetProperty("portals").EnumerateArray().Single(p => p.String("mapId") == child && p.String("kind") == "AncientHatch");
             await Create(gate.String("childId")); // independently generate a remote pit beneath the imported vault
-        }, existingPocketCount: 2);
+        });
         var closed = await Read();
         Check(closed.GetProperty("pockets").EnumerateArray().Single().String("mapId") == local
             && closed.GetProperty("temporaryWorldPawns").GetArrayLength() == 0, "Observation close leaked pockets/pawns or removed local pockets.");
+        // Closing a session without visiting any entrance must also release its pending tree.
+        await remote.ObserveAlly(false, async () => VerifyDeferred(await Read(), 0));
+        Check((await Read()).GetProperty("pockets").EnumerateArray().Single().String("mapId") == local
+            && (await Read()).GetProperty("temporaryWorldPawns").GetArrayLength() == 0, "Closing an unvisited tree leaked session state.");
+        await remote.ObserveAlly(false, async () =>
+        {
+            var state = await Read(); VerifyDeferred(state, 0);
+            var pit = state.GetProperty("portals").EnumerateArray().Single(p => p.String("kind") == "PitGate" && p.GetProperty("childId").ValueKind == JsonValueKind.Null);
+            string child = (await Create(pit.String("mapId"), portalId: pit.String("id"))).String("childMapId");
+            VerifyDeferred(await Read(), 1);
+            await run.CallAsync("A", "clash.fixture.pocketDestroy", new { acknowledgeFixture = true, mapId = child });
+            state = await Read();
+            Check(state.GetProperty("pendingMaps").GetInt32() == 0 && state.GetProperty("pockets").EnumerateArray().Single().String("mapId") == local,
+                "Collapsing a loaded cave retained its unvisited nested map or disturbed local pockets.");
+        });
         await run.CallAsync("A", "clash.fixture.pocketDestroy", new { acknowledgeFixture = true, mapId = local });
         VerifyDefender(await run.CallAsync("B", "clash.pocket.state"));
     }
@@ -58,19 +83,26 @@ internal sealed class PocketMapScenario(TestRun run, ScenarioPolling polling, Co
         {
             await colony.PauseWhenIdle("A");
             string root = (await run.CallAsync("A", "clash.remote")).GetProperty("session").String("clientMapId");
-            var state = await Read(); VerifyImported(state);
+            var state = await Read(); VerifyDeferred(state, 0);
             string pawn = state.GetProperty("players").EnumerateArray().Single(p => p.String("mapId") == root).String("id");
             string portal = state.GetProperty("portals").EnumerateArray().Single(p => p.String("mapId") == root && p.String("kind") == "PitGate").String("id");
+            await remote.ReloadBattle(eventId);
+            state = await Read(); VerifyDeferred(state, 0);
             await Enter(portal, pawn, id => id != root);
             state = await Read(); string child = state.GetProperty("players").EnumerateArray().Single(p => p.String("id") == pawn).String("mapId");
+            VerifyDeferred(state, 1);
             Check(!state.Bool("removable"), "Battle became removable while its attacker was in a child map.");
             Check(!state.GetProperty("pockets").EnumerateArray().SelectMany(p => p.GetProperty("pawns").EnumerateArray()).Single(p => p.String("id") == pawn).Bool("marked"),
                 "Native portal entry tagged the real attacker as a disposable projection.");
             string exit = state.GetProperty("portals").EnumerateArray().Single(p => p.String("id") == portal).String("exitId");
             await Enter(exit, pawn, id => id == root);
             await Enter(portal, pawn, id => id == child);
+            state = await Read(); VerifyDeferred(state, 1);
             var nestedGate = state.GetProperty("portals").EnumerateArray().Single(p => p.String("mapId") == child && p.String("kind") == "AncientHatch");
-            await Enter(nestedGate.String("id"), pawn, id => id == nestedGate.String("childId"));
+            Check(nestedGate.GetProperty("childId").ValueKind == JsonValueKind.Null, "Nested saved map loaded before entry.");
+            await Enter(nestedGate.String("id"), pawn, id => id != child && id != root);
+            state = await Read(); VerifyImported(state);
+            nestedGate = state.GetProperty("portals").EnumerateArray().Single(p => p.String("id") == nestedGate.String("id"));
             await Enter(nestedGate.String("exitId"), pawn, id => id == child);
             await Enter(exit, pawn, id => id == root);
             var unopened = UnopenedRealHatch(state, root);
@@ -100,8 +132,8 @@ internal sealed class PocketMapScenario(TestRun run, ScenarioPolling polling, Co
     {
         var remotePockets = state.GetProperty("pockets").EnumerateArray().Where(p => p.Bool("guarded")).ToArray();
         Check(remotePockets.Length == 2, "Existing defender subtree was not imported.");
-        Check(remotePockets.All(p => !p.GetProperty("pawns").EnumerateArray().Any(n => n.Bool("player"))),
-            "Existing pocket import unexpectedly required attacker entry.");
+        Check(remotePockets.All(p => p.GetProperty("pawns").EnumerateArray().Where(n => !n.Bool("player")).All(n => n.Bool("marked"))),
+            "Lazy import lost remote pawn cleanup ownership.");
         var before = defenderBefore.GetProperty("pockets").EnumerateArray().SelectMany(p => p.GetProperty("markers").EnumerateArray()).Select(m => m.GetRawText()).Order().ToArray();
         var after = remotePockets.SelectMany(p => p.GetProperty("markers").EnumerateArray()).Select(m => m.GetRawText()).Order().ToArray();
         Check(before.SequenceEqual(after) && after.Length == 2, "Imported maps regenerated or lost their distinctive source contents.");
@@ -109,6 +141,12 @@ internal sealed class PocketMapScenario(TestRun run, ScenarioPolling polling, Co
             Check(state.GetProperty("portals").EnumerateArray().Count(p => p.GetProperty("childId").GetString() == pocket.String("mapId") && p.GetProperty("exitId").ValueKind == JsonValueKind.String) == 1,
                 "Imported child lost its unique native entrance/exit connection.");
         VerifyLayouts(state);
+    }
+    private static void VerifyDeferred(JsonElement state, int loaded)
+    {
+        Check(state.GetProperty("pockets").EnumerateArray().Count(p => p.Bool("guarded")) == loaded,
+            "Saved pockets were loaded before entering their respective entrances, or an entrance duplicated a map.");
+        Check(state.GetProperty("pendingMaps").GetInt32() == 2 - loaded, "Unvisited snapshots were lost or a loaded map remained pending.");
     }
     private static JsonElement UnopenedRealHatch(JsonElement state, string root) => state.GetProperty("portals").EnumerateArray()
         .Single(p => p.String("mapId") == root && p.String("kind") == "AncientHatch" && p.GetProperty("layout").ValueKind == JsonValueKind.Null);

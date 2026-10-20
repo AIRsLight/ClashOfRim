@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.IO;
+using System.Xml.Linq;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -14,13 +16,26 @@ internal static class RemoteMapRuntimeLoader
     private static readonly FieldInfo? LoadedObjectDirectoryField =
         typeof(CrossRefHandler).GetField("loadedObjectDirectory", BindingFlags.Instance | BindingFlags.NonPublic);
 
-    internal static bool TryLoadTree(
-        string tempPath,
+    internal static bool TryLoad(
+        XDocument document,
         MapParent carrier,
-        IReadOnlyCollection<Faction> remoteNpcFactions,
         IReadOnlyList<ILoadReferenceable> mappedReferences,
         out Map? map,
-        out string failureReason)
+        out string failureReason,
+        Action<IEnumerable<ILoadReferenceable>>? rememberReferences = null,
+        bool isRoot = true)
+    {
+        string path = Path.Combine(Path.GetTempPath(), "clashofrim-remote-map-" + Guid.NewGuid().ToString("N") + ".rws");
+        try
+        {
+            document.Save(path, SaveOptions.DisableFormatting);
+            return TryLoadFile(path, carrier, mappedReferences, out map, out failureReason, rememberReferences, isRoot);
+        }
+        finally { File.Delete(path); }
+    }
+
+    private static bool TryLoadFile(string tempPath, MapParent carrier, IReadOnlyList<ILoadReferenceable> mappedReferences,
+        out Map? map, out string failureReason, Action<IEnumerable<ILoadReferenceable>>? rememberReferences, bool isRoot)
     {
         map = null;
         failureReason = string.Empty;
@@ -33,7 +48,8 @@ internal static class RemoteMapRuntimeLoader
         List<Map>? maps = null;
         List<PocketMapParent>? pockets = null;
         List<Pawn>? referencePawns = null;
-        Map? previousMap = carrier.Map;
+        Map? previousMap = isRoot ? carrier.Map : null;
+        var loadedReferences = new List<ILoadReferenceable>();
 
         try
         {
@@ -46,14 +62,8 @@ internal static class RemoteMapRuntimeLoader
             using (RemoteMapProjectionLoadScope.Begin())
             {
                 Scribe.loader.InitLoading(tempPath);
-                RegisterExternalLoadReference(carrier);
-                RegisterExternalLoadReference(carrierFaction);
-                foreach (Faction remoteNpcFaction in remoteNpcFactions)
-                {
-                    RegisterExternalLoadReference(remoteNpcFaction);
-                }
-
-                foreach (ILoadReferenceable reference in mappedReferences)
+                foreach (ILoadReferenceable reference in mappedReferences.Concat(new ILoadReferenceable?[] { carrier, carrierFaction })
+                    .Where(r => r is not null).Cast<ILoadReferenceable>().GroupBy(r => r.GetUniqueLoadID()).Select(g => g.First()))
                 {
                     RegisterExternalLoadReference(reference);
                 }
@@ -65,6 +75,7 @@ internal static class RemoteMapRuntimeLoader
                 // and otherwise clears already-resolved MapPortal.pocketMap links.
                 foreach (var pocket in pockets ?? new List<PocketMapParent>()) Find.World.pocketMaps.Add(pocket);
                 foreach (var loaded in maps ?? new List<Map>()) Current.Game.AddMap(loaded);
+                loadedReferences.AddRange(Scribe.loader.crossRefs.crossReferencingExposables.OfType<ILoadReferenceable>());
                 Scribe.loader.FinalizeLoading();
             }
         }
@@ -99,8 +110,8 @@ internal static class RemoteMapRuntimeLoader
             return false;
         }
 
-        map.info.parent = carrier;
-        map.generatorDef ??= carrier.MapGeneratorDef;
+        if (isRoot) map.info.parent = carrier;
+        map.generatorDef ??= map.Parent.MapGeneratorDef;
         RemoteSessionThingCleanup.KeepReferencePawnsForCleanup(referencePawns, carrier as RemoteSessionMapParent);
 
         if (previousMap is not null)
@@ -122,7 +133,8 @@ internal static class RemoteMapRuntimeLoader
                 RemoteSessionThingCleanup.MarkMapThingsForCleanup(loaded, carrier as RemoteSessionMapParent);
             }
         }
-        Current.Game.CurrentMap = map;
+        rememberReferences?.Invoke(mappedReferences.Concat(loadedReferences));
+        if (isRoot) Current.Game.CurrentMap = map;
         return true;
     }
 
