@@ -1,0 +1,6 @@
+{
+  "id": "remote-map-performance",
+  "features": false,
+  "stability": "remote-map-performance",
+  "expansions": ["Royalty", "Ideology", "Biotech", "Anomaly", "Odyssey"]
+}

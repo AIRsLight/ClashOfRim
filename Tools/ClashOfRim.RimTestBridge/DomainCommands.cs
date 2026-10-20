@@ -23,6 +23,7 @@ internal static class DomainCommands
         _ = new GiftCommands(router, objects, policy);
         _ = new EventCommands(router, objects, readEvents);
         _ = new RemoteMapCommands(router, objects, policy);
+        _ = new RemoteMapPerformanceCommands(router, policy);
         _ = new PocketMapCommands(router, objects, policy);
         _ = new UiLayoutCommands(router, policy, uiWindow ?? (_ => throw new InvalidOperationException("UI fixture provider missing.")));
         _ = new CombatCommands(router, policy);

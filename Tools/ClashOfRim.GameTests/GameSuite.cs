@@ -81,6 +81,7 @@ internal sealed class GameSuite
         var transfers = new PawnTransferScenario(caravanFixture, support, remoteMaps, diplomacy, raids);
         var pockets = new PocketMapScenario(run, polling, colonyFixture, remoteMaps, raids);
         var uiLayout = new UiLayoutScenario(run, polling, colonyFixture, root);
+        var remotePerformance = new RemoteMapPerformanceScenario(run, colonyFixture, remoteMaps, root);
         var featureRefresh = new FeatureRefreshScenario(run, economy);
         execution = plan.Bind(
             ScenarioCatalog.Startup.Bind(("launch-profile", () => world.VerifyStartup(clients.Keys)), ("shared-world-entry", entry.EnterSharedWorld)),
@@ -117,6 +118,7 @@ internal sealed class GameSuite
             ScenarioCatalog.Pockets.Bind(("alliance-request-accept", diplomacy.Alliance), ("pocket-observation-cleanup", pockets.Observe),
                 ("caravan-load-travel", caravanFixture.Travel), ("pocket-raid-roundtrip-reload-settlement", pockets.Raid)),
             ScenarioCatalog.UiLayout.Bind(("ui-language-layout", uiLayout.Run)),
+            ScenarioCatalog.RemotePerformance.Bind(("alliance-request-accept", diplomacy.Alliance), ("remote-map-load-performance", remotePerformance.Run)),
             ScenarioCatalog.Gravship.Bind(("gravship-new-map", () => gravship.Run("A", false)), ("gravship-quest-site", () => gravship.Run("B", true))),
             transfers.CreateSequence(withRaid: true), transfers.CreateSequence(withRaid: false),
             ScenarioCatalog.Catalog.Bind(("shop-complete-catalog", () => shopCatalog.Run(profile.CatalogDefinitions))),

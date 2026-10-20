@@ -405,6 +405,24 @@
       "session-reconnect",
       "runtime-errors"
     ],
+    "remote-map-performance": [
+      "launch-profile",
+      "shared-world-entry",
+      "world-parameters",
+      "world-geometry",
+      "world-tile-data",
+      "world-feature-identities",
+      "storyteller-difficulty",
+      "culture-references",
+      "world-persistence",
+      "storyteller-permission",
+      "runtime-difficulty-sync",
+      "alliance-request-accept",
+      "remote-map-load-performance",
+      "snapshot-save-reload",
+      "session-reconnect",
+      "runtime-errors"
+    ],
     "pocket-maps": [
       "launch-profile",
       "shared-world-entry",

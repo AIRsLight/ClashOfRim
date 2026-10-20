@@ -250,6 +250,16 @@
     "mode": "semantic"
   },
   {
+    "method": "clash.remote.performance.start",
+    "description": "FIXTURE: begin bounded update/repaint and remote-load timing probes in the isolated game.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.remote.performance.stop",
+    "description": "FIXTURE: stop timing probes and return frame gaps, load spans and map size.",
+    "mode": "fixture"
+  },
+  {
     "method": "clash.shop.catalog",
     "description": "Enumerate every definition offered by the original shop editor, without its UI search display limit.",
     "mode": "observe"

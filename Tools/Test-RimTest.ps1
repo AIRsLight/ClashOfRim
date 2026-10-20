@@ -68,8 +68,8 @@ $inputs = @((Join-Path $root 'Build/ClashOfRim/Assemblies'),
     binaries = @($inputs); profileSha256 = (Get-FileHash -LiteralPath (Join-Path $runRoot 'profile.json')).Hash } |
     ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot 'inputs.json') -Encoding utf8NoBOM
 Write-Host "Scenario: $($scenario.id); Evidence: $runRoot"
-# Gravship cutscenes use the game's renderer/capture pipeline even without OS input.
-$useHeadless = $Headless -and $scenario.stability -notin @('gravship', 'ui-layout')
+# These scenarios need the game's renderer even when OS input is unavailable.
+$useHeadless = $Headless -and $scenario.stability -notin @('gravship', 'ui-layout', 'remote-map-performance')
 & (Join-Path $root 'RimTest/tools/Invoke-GameGroup.ps1') -RimWorldPath $RimWorldPath -HarmonyPath $HarmonyPath `
     -RunsDirectory (Join-Path $runRoot 'Clients') -Names @('A','B') -Profiles $profiles -AdditionalMod (@((Join-Path $root 'Build/ClashOfRim')) + $AdditionalMod + @($extension)) -Headless:$useHeadless -AllowDebug -Run {
     param($group)
