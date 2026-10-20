@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Maps;
 
 namespace AIRsLight.ClashOfRim.RemoteMaps;
 
@@ -17,6 +18,8 @@ public sealed class RemoteSessionMapOpenRequest
     public ModSnapshotPackageMetadataDto? Package { get; set; }
 
     public byte[] Payload { get; set; } = System.Array.Empty<byte>();
+
+    internal ClientRemoteSnapshotDocument? PreparedDocument { get; set; }
 
     public bool CloseExistingObservationSessions { get; set; } = true;
 

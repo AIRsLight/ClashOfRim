@@ -23,7 +23,11 @@ internal sealed class ClientRemoteSnapshotDownload
             payloadStarting?.Invoke(snapshotId!);
             payload = await protocol.PayloadAsync(target, snapshotId!, token).ConfigureAwait(false);
         }
-        return new RemoteSnapshotDownloadResult(metadata, payload);
+        var result = new RemoteSnapshotDownloadResult(metadata, payload);
+        if (TryGetOpenPayload(result, out var opened, out _))
+            result.PreparedDocument = await Task.Run(() => ClientRemoteSnapshotDocument.Read(opened!.Package, opened.Payload, token), token)
+                .ConfigureAwait(false);
+        return result;
     }
 
     internal static string? SnapshotId(ModDownloadLatestSnapshotResponseDto? metadata) =>
@@ -44,7 +48,8 @@ internal sealed class ClientRemoteSnapshotDownload
                 download.Payload?.Message);
         else
         {
-            openPayload = new RemoteSnapshotOpenPayload(download.SnapshotId!, package, payload.Response);
+            openPayload = new RemoteSnapshotOpenPayload(download.SnapshotId!, package, payload.Response)
+            { PreparedDocument = download.PreparedDocument };
             failure = null;
             return true;
         }

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Diplomacy;
+using AIRsLight.ClashOfRim.Modules.Maps;
 using AIRsLight.ClashOfRim.Raids;
 using RimWorld;
 using RimWorld.Planet;
@@ -34,6 +35,7 @@ public static class RemoteSessionMapUtility
             request.RelatedEventId,
             request.Package,
             request.Payload,
+            request.PreparedDocument,
             request.CloseExistingObservationSessions,
             request.FailureCleanupReason,
             out RemoteSessionMapParent? mapParent,
@@ -53,6 +55,7 @@ public static class RemoteSessionMapUtility
         string? relatedEventId,
         ModSnapshotPackageMetadataDto package,
         byte[] payload,
+        ClientRemoteSnapshotDocument? preparedDocument,
         bool closeExistingObservationSessions,
         string failureCleanupReason,
         out RemoteSessionMapParent? mapParent,
@@ -104,7 +107,7 @@ public static class RemoteSessionMapUtility
         try
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
-            if (!RemoteMapSnapshotProjector.TryProject(package, payload, target, carrier, out map, out failureReason))
+            if (!RemoteMapSnapshotProjector.TryProjectPrepared(package, payload, target, carrier, preparedDocument, out map, out failureReason))
             {
                 RemoveTemporaryCarrier(carrier);
                 return false;

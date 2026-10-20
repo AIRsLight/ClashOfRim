@@ -39,9 +39,13 @@ internal sealed class RemoteMapPerformanceScenario(TestRun run, ColonyScenarioFi
             if (loading)
             {
                 foreach (string stage in new[] { "ClientObservationMaps.OpenAsync", "ClientRemoteSnapshotDownload.DownloadAsync",
-                    "ClientObservationRuntime.Open", "RemoteMapSnapshotProjector.TryProject", "RemoteMapRuntimeLoader.TryLoad",
+                    "ClientObservationRuntime.Open", "RemoteMapSnapshotProjector.TryProjectPrepared", "RemoteMapRuntimeLoader.TryLoad",
                     "Map.FinalizeLoading", "MapDrawer.RegenerateEverythingNow" })
                     Check(spans.Any(s => s.String("name") == stage), "Missing timing stage: " + stage);
+                var preparation = spans.Single(s => s.String("name") == "ClientRemoteSnapshotDocument.Read");
+                Check(preparation.Int("startThread") != open.Int("startThread")
+                    && preparation.GetProperty("endMs").GetDouble() <= open.GetProperty("startMs").GetDouble(),
+                    "Snapshot parsing ran on the game thread, ran twice or overlapped map opening.");
                 Check(spans.All(s => s.GetProperty("error").ValueKind == JsonValueKind.Null), "A measured loading stage failed.");
             }
             Console.WriteLine($"Remote performance {name}: repaint max gap={sample.GetProperty("repaints").GetProperty("maxGapMs").GetDouble():F1}ms");

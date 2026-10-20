@@ -2,11 +2,39 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
+using AIRsLight.ClashOfRim.ClientNetwork;
 
 namespace AIRsLight.ClashOfRim.Modules.Snapshots;
 
 internal static class ClientSnapshotPayloadCodec
 {
+    internal static bool TryDecode(ModSnapshotPackageMetadataDto package, byte[] payload,
+        out byte[] original, out ClientSnapshotRestoreFailure? failure)
+    {
+        original = Array.Empty<byte>();
+        failure = null;
+        if (package.PayloadBytes > 0 && payload.LongLength != package.PayloadBytes)
+            failure = new(ClientSnapshotRestoreFailureKind.PayloadSizeMismatch);
+        else if (!HashMatches(payload, package.PayloadSha256))
+            failure = new(ClientSnapshotRestoreFailureKind.PayloadHashMismatch);
+        else
+        {
+            try { original = Decode(payload, package.PayloadEncoding); }
+            catch (Exception ex) when (ex is InvalidDataException or NotSupportedException)
+            {
+                failure = ex is NotSupportedException
+                    ? new(ClientSnapshotRestoreFailureKind.UnsupportedEncoding, package.PayloadEncoding)
+                    : new(ClientSnapshotRestoreFailureKind.DecodeFailed, ex.Message);
+                return false;
+            }
+            if (package.OriginalSaveBytes > 0 && original.LongLength != package.OriginalSaveBytes)
+                failure = new(ClientSnapshotRestoreFailureKind.OriginalSizeMismatch);
+            else if (!HashMatches(original, package.OriginalSha256))
+                failure = new(ClientSnapshotRestoreFailureKind.OriginalHashMismatch);
+        }
+        return failure is null;
+    }
+
     internal static byte[] Encode(byte[] bytes)
     {
         using var output = new MemoryStream();

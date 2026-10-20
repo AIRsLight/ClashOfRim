@@ -94,6 +94,7 @@ internal sealed class ClientObservationMaps
                     SessionId = $"observation:{attempt.Context.UserId}:{target.OwnerUserId}:{payload!.SnapshotId}:{DateTime.UtcNow.Ticks}",
                     SnapshotId = payload.SnapshotId, RelatedEventId = target.RelatedEventId ?? string.Empty,
                     Package = payload.Package, Payload = payload.Payload,
+                    PreparedDocument = payload.PreparedDocument,
                     CloseExistingObservationSessions = true, FailureCleanupReason = "remote session map generation failure"
                 };
                 opening = true;

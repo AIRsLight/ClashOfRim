@@ -23,6 +23,7 @@ internal sealed class ClientRaidLaunchRuntime : IClientRaidLaunchRuntime
             SessionId = $"raidbattle:{context.UserId}:{prepared.EventId}:{DateTime.UtcNow.Ticks}",
             SnapshotId = prepared.Snapshot.SnapshotId, RelatedEventId = prepared.EventId,
             Package = prepared.Snapshot.Package, Payload = prepared.Snapshot.Payload,
+            PreparedDocument = prepared.Snapshot.PreparedDocument,
             CloseExistingObservationSessions = true, FailureCleanupReason = "raid battle map generation failure"
         };
         if (!RemoteSessionMapUtility.TryOpen(request, out var result)) return result.FailureReason;

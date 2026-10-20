@@ -74,9 +74,9 @@ internal static class RemoteMapPerformanceObservation
         {
             ("AIRsLight.ClashOfRim.Modules.Maps.ClientObservationMaps", "OpenAsync"),
             ("AIRsLight.ClashOfRim.RemoteMaps.ClientObservationRuntime", "Open"),
-            ("AIRsLight.ClashOfRim.RemoteMaps.RemoteMapSnapshotProjector", "TryProject"),
-            ("AIRsLight.ClashOfRim.RemoteMaps.RemoteMapSnapshotProjector", "TryDecodeOriginalPayload"),
-            ("AIRsLight.ClashOfRim.RemoteMaps.RemoteMapSnapshotProjector", "LoadDocument"),
+            ("AIRsLight.ClashOfRim.RemoteMaps.RemoteMapSnapshotProjector", "TryProjectPrepared"),
+            ("AIRsLight.ClashOfRim.Modules.Maps.ClientRemoteSnapshotDocument", "Read"),
+            ("AIRsLight.ClashOfRim.Modules.Snapshots.ClientSnapshotPayloadCodec", "TryDecode"),
             ("AIRsLight.ClashOfRim.RemoteMaps.RemoteMapRuntimeLoader", "TryLoad"),
             ("AIRsLight.ClashOfRim.RemoteMaps.RemoteMapRuntimeLoader", "TryLoadFile"),
             ("Verse.ScribeLoader", "InitLoading"), ("Verse.ScribeLoader", "FinalizeLoading"),
@@ -90,7 +90,7 @@ internal static class RemoteMapPerformanceObservation
         harmony.Patch(Required("AIRsLight.ClashOfRim.Modules.Maps.ClientRemoteSnapshotDownload", "DownloadAsync"),
             prefix: new HarmonyMethod(typeof(RemoteMapPerformanceObservation), nameof(Begin)),
             postfix: new HarmonyMethod(typeof(RemoteMapPerformanceObservation), nameof(EndAsync)));
-        harmony.Patch(Required("AIRsLight.ClashOfRim.RemoteMaps.RemoteMapSnapshotProjector", "TryProject"),
+        harmony.Patch(Required("AIRsLight.ClashOfRim.RemoteMaps.RemoteMapSnapshotProjector", "TryProjectPrepared"),
             prefix: new HarmonyMethod(typeof(RemoteMapPerformanceObservation), nameof(Payload)));
         installed = true;
     }

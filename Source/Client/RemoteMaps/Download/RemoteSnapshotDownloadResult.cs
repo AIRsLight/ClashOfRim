@@ -18,4 +18,6 @@ public sealed class RemoteSnapshotDownloadResult
     public ClashOfRimClientNetworkResult<byte[]>? Payload { get; }
 
     public string? SnapshotId => ClientRemoteSnapshotDownload.SnapshotId(Metadata.Response);
+
+    internal ClientRemoteSnapshotDocument? PreparedDocument { get; set; }
 }

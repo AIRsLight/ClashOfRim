@@ -2,15 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
-using System.Xml;
 using System.Xml.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Maps;
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using RimWorld.Planet;
@@ -31,6 +28,16 @@ public static class RemoteMapSnapshotProjector
         byte[] payload,
         ModWorldMapMarkerDto target,
         RemoteSessionMapParent carrier,
+        out Map? map,
+        out string failureReason)
+        => TryProjectPrepared(package, payload, target, carrier, null, out map, out failureReason);
+
+    internal static bool TryProjectPrepared(
+        ModSnapshotPackageMetadataDto package,
+        byte[] payload,
+        ModWorldMapMarkerDto target,
+        RemoteSessionMapParent carrier,
+        ClientRemoteSnapshotDocument? preparedDocument,
         out Map? map,
         out string failureReason)
     {
@@ -62,25 +69,14 @@ public static class RemoteMapSnapshotProjector
             lastStageMs = elapsed;
         }
 
-        if (!TryDecodeOriginalPayload(package, payload, out byte[] originalSaveBytes, out failureReason))
+        var prepared = preparedDocument ?? ClientRemoteSnapshotDocument.Read(package, payload);
+        if (prepared.Failure is { } failure)
         {
+            failureReason = PreparationFailure(failure);
             return false;
         }
-        MarkStage("decode");
-
-        XDocument document;
-        try
-        {
-            document = LoadDocument(originalSaveBytes);
-        }
-        catch (Exception ex) when (ex is XmlException or IOException)
-        {
-            failureReason = ClashOfRimText.Key(
-                "ClashOfRim.RemoteMapProjection.StatusInvalidXml",
-                ex.Message.Named("MESSAGE"));
-            return false;
-        }
-        MarkStage("load-xml");
+        XDocument document = prepared.Take();
+        MarkStage("prepared-document");
 
         XElement? sourceMap = FindMap(document, target.MapId);
         if (sourceMap is null)
@@ -157,84 +153,17 @@ public static class RemoteMapSnapshotProjector
         return true;
     }
 
-    private static bool TryDecodeOriginalPayload(
-        ModSnapshotPackageMetadataDto package,
-        byte[] payload,
-        out byte[] original,
-        out string failureReason)
+    private static string PreparationFailure(ClientSnapshotRestoreFailure failure)
     {
-        original = Array.Empty<byte>();
-        failureReason = string.Empty;
-
-        if (package.PayloadBytes > 0 && payload.LongLength != package.PayloadBytes)
+        const string prefix = "ClashOfRim.RemoteMapProjection.Status";
+        if (failure.Kind == ClientSnapshotRestoreFailureKind.UnsupportedEncoding)
         {
-            failureReason = ClashOfRimText.Key("ClashOfRim.RemoteMapProjection.StatusPayloadSizeMismatch");
-            return false;
+            string message = ClashOfRimText.Key(prefix + "UnsupportedEncoding", (failure.Message ?? string.Empty).Named("ENCODING"));
+            return ClashOfRimText.Key(prefix + "DecodeFailed", message.Named("MESSAGE"));
         }
-
-        if (!HashMatches(payload, package.PayloadSha256))
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.RemoteMapProjection.StatusPayloadHashMismatch");
-            return false;
-        }
-
-        try
-        {
-            original = DecodePayload(payload, package.PayloadEncoding);
-        }
-        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException)
-        {
-            failureReason = ClashOfRimText.Key(
-                "ClashOfRim.RemoteMapProjection.StatusDecodeFailed",
-                ex.Message.Named("MESSAGE"));
-            return false;
-        }
-
-        if (package.OriginalSaveBytes > 0 && original.LongLength != package.OriginalSaveBytes)
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.RemoteMapProjection.StatusOriginalSizeMismatch");
-            return false;
-        }
-
-        if (!HashMatches(original, package.OriginalSha256))
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.RemoteMapProjection.StatusOriginalHashMismatch");
-            return false;
-        }
-
-        return true;
-    }
-
-    private static byte[] DecodePayload(byte[] payload, string? encoding)
-    {
-        if (string.Equals(encoding, "RawRws", StringComparison.OrdinalIgnoreCase))
-        {
-            return payload;
-        }
-
-        if (string.Equals(encoding, "GzipRws", StringComparison.OrdinalIgnoreCase))
-        {
-            using var source = new MemoryStream(payload);
-            using var gzip = new GZipStream(source, CompressionMode.Decompress);
-            using var target = new MemoryStream();
-            gzip.CopyTo(target);
-            return target.ToArray();
-        }
-
-        throw new NotSupportedException(ClashOfRimText.Key(
-            "ClashOfRim.RemoteMapProjection.StatusUnsupportedEncoding",
-            (encoding ?? string.Empty).Named("ENCODING")));
-    }
-
-    private static XDocument LoadDocument(byte[] payload)
-    {
-        var settings = new XmlReaderSettings
-        {
-            DtdProcessing = DtdProcessing.Prohibit
-        };
-        using var source = new MemoryStream(payload);
-        using XmlReader reader = XmlReader.Create(source, settings);
-        return XDocument.Load(reader, LoadOptions.PreserveWhitespace);
+        return failure.Kind is ClientSnapshotRestoreFailureKind.DecodeFailed or ClientSnapshotRestoreFailureKind.InvalidXml
+            ? ClashOfRimText.Key(prefix + failure.Kind, (failure.Message ?? string.Empty).Named("MESSAGE"))
+            : ClashOfRimText.Key(prefix + failure.Kind);
     }
 
     private static XElement? FindMap(XDocument document, string? mapId)
@@ -1466,26 +1395,4 @@ public static class RemoteMapSnapshotProjector
         }
     }
 
-    private static bool HashMatches(byte[] payload, string expectedSha256)
-    {
-        if (string.IsNullOrWhiteSpace(expectedSha256))
-        {
-            return false;
-        }
-
-        using SHA256 sha256 = SHA256.Create();
-        string actual = ToLowerHex(sha256.ComputeHash(payload));
-        return string.Equals(actual, expectedSha256, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string ToLowerHex(byte[] bytes)
-    {
-        var builder = new StringBuilder(bytes.Length * 2);
-        foreach (byte value in bytes)
-        {
-            builder.Append(value.ToString("x2"));
-        }
-
-        return builder.ToString();
-    }
 }

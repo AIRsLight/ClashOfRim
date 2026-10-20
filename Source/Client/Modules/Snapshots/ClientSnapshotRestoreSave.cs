@@ -28,42 +28,7 @@ internal static class ClientSnapshotRestoreSave
             return false;
         }
 
-        if (package.PayloadBytes > 0 && payload.LongLength != package.PayloadBytes)
-        {
-            failure = new(ClientSnapshotRestoreFailureKind.PayloadSizeMismatch);
-            return false;
-        }
-
-        if (!ClientSnapshotPayloadCodec.HashMatches(payload, package.PayloadSha256))
-        {
-            failure = new(ClientSnapshotRestoreFailureKind.PayloadHashMismatch);
-            return false;
-        }
-
-        byte[] original;
-        try
-        {
-            original = ClientSnapshotPayloadCodec.Decode(payload, package.PayloadEncoding);
-        }
-        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException)
-        {
-            failure = ex is NotSupportedException
-                ? new(ClientSnapshotRestoreFailureKind.UnsupportedEncoding, package.PayloadEncoding)
-                : new(ClientSnapshotRestoreFailureKind.DecodeFailed, ex.Message);
-            return false;
-        }
-
-        if (package.OriginalSaveBytes > 0 && original.LongLength != package.OriginalSaveBytes)
-        {
-            failure = new(ClientSnapshotRestoreFailureKind.OriginalSizeMismatch);
-            return false;
-        }
-
-        if (!ClientSnapshotPayloadCodec.HashMatches(original, package.OriginalSha256))
-        {
-            failure = new(ClientSnapshotRestoreFailureKind.OriginalHashMismatch);
-            return false;
-        }
+        if (!ClientSnapshotPayloadCodec.TryDecode(package, payload, out var original, out failure)) return false;
 
         if (!TryRewriteServerSessionMetadata(
                 original,

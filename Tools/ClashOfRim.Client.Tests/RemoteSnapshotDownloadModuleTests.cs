@@ -17,7 +17,11 @@ using AIRsLight.ClashOfRim.RemoteMaps;
 internal static class RemoteSnapshotDownloadModuleTests
 {
     private static readonly byte[] Bytes = { 0, 127, 128, 255 };
-    internal static void Run() => RunAsync().GetAwaiter().GetResult();
+    internal static void Run()
+    {
+        ClientRemoteSnapshotDocumentTests.Run();
+        RunAsync().GetAwaiter().GetResult();
+    }
 
     private static async Task RunAsync()
     {
@@ -34,6 +38,8 @@ internal static class RemoteSnapshotDownloadModuleTests
                 using var f = new Fixture(facade, credential, scope);
                 var result = await f.Download();
                 Check(f.Calls == 2 && Open(result).Payload.SequenceEqual(Bytes), "Download changed bytes or request count.");
+                Check(result.PreparedDocument is not null && ReferenceEquals(Open(result).PreparedDocument, result.PreparedDocument),
+                    "Downloaded preparation was lost before the game-thread handoff.");
                 Check(Open(result).SnapshotId == "server-é", "Payload did not use the metadata snapshot ID.");
                 f.Metadata.SnapshotId = null;
                 result = await f.Download();
