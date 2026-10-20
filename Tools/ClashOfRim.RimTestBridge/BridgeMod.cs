@@ -14,6 +14,7 @@ public sealed class BridgeMod : Mod
     public BridgeMod(ModContentPack content) : base(content)
     {
         AmbientDamageObservation.Install();
+        UiLayoutObservation.Install();
         RimTestApi.RegisterExtension(b => new ClientActions(b));
     }
 }
@@ -34,7 +35,7 @@ internal sealed class ClientActions
             (int? knownVersion, out int version) => Mod.ReadEventDetails(knownVersion, out version),
             () => Mod.BankStatusSnapshot, () => Mod.ServerShopListingsSnapshot,
             colony => Mod.OpenAbandonPlayerColonyConfirmation(colony),
-            () => Mod.AchievementLeaderboardsSnapshotVersion, () => Mod.WorldConfigurationId);
+            () => Mod.AchievementLeaderboardsSnapshotVersion, () => Mod.WorldConfigurationId, UiLayoutWindowFixture.Create);
         WorldObservations.Register(bridge);
         bridge.Router.Register("clash.actions", "Discover explicit client UI entry points and exact parameter contracts. Discovery is not test coverage.", "observe", a =>
             ObjectInspector.Paginate(Actions.Select(m => new

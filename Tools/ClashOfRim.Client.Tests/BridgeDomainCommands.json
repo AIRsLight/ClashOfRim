@@ -360,6 +360,26 @@
     "mode": "semantic"
   },
   {
+    "method": "clash.ui.capture",
+    "description": "FIXTURE: capture the game's rendered frame into this isolated profile's UiEvidence directory.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.ui.configure",
+    "description": "FIXTURE: set the isolated game's resolution and UI scale for real repaint layout tests.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.ui.open",
+    "description": "FIXTURE: open an original mod window or select its page for layout observation; never submit business actions.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.ui.read",
+    "description": "Observe the selected window's latest real repaint, native font measurements and bounds.",
+    "mode": "observe"
+  },
+  {
     "method": "clash.world",
     "description": "Read world identity and generated topology counts without credentials or payload contents.",
     "mode": "observe"

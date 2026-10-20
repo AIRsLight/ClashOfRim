@@ -98,9 +98,11 @@ public sealed class TradeOrderDialogWindow : Window
         Rect inner = rect.ContractedBy(8f);
         Widgets.Label(new Rect(inner.x, inner.y, inner.width, 24f), ClashOfRimText.Key("ClashOfRim.Trade.OfferLocalThings"));
         bool previousRequireTradeBeaconRange = requireTradeBeaconRange;
+        string beaconLabel = ClashOfRimText.Key("ClashOfRim.Trade.RequireBeaconRange");
+        float beaconHeight = Math.Max(24f, Text.CalcHeight(beaconLabel, inner.width - 24f));
         Widgets.CheckboxLabeled(
-            new Rect(inner.x, inner.y + 28f, inner.width, 24f),
-            ClashOfRimText.Key("ClashOfRim.Trade.RequireBeaconRange"),
+            new Rect(inner.x, inner.y + 28f, inner.width, beaconHeight),
+            beaconLabel,
             ref requireTradeBeaconRange);
         if (previousRequireTradeBeaconRange != requireTradeBeaconRange)
         {
@@ -111,9 +113,10 @@ public sealed class TradeOrderDialogWindow : Window
             ClearOfferCandidateCache();
         }
 
-        offerSearchText = Widgets.TextField(new Rect(inner.x, inner.y + 56f, inner.width, 28f), offerSearchText ?? string.Empty);
+        float searchY = inner.y + 32f + beaconHeight;
+        offerSearchText = Widgets.TextField(new Rect(inner.x, searchY, inner.width, 28f), offerSearchText ?? string.Empty);
         IReadOnlyList<Thing> candidates = GetOfferCandidates();
-        Rect outRect = new(inner.x, inner.y + 90f, inner.width, inner.height - 90f);
+        Rect outRect = new(inner.x, searchY + 34f, inner.width, inner.yMax - searchY - 34f);
         Rect viewRect = new(0f, 0f, outRect.width - 16f, Math.Max(outRect.height, candidates.Count * TradeUiUtility.RowHeight));
         Widgets.BeginScrollView(outRect, ref offerScrollPosition, viewRect);
 
@@ -153,7 +156,9 @@ public sealed class TradeOrderDialogWindow : Window
 
         Rect iconRect = new(row.x + 3f, row.y + 3f, TradeUiUtility.IconSize, TradeUiUtility.IconSize);
         TradeUiUtility.DrawThingIconWithInfo(iconRect, thing);
-        float labelRight = row.xMax - 66f;
+        string addLabel = selected ? ClashOfRimText.Key("ClashOfRim.Added") : ClashOfRimText.Key("ClashOfRim.Add");
+        float buttonWidth = ClashOfRimUiUtility.ButtonWidth(addLabel);
+        float labelRight = row.xMax - buttonWidth - 12f;
         if (thing is Pawn pawn)
         {
             float curX = labelRight;
@@ -164,8 +169,8 @@ public sealed class TradeOrderDialogWindow : Window
         Rect labelRect = new(iconRect.xMax + 8f, row.y, labelRight - iconRect.xMax - 8f, row.height);
         TradeUiUtility.DrawTruncatedLabel(labelRect, TradeUiUtility.ThingLabel(thing));
 
-        Rect addRect = new(row.xMax - 58f, row.y + 4f, 54f, 26f);
-        if (Widgets.ButtonText(addRect, selected ? ClashOfRimText.Key("ClashOfRim.Added") : ClashOfRimText.Key("ClashOfRim.Add")))
+        Rect addRect = new(row.xMax - buttonWidth - 4f, row.y + 4f, buttonWidth, 26f);
+        if (Widgets.ButtonText(addRect, addLabel))
         {
             AddOfferedThing(thing);
             return;
@@ -199,11 +204,13 @@ public sealed class TradeOrderDialogWindow : Window
         Widgets.DrawHighlightIfMouseover(row);
         Rect iconRect = new(row.x + 3f, row.y + 3f, TradeUiUtility.IconSize, TradeUiUtility.IconSize);
         TradeUiUtility.DrawThingIconWithInfo(iconRect, def.defName);
-        Rect labelRect = new(iconRect.xMax + 8f, row.y, row.width - iconRect.width - 72f, row.height);
+        string addLabel = ClashOfRimText.Key("ClashOfRim.Add");
+        float buttonWidth = ClashOfRimUiUtility.ButtonWidth(addLabel);
+        Rect labelRect = new(iconRect.xMax + 8f, row.y, row.xMax - buttonWidth - 12f - iconRect.xMax - 8f, row.height);
         TradeUiUtility.DrawTruncatedLabel(labelRect, def.label.CapitalizeFirst() + " (" + def.defName + ")");
 
-        Rect addRect = new(row.xMax - 58f, row.y + 4f, 54f, 26f);
-        if (Widgets.ButtonText(addRect, ClashOfRimText.Key("ClashOfRim.Add")))
+        Rect addRect = new(row.xMax - buttonWidth - 4f, row.y + 4f, buttonWidth, 26f);
+        if (Widgets.ButtonText(addRect, addLabel))
         {
             AddRequestedThing(def);
         }
@@ -292,9 +299,9 @@ public sealed class TradeOrderDialogWindow : Window
     {
         Widgets.DrawMenuSection(rect);
         Rect inner = rect.ContractedBy(8f);
-        Widgets.Label(new Rect(inner.x, inner.y, inner.width, 24f), ClashOfRimText.Key("ClashOfRim.Trade.SelectedRequests"));
+        float headerHeight = ClashOfRimUiUtility.WrappedLabel(inner, ClashOfRimText.Key("ClashOfRim.Trade.SelectedRequests"));
 
-        Rect outRect = new(inner.x, inner.y + 28f, inner.width, inner.height - 28f);
+        Rect outRect = new(inner.x, inner.y + headerHeight + 4f, inner.width, inner.height - headerHeight - 4f);
         Rect viewRect = new(0f, 0f, outRect.width - 16f, Math.Max(outRect.height, requestedThings.Count * RequestedRowHeight));
         Widgets.BeginScrollView(outRect, ref requestedScrollPosition, viewRect);
 

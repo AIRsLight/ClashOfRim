@@ -79,7 +79,7 @@ internal sealed class MultiplayerAdminManifestPage
             }
 
             Text.Font = GameFont.Tiny;
-            Widgets.Label(new Rect(view.width - 124f, y + 5f, 120f, 20f), modEntry.PackageId);
+            ClashOfRimUiUtility.DrawTruncatedLabel(new Rect(view.width - 124f, y + 5f, 120f, 20f), modEntry.PackageId);
             Text.Font = GameFont.Small;
             y += 38f;
 

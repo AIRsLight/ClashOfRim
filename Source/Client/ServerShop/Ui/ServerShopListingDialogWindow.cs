@@ -17,6 +17,12 @@ public sealed class ServerShopListingDialogWindow : Window
 {
     private readonly ClientShopListingEditor editor;
     private Vector2 searchScrollPosition;
+    private Vector2 editorScrollPosition;
+    private float editorContentHeight;
+    private float labelWidth;
+    private float FieldX => labelWidth + 10f;
+    private static readonly string[] FieldLabels = { "Kind", "DemandShort", "StockShort", "ItemCount", "UnitPayout", "UnitPrice",
+        "PriceIncreaseRatio", "VanillaMarketValue", "Stuff", "Quality", "QualityRequirement", "HitPoints", "HitPointsRequirement" };
     private string searchText = string.Empty;
 
     public ServerShopListingDialogWindow(ClashOfRimMod mod, ModServerShopListingDto? listing)
@@ -85,10 +91,11 @@ public sealed class ServerShopListingDialogWindow : Window
         Widgets.DrawHighlightIfMouseover(row);
         Rect iconRect = new(row.x + 3f, row.y + 3f, TradeUiUtility.IconSize, TradeUiUtility.IconSize);
         TradeUiUtility.DrawThingIconWithInfo(iconRect, def.DefName);
-        Text.WordWrap = false;
-        Widgets.Label(new Rect(iconRect.xMax + 8f, row.y + 5f, row.width - 86f, 24f), def.Label + " (" + def.DefName + ")");
-        Text.WordWrap = true;
-        if (Widgets.ButtonText(new Rect(row.xMax - 58f, row.y + 4f, 54f, 26f), ClashOfRimText.Key("ClashOfRim.Select")))
+        string selectLabel = ClashOfRimText.Key("ClashOfRim.Select");
+        float buttonWidth = ClashOfRimUiUtility.ButtonWidth(selectLabel);
+        Rect button = new(row.xMax - buttonWidth - 4f, row.y + 4f, buttonWidth, 26f);
+        TradeUiUtility.DrawTruncatedLabel(new Rect(iconRect.xMax + 8f, row.y + 5f, button.x - iconRect.xMax - 16f, 24f), def.Label + " (" + def.DefName + ")");
+        if (Widgets.ButtonText(button, selectLabel))
         {
             editor.Select(def.DefName);
         }
@@ -98,6 +105,15 @@ public sealed class ServerShopListingDialogWindow : Window
     {
         Widgets.DrawMenuSection(rect);
         Rect inner = rect.ContractedBy(8f);
+        Rect view = new(0f, 0f, inner.width - 16f, Mathf.Max(inner.height, editorContentHeight));
+        Widgets.BeginScrollView(inner, ref editorScrollPosition, view);
+        DrawEditorContents(view);
+        Widgets.EndScrollView();
+    }
+
+    private void DrawEditorContents(Rect inner)
+    {
+        labelWidth = Mathf.Max(120f, FieldLabels.Max(key => Text.CalcSize(ClashOfRimText.Key("ClashOfRim.Shop." + key)).x));
         Widgets.Label(new Rect(inner.x, inner.y, inner.width, 24f), ClashOfRimText.Key("ClashOfRim.Shop.ListingDetails"));
         float y = inner.y + 36f;
         DrawListingKindDropdown(new Rect(inner.x, y, inner.width, 30f));
@@ -107,38 +123,37 @@ public sealed class ServerShopListingDialogWindow : Window
         if (selectedItem is null)
         {
             Widgets.Label(new Rect(inner.x, y, inner.width, 30f), ClashOfRimText.Key("ClashOfRim.Shop.NoThingSelected"));
+            editorContentHeight = y + 30f;
             return;
         }
 
         Rect iconRect = new(inner.x, y, 42f, 42f);
         TradeUiUtility.DrawThingIconWithInfo(iconRect, selectedItem);
-        Text.WordWrap = false;
-        Widgets.Label(new Rect(iconRect.xMax + 8f, y + 8f, inner.width - 50f, 26f), TradeUiUtility.ThingLabel(
+        ClashOfRimUiUtility.DrawTruncatedLabel(new Rect(iconRect.xMax + 8f, y + 8f, inner.width - 50f, 26f), TradeUiUtility.ThingLabel(
             selectedItem,
             asRequirement: editor.IsBuyOrder,
             qualityRequirementMode: editor.IsBuyOrder ? editor.QualityMode : null,
             hitPointsRequirementMode: editor.IsBuyOrder ? editor.HitPointsMode : null));
-        Text.WordWrap = true;
         y += 58f;
 
-        Widgets.Label(new Rect(inner.x, y, 120f, 24f), ClashOfRimText.Key(editor.IsBuyOrder ? "ClashOfRim.Shop.DemandShort" : "ClashOfRim.Shop.StockShort"));
-        editor.StockText = Widgets.TextField(new Rect(inner.x + 130f, y, 120f, 26f), editor.StockText);
+        Widgets.Label(new Rect(inner.x, y, labelWidth, 24f), ClashOfRimText.Key(editor.IsBuyOrder ? "ClashOfRim.Shop.DemandShort" : "ClashOfRim.Shop.StockShort"));
+        editor.StockText = Widgets.TextField(new Rect(inner.x + FieldX, y, inner.width - FieldX, 26f), editor.StockText);
         y += 36f;
-        Widgets.Label(new Rect(inner.x, y, 120f, 24f), ClashOfRimText.Key("ClashOfRim.Shop.ItemCount"));
-        editor.CountText = Widgets.TextField(new Rect(inner.x + 130f, y, 120f, 26f), editor.CountText);
+        Widgets.Label(new Rect(inner.x, y, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.ItemCount"));
+        editor.CountText = Widgets.TextField(new Rect(inner.x + FieldX, y, inner.width - FieldX, 26f), editor.CountText);
         editor.Refresh();
         y += 36f;
-        Widgets.Label(new Rect(inner.x, y, 120f, 24f), ClashOfRimText.Key(editor.IsBuyOrder ? "ClashOfRim.Shop.UnitPayout" : "ClashOfRim.Shop.UnitPrice"));
-        editor.SetPrice(Widgets.TextField(new Rect(inner.x + 130f, y, 120f, 26f), editor.PriceText));
+        Widgets.Label(new Rect(inner.x, y, labelWidth, 24f), ClashOfRimText.Key(editor.IsBuyOrder ? "ClashOfRim.Shop.UnitPayout" : "ClashOfRim.Shop.UnitPrice"));
+        editor.SetPrice(Widgets.TextField(new Rect(inner.x + FieldX, y, inner.width - FieldX, 26f), editor.PriceText));
         y += 34f;
-        Widgets.Label(new Rect(inner.x, y, 120f, 24f), ClashOfRimText.Key("ClashOfRim.Shop.PriceIncreaseRatio"));
-        editor.RatioText = Widgets.TextField(new Rect(inner.x + 130f, y, 120f, 26f), editor.RatioText);
+        Widgets.Label(new Rect(inner.x, y, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.PriceIncreaseRatio"));
+        editor.RatioText = Widgets.TextField(new Rect(inner.x + FieldX, y, inner.width - FieldX, 26f), editor.RatioText);
         TooltipHandler.TipRegion(
             new Rect(inner.x, y, inner.width, 28f),
             ClashOfRimText.Key("ClashOfRim.Shop.PriceIncreaseRatioDesc"));
         y += 34f;
-        Widgets.Label(new Rect(inner.x, y, 120f, 24f), ClashOfRimText.Key("ClashOfRim.Shop.VanillaMarketValue"));
-        Widgets.Label(new Rect(inner.x + 130f, y, inner.width - 130f, 24f), editor.MarketValue);
+        Widgets.Label(new Rect(inner.x, y, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.VanillaMarketValue"));
+        Widgets.Label(new Rect(inner.x + FieldX, y, inner.width - FieldX, 24f), editor.MarketValue);
         y += 38f;
 
         ThingDef? def = TradeThingReferenceUtility.ResolveReferenceDef(selectedItem);
@@ -182,16 +197,17 @@ public sealed class ServerShopListingDialogWindow : Window
             Widgets.Label(new Rect(inner.x, y, inner.width, 44f), ClashOfRimText.Key("ClashOfRim.Shop.IncompleteListing"));
             GUI.color = Color.white;
         }
+        editorContentHeight = y + (editor.Complete ? 4f : 48f);
     }
 
     private void DrawListingKindDropdown(Rect rect)
     {
-        Widgets.Label(new Rect(rect.x, rect.y + 3f, 120f, 24f), ClashOfRimText.Key("ClashOfRim.Shop.Kind"));
+        Widgets.Label(new Rect(rect.x, rect.y + 3f, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.Kind"));
         string label = editor.IsBuyOrder
             ? ClashOfRimText.Key("ClashOfRim.Shop.KindBuy")
             : ClashOfRimText.Key("ClashOfRim.Shop.KindSell");
         if (ClashOfRimUiUtility.SelectionButton(
-                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                new Rect(rect.x + FieldX, rect.y, rect.width - FieldX, 28f),
                 label))
         {
             var choose = editor.ChooseKind();
@@ -212,7 +228,7 @@ public sealed class ServerShopListingDialogWindow : Window
             ? ClashOfRimText.Key("ClashOfRim.Trade.StuffAny")
             : TradeThingReferenceUtility.StuffLabel(selectedStuff);
         if (ClashOfRimUiUtility.SelectionButton(
-                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                new Rect(rect.x + FieldX, rect.y, rect.width - FieldX, 28f),
                 label))
         {
             var choose = editor.ChooseStuff();
@@ -229,16 +245,16 @@ public sealed class ServerShopListingDialogWindow : Window
             Find.WindowStack.Add(new FloatMenu(options));
         }
 
-        Widgets.Label(new Rect(rect.x, rect.y + 3f, 120f, 24f), ClashOfRimText.Key("ClashOfRim.Shop.Stuff"));
+        Widgets.Label(new Rect(rect.x, rect.y + 3f, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.Stuff"));
     }
 
     private void DrawQualityEditor(Rect rect, ClientShopItemFeatures features, ModThingReferenceDto item)
     {
-        Widgets.Label(new Rect(rect.x, rect.y + 3f, 120f, 24f), ClashOfRimText.Key("ClashOfRim.Shop.Quality"));
+        Widgets.Label(new Rect(rect.x, rect.y + 3f, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.Quality"));
         if (!features.Quality)
         {
             GUI.color = Color.gray;
-            Widgets.Label(new Rect(rect.x + 130f, rect.y + 3f, rect.width - 130f, 24f), ClashOfRimText.Key("ClashOfRim.Trade.NoQuality"));
+            Widgets.Label(new Rect(rect.x + FieldX, rect.y + 3f, rect.width - FieldX, 24f), ClashOfRimText.Key("ClashOfRim.Trade.NoQuality"));
             GUI.color = Color.white;
             return;
         }
@@ -247,7 +263,7 @@ public sealed class ServerShopListingDialogWindow : Window
             ? ClashOfRimText.Key("ClashOfRim.Trade.QualityAny")
             : ClashOfRimText.Key("ClashOfRim.Trade.QualitySelected", TradeUiUtility.FormatQualityLabel(item.Quality).Named("QUALITY"));
         if (ClashOfRimUiUtility.SelectionButton(
-                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                new Rect(rect.x + FieldX, rect.y, rect.width - FieldX, 28f),
                 label))
         {
             var choose = editor.ChooseQuality();
@@ -267,12 +283,12 @@ public sealed class ServerShopListingDialogWindow : Window
 
     private void DrawQualityRequirementModeEditor(Rect rect)
     {
-        Widgets.Label(new Rect(rect.x, rect.y + 3f, 120f, 24f), ClashOfRimText.Key("ClashOfRim.Shop.QualityRequirement"));
+        Widgets.Label(new Rect(rect.x, rect.y + 3f, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.QualityRequirement"));
         string label = ClashOfRimText.Key(string.Equals(editor.QualityMode, "AtMost", StringComparison.Ordinal)
             ? "ClashOfRim.Shop.QualityAtMost"
             : "ClashOfRim.Shop.QualityAtLeast");
         if (ClashOfRimUiUtility.SelectionButton(
-                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                new Rect(rect.x + FieldX, rect.y, rect.width - FieldX, 28f),
                 label))
         {
             var choose = editor.ChooseRequirement(true);
@@ -286,12 +302,12 @@ public sealed class ServerShopListingDialogWindow : Window
 
     private void DrawHitPointsRequirementModeEditor(Rect rect)
     {
-        Widgets.Label(new Rect(rect.x, rect.y + 3f, 120f, 24f), ClashOfRimText.Key("ClashOfRim.Shop.HitPointsRequirement"));
+        Widgets.Label(new Rect(rect.x, rect.y + 3f, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.HitPointsRequirement"));
         string label = ClashOfRimText.Key(string.Equals(editor.HitPointsMode, "AtMost", StringComparison.Ordinal)
             ? "ClashOfRim.Shop.HitPointsAtMost"
             : "ClashOfRim.Shop.HitPointsAtLeast");
         if (ClashOfRimUiUtility.SelectionButton(
-                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                new Rect(rect.x + FieldX, rect.y, rect.width - FieldX, 28f),
                 label))
         {
             var choose = editor.ChooseRequirement(false);
@@ -305,19 +321,19 @@ public sealed class ServerShopListingDialogWindow : Window
 
     private void DrawHitPointsEditor(Rect rect, ClientShopItemFeatures features)
     {
-        Widgets.Label(new Rect(rect.x, rect.y + 3f, 120f, 24f), ClashOfRimText.Key("ClashOfRim.Shop.HitPoints"));
+        Widgets.Label(new Rect(rect.x, rect.y + 3f, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.HitPoints"));
         if (!features.HitPoints)
         {
             GUI.color = Color.gray;
-            Widgets.Label(new Rect(rect.x + 130f, rect.y + 3f, rect.width - 130f, 24f), ClashOfRimText.Key("ClashOfRim.Trade.NoHitPoints"));
+            Widgets.Label(new Rect(rect.x + FieldX, rect.y + 3f, rect.width - FieldX, 24f), ClashOfRimText.Key("ClashOfRim.Trade.NoHitPoints"));
             GUI.color = Color.white;
             return;
         }
 
         int percent = features.HitPointsPercent;
-        Widgets.Label(new Rect(rect.x + 130f, rect.y + 3f, 52f, 24f), percent + "%");
+        Widgets.Label(new Rect(rect.x + FieldX, rect.y + 3f, 52f, 24f), percent + "%");
         float sliderValue = Widgets.HorizontalSlider(
-            new Rect(rect.x + 184f, rect.y + 2f, rect.width - 184f, 28f),
+            new Rect(rect.x + FieldX + 54f, rect.y + 2f, rect.width - FieldX - 54f, 28f),
             percent,
             1f,
             100f,

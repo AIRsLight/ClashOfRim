@@ -1,0 +1,134 @@
+{
+  "date": "2026-10-20",
+  "scope": "UI layout, not full feature regression",
+  "uiPassed": true,
+  "suitePassed": false,
+  "screenshots": 810.0,
+  "fullCoverage": false,
+  "runs": [
+    {
+      "id": "ui-russian-korean",
+      "run": "G:\\RimTestRuns\\ui-layout-final-2026-10-20\\20261020-041317-196e5400\\ui-russian-korean\\20261020-041323-37550bc2",
+      "uiPassed": true,
+      "suitePassed": true,
+      "failedCases": [],
+      "samples": 270,
+      "screenshots": 270,
+      "overflowLabels": 0,
+      "unresolvedTranslationKeys": 0,
+      "displays": [
+        {
+          "Name": "Korean (한국어) | 1280x720 | scale=0.9375",
+          "Count": 45
+        },
+        {
+          "Name": "Korean (한국어) | 1920x1061 | scale=1",
+          "Count": 45
+        },
+        {
+          "Name": "Korean (한국어) | 1920x1061 | scale=1.25",
+          "Count": 45
+        },
+        {
+          "Name": "Russian (Русский) | 1280x720 | scale=0.9375",
+          "Count": 45
+        },
+        {
+          "Name": "Russian (Русский) | 1920x1061 | scale=1",
+          "Count": 45
+        },
+        {
+          "Name": "Russian (Русский) | 1920x1061 | scale=1.25",
+          "Count": 45
+        }
+      ],
+      "measurementsSha256": "5770A71BCCEDC0E4B3D03D7F671F98BEC9E135F335F5CED6FC8B2E29311BEF55",
+      "inputsSha256": "37531839ADF3976C720B65A830E32B1E1CC575078FEE6536D8186E6D40CFD2BC"
+    },
+    {
+      "id": "ui-english-japanese",
+      "run": "G:\\RimTestRuns\\ui-layout-final-2026-10-20\\20261020-041317-196e5400\\ui-english-japanese\\20261020-041737-dac5b1a1",
+      "uiPassed": true,
+      "suitePassed": false,
+      "failedCases": [
+        {
+          "id": "culture-references",
+          "status": "failed",
+          "seconds": 0.0135621,
+          "failure": "Shared faction culture/memes/precepts differ: TribeCivil"
+        }
+      ],
+      "samples": 270,
+      "screenshots": 270,
+      "overflowLabels": 0,
+      "unresolvedTranslationKeys": 0,
+      "displays": [
+        {
+          "Name": "English | 1280x720 | scale=0.9375",
+          "Count": 45
+        },
+        {
+          "Name": "English | 1920x1061 | scale=1",
+          "Count": 45
+        },
+        {
+          "Name": "English | 1920x1061 | scale=1.25",
+          "Count": 45
+        },
+        {
+          "Name": "Japanese (日本語) | 1280x720 | scale=0.9375",
+          "Count": 45
+        },
+        {
+          "Name": "Japanese (日本語) | 1920x1061 | scale=1",
+          "Count": 45
+        },
+        {
+          "Name": "Japanese (日本語) | 1920x1061 | scale=1.25",
+          "Count": 45
+        }
+      ],
+      "measurementsSha256": "4FB980D92341C1AB4718B3848C8DD54312826ECC67B93E1FD234F476F53C077E",
+      "inputsSha256": "E0BA84AB5F669F8DF882ECF7ACA4D2F9F26FCDAA30DC195FA674497CE95E9CA3"
+    },
+    {
+      "id": "ui-chinese-english",
+      "run": "G:\\RimTestRuns\\ui-layout-final-2026-10-20\\20261020-041317-196e5400\\ui-chinese-english\\20261020-042204-3e2b71fd",
+      "uiPassed": true,
+      "suitePassed": true,
+      "failedCases": [],
+      "samples": 270,
+      "screenshots": 270,
+      "overflowLabels": 0,
+      "unresolvedTranslationKeys": 0,
+      "displays": [
+        {
+          "Name": "ChineseSimplified (简体中文) | 1280x720 | scale=0.9375",
+          "Count": 45
+        },
+        {
+          "Name": "ChineseSimplified (简体中文) | 1920x1061 | scale=1",
+          "Count": 45
+        },
+        {
+          "Name": "ChineseSimplified (简体中文) | 1920x1061 | scale=1.25",
+          "Count": 45
+        },
+        {
+          "Name": "English | 1280x720 | scale=0.9375",
+          "Count": 45
+        },
+        {
+          "Name": "English | 1920x1061 | scale=1",
+          "Count": 45
+        },
+        {
+          "Name": "English | 1920x1061 | scale=1.25",
+          "Count": 45
+        }
+      ],
+      "measurementsSha256": "8E2BAF018CF3D2D4F7E70292C5E4A40BAC18AB5CAD86F6C1A37A300C5AEA8888",
+      "inputsSha256": "825870E11FB66B250866DB3BBE8E47C97DC8C9357C1444C85D000320585FCFD1"
+    }
+  ]
+}

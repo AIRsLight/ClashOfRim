@@ -35,7 +35,7 @@ public sealed class ClashOfRimAccountRegistrationDialog : Window
             ClashOfRimText.Key("ClashOfRim.ServerEntry.CreateAccountTitle"));
 
         Text.Font = GameFont.Small;
-        Widgets.Label(
+        ClashOfRimUiUtility.DrawTruncatedLabel(
             new Rect(inRect.x, inRect.y + 40f, inRect.width, 28f),
             ClashOfRimText.Key(
                 "ClashOfRim.ServerEntry.CreateAccountUser",

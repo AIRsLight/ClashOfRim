@@ -46,9 +46,11 @@ internal sealed class MultiplayerAchievementsPage
         IReadOnlyList<ModPlayerSummaryDto> selectablePlayers = panel.SelectablePlayers(UnknownPlayerName);
 
         Text.Font = GameFont.Medium;
-        Widgets.Label(new Rect(inner.x, inner.y, 110f, 30f), ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAchievements"));
+        string title = ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAchievements");
+        float titleWidth = Text.CalcSize(title).x + 8f;
+        Widgets.Label(new Rect(inner.x, inner.y, titleWidth, 30f), title);
         Text.Font = GameFont.Small;
-        Rect selectorRect = new(inner.x + 118f, inner.y, Mathf.Max(120f, Mathf.Min(260f, inner.width - 250f)), 30f);
+        Rect selectorRect = new(inner.x + titleWidth + 8f, inner.y, Mathf.Min(260f, inner.width - titleWidth - 144f), 30f);
         if (ClashOfRimUiUtility.SelectionButton(
                 selectorRect,
                 TargetName(selectablePlayers),

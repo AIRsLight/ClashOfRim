@@ -709,22 +709,7 @@ internal static class TradeUiUtility
     }
 
     public static void DrawTruncatedLabel(Rect rect, string? label, TextAnchor anchor = TextAnchor.MiddleLeft)
-    {
-        string text = label ?? string.Empty;
-        TextAnchor previousAnchor = Text.Anchor;
-        bool previousWordWrap = Text.WordWrap;
-        Text.Anchor = anchor;
-        Text.WordWrap = false;
-        string visibleText = text.Truncate(rect.width, null);
-        Widgets.Label(rect, visibleText);
-        Text.WordWrap = previousWordWrap;
-        Text.Anchor = previousAnchor;
-
-        if (!string.Equals(visibleText, text, StringComparison.Ordinal))
-        {
-            TooltipHandler.TipRegion(rect, text);
-        }
-    }
+        => ClashOfRimUiUtility.DrawTruncatedLabel(rect, label, anchor);
 
     public static ThingDef? ResolveThingDef(string? defName)
     {

@@ -1,6 +1,7 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
 using RimTest.Runtime;
 using RimWorld.Planet;
+using Verse;
 
 namespace ClashOfRim.RimTestBridge;
 
@@ -11,7 +12,7 @@ internal static class DomainCommands
     internal static void Register(CommandRouter router, ObjectRegistry objects, BridgeActionPolicy policy,
         EventDetailsReader readEvents, Func<ModBankStatusResponseDto?> bankStatus,
         Func<IReadOnlyList<ModServerShopListingDto>> shopListings, Action<MapParent> openAbandon,
-        Func<int> achievementVersion, Func<string> worldConfigurationId)
+        Func<int> achievementVersion, Func<string> worldConfigurationId, Func<string, Window>? uiWindow = null)
     {
         _ = new CompatibilityCommands(router, policy);
         _ = new ThirdPartyCommands(router, objects, policy);
@@ -23,6 +24,7 @@ internal static class DomainCommands
         _ = new EventCommands(router, objects, readEvents);
         _ = new RemoteMapCommands(router, objects, policy);
         _ = new PocketMapCommands(router, objects, policy);
+        _ = new UiLayoutCommands(router, policy, uiWindow ?? (_ => throw new InvalidOperationException("UI fixture provider missing.")));
         _ = new CombatCommands(router, policy);
         _ = new TradeCommands(router, objects, policy);
         _ = new StabilityCommands(router, objects, policy);

@@ -48,9 +48,12 @@ internal sealed class MultiplayerMercenaryPage
         var selected = professions.FirstOrDefault(profession => profession.Key == panel.Skill);
 
         float selectorColumnWidth = Math.Min(360f, (viewRect.width - 18f) / 2f);
-        Widgets.Label(new Rect(0f, y + 4f, 72f, 24f), ClashOfRimText.Key("ClashOfRim.Mercenary.Profession"));
+        string professionLabel = ClashOfRimText.Key("ClashOfRim.Mercenary.Profession");
+        string tierLabel = ClashOfRimText.Key("ClashOfRim.Mercenary.Tier");
+        float labelWidth = Mathf.Max(72f, Mathf.Max(Text.CalcSize(professionLabel).x, Text.CalcSize(tierLabel).x));
+        Widgets.Label(new Rect(0f, y + 4f, labelWidth, 24f), professionLabel);
         if (ClashOfRimUiUtility.SelectionButton(
-                new Rect(78f, y, selectorColumnWidth - 78f, 28f),
+                new Rect(labelWidth + 6f, y, selectorColumnWidth - labelWidth - 6f, 28f),
                 selected?.Label ?? panel.Skill))
         {
             List<FloatMenuOption> options = professions
@@ -60,14 +63,16 @@ internal sealed class MultiplayerMercenaryPage
         }
 
         float tierX = selectorColumnWidth + 18f;
-        Widgets.Label(new Rect(tierX, y + 4f, 72f, 24f), ClashOfRimText.Key("ClashOfRim.Mercenary.Tier"));
-        DrawMercenaryTierDropdown(new Rect(tierX + 78f, y, selectorColumnWidth - 78f, 28f));
+        Widgets.Label(new Rect(tierX, y + 4f, labelWidth, 24f), tierLabel);
+        DrawMercenaryTierDropdown(new Rect(tierX + labelWidth + 6f, y, selectorColumnWidth - labelWidth - 6f, 28f));
 
         y += 42f;
         var range = panel.DurationRange;
-        Widgets.Label(new Rect(0f, y, 180f, 24f), MercenaryUiUtility.FormatDurationLine(panel.Days));
+        string durationLabel = MercenaryUiUtility.FormatDurationLine(panel.Days);
+        float durationWidth = Mathf.Max(180f, Text.CalcSize(durationLabel).x);
+        Widgets.Label(new Rect(0f, y, durationWidth, 24f), durationLabel);
         int days = range.Max > range.Min
-            ? Mathf.RoundToInt(Widgets.HorizontalSlider(new Rect(190f, y + 2f, 260f, 24f), panel.Days, range.Min, range.Max, roundTo: 1f))
+            ? Mathf.RoundToInt(Widgets.HorizontalSlider(new Rect(durationWidth + 10f, y + 2f, 260f, 24f), panel.Days, range.Min, range.Max, roundTo: 1f))
             : range.Min;
         panel.SelectDays(days);
         _ = panel.RefreshQuotesAsync();

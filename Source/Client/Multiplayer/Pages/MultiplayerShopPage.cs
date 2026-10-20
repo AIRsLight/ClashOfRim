@@ -123,10 +123,7 @@ internal sealed class MultiplayerShopPage
         }
 
         Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(iconRect.xMax + 8f, inner.y, inner.width - 50f, 20f), ClashOfRimText.Key(
-            buyFromPlayer ? "ClashOfRim.Shop.Demand" : "ClashOfRim.Shop.Stock",
-            FormatServerShopStock(listing.StockCount).Named("COUNT")));
-        Widgets.Label(new Rect(iconRect.xMax + 8f, inner.y + 20f, inner.width - 50f, 20f), ClashOfRimText.Key(
+        ClashOfRimUiUtility.DrawTruncatedLabel(new Rect(iconRect.xMax + 8f, inner.y + 12f, inner.width - 50f, 20f), ClashOfRimText.Key(
             buyFromPlayer ? "ClashOfRim.Shop.Payout" : "ClashOfRim.Shop.Price",
             FormatServerShopSilver(listing.PriceSilver).Named("PRICE")));
         Text.Font = GameFont.Small;
@@ -142,7 +139,10 @@ internal sealed class MultiplayerShopPage
 
         int totalPrice = quote.TotalPrice;
         Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(inner.x, inner.y + 88f, inner.width, 20f), quote.Available
+        ClashOfRimUiUtility.DrawTruncatedLabel(new Rect(inner.x, inner.y + 74f, inner.width, 20f), ClashOfRimText.Key(
+            buyFromPlayer ? "ClashOfRim.Shop.Demand" : "ClashOfRim.Shop.Stock",
+            FormatServerShopStock(listing.StockCount).Named("COUNT")));
+        ClashOfRimUiUtility.DrawTruncatedLabel(new Rect(inner.x, inner.y + 98f, inner.width, 20f), quote.Available
             ? ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.TotalPayout" : "ClashOfRim.Shop.TotalPrice", FormatServerShopSilver(totalPrice).Named("PRICE"))
             : ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.NoDemand" : "ClashOfRim.Shop.OutOfStock"));
         Text.Font = GameFont.Small;

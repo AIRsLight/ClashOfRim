@@ -3,13 +3,14 @@ param(
     [Parameter(Mandatory)][string]$RimWorldPath,
     [Parameter(Mandatory)][string]$HarmonyPath,
     [string]$RunsDirectory,
+    [string]$CatalogPath = (Join-Path $PSScriptRoot 'RimTestScenarios.json'),
     [string[]]$Scenario = @(),
     [switch]$Headless,
     [switch]$SkipBuild
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$catalog = @(Get-Content (Join-Path $PSScriptRoot 'RimTestScenarios.json') -Raw | ConvertFrom-Json)
+$catalog = @(Get-Content -LiteralPath $CatalogPath -Raw | ConvertFrom-Json)
 if (@($catalog.id | Select-Object -Unique).Count -ne $catalog.Count) { throw 'Duplicate scenario IDs.' }
 foreach ($id in $Scenario) { if ($id -notin $catalog.id) { throw "Unknown scenario: $id" } }
 if ($Scenario.Count) { $catalog = @($catalog | Where-Object id -In $Scenario) }

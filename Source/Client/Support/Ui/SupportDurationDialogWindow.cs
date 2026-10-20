@@ -28,7 +28,7 @@ internal sealed class SupportDurationDialogWindow : Window
         forcePause = false;
     }
 
-    public override Vector2 InitialSize => new(560f, 300f);
+    public override Vector2 InitialSize => new(560f, 360f);
 
     public override void DoWindowContents(Rect inRect)
     {
@@ -36,14 +36,14 @@ internal sealed class SupportDurationDialogWindow : Window
         Widgets.Label(new Rect(inRect.x, inRect.y, inRect.width, 32f), ClashOfRimText.Key("ClashOfRim.Support.DurationDialogTitle"));
         Text.Font = GameFont.Small;
 
-        Widgets.Label(
+        float targetHeight = ClashOfRimUiUtility.WrappedLabel(
             new Rect(inRect.x, inRect.y + 42f, inRect.width, 30f),
             ClashOfRimText.Key(
                 "ClashOfRim.Support.DurationDialogTarget",
                 pawnLabel.Named("PAWN"),
                 targetLabel.Named("TARGET")));
 
-        Rect temporaryRect = new(inRect.x, inRect.y + 86f, 170f, 32f);
+        Rect temporaryRect = new(inRect.x, inRect.y + 52f + targetHeight, (inRect.width - 12f) / 2f, 32f);
         if (!permanentSupport)
         {
             Widgets.DrawHighlightSelected(temporaryRect);
@@ -54,7 +54,7 @@ internal sealed class SupportDurationDialogWindow : Window
             permanentSupport = false;
         }
 
-        Rect permanentRect = new(temporaryRect.xMax + 12f, temporaryRect.y, 170f, 32f);
+        Rect permanentRect = new(temporaryRect.xMax + 12f, temporaryRect.y, temporaryRect.width, 32f);
         if (permanentSupport)
         {
             Widgets.DrawHighlightSelected(permanentRect);
@@ -68,16 +68,17 @@ internal sealed class SupportDurationDialogWindow : Window
         string modeText = permanentSupport
             ? ClashOfRimText.Key("ClashOfRim.Support.DurationDialogPermanentSelected")
             : ClashOfRimText.Key("ClashOfRim.Support.DurationDialogTemporarySelected");
-        Widgets.Label(new Rect(inRect.x, temporaryRect.yMax + 10f, inRect.width, 24f), modeText);
+        float modeY = temporaryRect.yMax + 10f;
+        float sliderY = modeY + ClashOfRimUiUtility.WrappedLabel(new Rect(inRect.x, modeY, inRect.width, 24f), modeText) + 12f;
 
         int days = Mathf.RoundToInt(selectedDays);
         bool oldEnabled = GUI.enabled;
         GUI.enabled = oldEnabled && !permanentSupport;
         Widgets.Label(
-            new Rect(inRect.x, temporaryRect.yMax + 48f, 170f, 24f),
+            new Rect(inRect.x, sliderY, 170f, 24f),
             ClashOfRimText.Key("ClashOfRim.Support.DurationDialogDays", days.Named("DAYS")));
         selectedDays = Widgets.HorizontalSlider(
-            new Rect(inRect.x + 180f, temporaryRect.yMax + 48f, inRect.width - 180f, 24f),
+            new Rect(inRect.x + 180f, sliderY, inRect.width - 180f, 24f),
             selectedDays,
             MinimumDays,
             MaximumDays,

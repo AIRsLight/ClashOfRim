@@ -1,0 +1,58 @@
+[
+  {
+    "id": "ui-russian-korean",
+    "features": false,
+    "A": {
+      "language": "Russian (Русский)",
+      "culture": "ru-RU"
+    },
+    "B": {
+      "language": "Korean (한국어)",
+      "culture": "ko-KR"
+    },
+    "stability": "ui-layout",
+    "expansions": [
+      "Biotech"
+    ]
+  },
+  {
+    "id": "ui-english-japanese",
+    "features": false,
+    "A": {
+      "language": "English",
+      "culture": "en-US"
+    },
+    "B": {
+      "language": "Japanese (日本語)",
+      "culture": "ja-JP"
+    },
+    "stability": "ui-layout",
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ]
+  },
+  {
+    "id": "ui-chinese-english",
+    "features": false,
+    "A": {
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN"
+    },
+    "B": {
+      "language": "English",
+      "culture": "en-US"
+    },
+    "stability": "ui-layout",
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ]
+  }
+]
