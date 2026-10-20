@@ -105,6 +105,11 @@
     "mode": "fixture"
   },
   {
+    "method": "clash.fixture.observation",
+    "description": "FIXTURE: create one trap and a sealed roofed room for observation concealment checks.",
+    "mode": "fixture"
+  },
+  {
     "method": "clash.fixture.pawnState",
     "description": "FIXTURE: set one existing player pawn's gear quality/durability, permanent scar, skill, sibling and deceased relationship references; requires explicit acknowledgement and debug capability.",
     "mode": "fixture"
@@ -258,6 +263,11 @@
     "method": "clash.remote.performance.stop",
     "description": "FIXTURE: stop timing probes and return frame gaps, load spans and map size.",
     "mode": "fixture"
+  },
+  {
+    "method": "clash.remote.rules",
+    "description": "Observe player-proxy diplomacy, remote resident duties, trap concealment and fog at a requested cell.",
+    "mode": "observe"
   },
   {
     "method": "clash.shop.catalog",

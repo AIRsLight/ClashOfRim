@@ -6,7 +6,9 @@ namespace ClashOfRim.GameTests;
 
 internal sealed class RemoteMapScenario(TestRun run, ScenarioPolling polling, ColonyScenarioFixture colony)
 {
-    internal async Task ObserveAlly(bool verifyIsolation, Func<Task>? inspectMap = null, Func<Task>? beforeOpen = null)
+    internal Task ObserveAlly(bool verifyIsolation, Func<Task>? inspectMap = null, Func<Task>? beforeOpen = null)
+        => Observe("FriendlyObservation", verifyIsolation, inspectMap, beforeOpen);
+    internal async Task Observe(string mode, bool verifyIsolation, Func<Task>? inspectMap = null, Func<Task>? beforeOpen = null)
     {
         await polling.Idle("B"); await run.InvokeClientAsync("B", "StartManualSnapshotUpload"); await polling.Idle("B");
         await run.InvokeClientAsync("A", "StartSyncWorldMapMarkers");
@@ -17,7 +19,7 @@ internal sealed class RemoteMapScenario(TestRun run, ScenarioPolling polling, Co
         var homeBefore = verifyIsolation ? await run.CallAsync("A", "clash.stability.map") : default;
         var targetBefore = verifyIsolation ? await run.CallAsync("B", "clash.stability.map") : default;
         if (beforeOpen is not null) await beforeOpen();
-        await run.InvokeClientAsync("A", "StartObserveRemoteMarker", new { target = target.GetProperty("reference"), mode = "FriendlyObservation" });
+        await run.InvokeClientAsync("A", "StartObserveRemoteMarker", new { target = target.GetProperty("reference"), mode });
         var remote = await polling.Wait("A", "clash.remote", null, s => s.Bool("active") && s.GetProperty("session").Bool("isObservation"));
         Check(remote.GetProperty("session").String("targetUserId") == "rimtest-B", "Wrong observation owner.");
         Check((await run.CallAsync("A", "game.state")).Int("mapCount") == before + 1, "Remote root map did not open alone.");

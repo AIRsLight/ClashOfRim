@@ -56,6 +56,7 @@ internal sealed class GameSuite
         var chat = new ChatScenario(run, polling);
         var players = new PlayerScenarioFixture(run, polling);
         var diplomacy = new DiplomacyScenario(run, polling, players);
+        var observationDiplomacy = new ObservationDiplomacyScenario(run, polling, colonyFixture, remoteMaps, players);
         var appearance = new ColonyAppearanceScenario(run, polling, serverState.WorldConfiguration);
         var giftScenario = new GiftScenario(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger, entry);
         var notifications = new NotificationScenario(run, polling, entry, eventFixture, serverState.Ledger);
@@ -105,6 +106,10 @@ internal sealed class GameSuite
             ScenarioCatalog.Offline.Bind(("alliance-request-accept", diplomacy.Alliance), ("caravan-load-travel", caravanFixture.Travel),
                 ("gift-offline-deferred-accept", giftScenario.OfflineAccept), ("gift-offline-reject-return", giftScenario.OfflineReject), ("notification-offline-policy", notifications.OfflineDelivery)),
             accounts.CreateSequence(),
+            ScenarioCatalog.ObservationDiplomacy.Bind(("observation-fixture", observationDiplomacy.Prepare),
+                ("neutral-scout-diplomacy", () => observationDiplomacy.Observe("Neutral", "Scout")),
+                ("alliance-request-accept", diplomacy.Alliance),
+                ("ally-observation-diplomacy", () => observationDiplomacy.Observe("Ally", "FriendlyObservation"))),
             ScenarioCatalog.Bank.Bind(("bank-input-rejection", bank.InputBounds), ("bank-overdue-repayment", bank.OverdueRepayment),
                 ("bank-mercenary-debt", bank.MercenaryDebt), ("mercenary-guard-purchase", mercenaries.GuardPurchase)),
             ScenarioCatalog.Combat.Bind(("baseline-entry-rejection", compatibility.RejectIncompatible), ("alliance-request-accept", diplomacy.Alliance),

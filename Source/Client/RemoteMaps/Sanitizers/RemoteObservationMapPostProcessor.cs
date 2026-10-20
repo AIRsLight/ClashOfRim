@@ -28,8 +28,8 @@ public static class RemoteObservationMapPostProcessor
             Faction? defenderFaction = PlayerFactionProxyUtility.EnsureProxyForUser(carrier.OwnerUserId);
             if (defenderFaction is not null)
             {
-                defenderFaction.SetRelationDirect(Faction.OfPlayer, FactionRelationKind.Hostile, canSendHostilityLetter: false);
-                Faction.OfPlayer?.SetRelationDirect(defenderFaction, FactionRelationKind.Hostile, canSendHostilityLetter: false);
+                // Concealment and resident AI do not change server-owned diplomacy.
+                // Actual attackers establish hostility in ClientRaidBattlefield.
                 defenderConversion = RaidDefenderMapUtility.ConvertPlayerOwnedMapObjectsToDefenderProxy(map, defenderFaction);
                 if (policy.EnableDefensePointAi)
                 {
@@ -163,9 +163,6 @@ public static class RemoteObservationMapPostProcessor
         {
             return 0;
         }
-
-        ownerFaction.SetRelationDirect(Faction.OfPlayer, FactionRelationKind.Ally, canSendHostilityLetter: false);
-        Faction.OfPlayer?.SetRelationDirect(ownerFaction, FactionRelationKind.Ally, canSendHostilityLetter: false);
 
         List<Pawn> residentPawns = map.mapPawns.PawnsInFaction(ownerFaction)
             .Where(IsRemoteResident)
@@ -326,11 +323,8 @@ public static class RemoteObservationMapPostProcessor
 
     private static bool ShouldUseSpaceFog(Map map)
     {
-        if (map.OrbitalDebris is not null)
-        {
-            return true;
-        }
-
+        // The manager can exist on ordinary ground maps too; its presence is not
+        // evidence that this is an orbital map. Use actual map/terrain identity.
         string? generatorDefName = map.generatorDef?.defName;
         if (LooksLikeSpaceDefName(generatorDefName))
         {

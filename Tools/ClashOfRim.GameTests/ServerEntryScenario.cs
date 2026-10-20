@@ -66,7 +66,6 @@ internal sealed class ServerEntryScenario(TestRun run, ScenarioPolling polling, 
         }
         await polling.Wait(client, "game.state", null, s => s.Bool("playerHasControl") && s.Int("mapCount") > 0);
         await dialogs.Confirm(client);
-        await polling.Wait(client, "clash.state", null, s => s.Bool("isInActiveMultiplayerSession") && !string.IsNullOrEmpty(s.OptionalString("currentSnapshotId")) && !s.Bool("snapshotUploadInProgress"));
         foreach (var dialog in Items(await run.CallAsync(client, "dialogs.nodes")))
         {
             // Only the single-choice vanilla arrival acknowledgment is expected at this point.
@@ -75,6 +74,8 @@ internal sealed class ServerEntryScenario(TestRun run, ScenarioPolling polling, 
             if (!dialog.Bool("interactive")) await Task.Delay(1100);
             await run.CallAsync(client, "dialog.choose", new { dialog = H(dialog), node = dialog.GetProperty("node").String("handle"), option = H(options[0]) });
         }
+        // Dismiss the native arrival pause before waiting for tick-driven startup.
+        await polling.RunUntil(client, "clash.state", null, s => s.Bool("isInActiveMultiplayerSession") && !string.IsNullOrEmpty(s.OptionalString("currentSnapshotId")) && !s.Bool("snapshotUploadInProgress"));
         var home = await colony.Stabilize(client);
         firstColonyTile ??= home.Int("tileId");
         Check(home.GetProperty("colonists").GetArrayLength() == 3, "Expected three landed crashlanded colonists.");

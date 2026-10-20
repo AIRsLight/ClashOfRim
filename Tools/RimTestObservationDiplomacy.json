@@ -1,0 +1,6 @@
+{
+  "id": "observation-diplomacy",
+  "features": false,
+  "stability": "observation-diplomacy",
+  "expansions": ["Royalty", "Ideology", "Biotech", "Anomaly", "Odyssey"]
+}

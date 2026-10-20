@@ -24,6 +24,7 @@ internal static class RemoteFactionProjectionTests
         Check((string)readId.Invoke(null, new object[] { XElement.Parse("<li><loadID>0</loadID></li>") })! == "Faction_0", "Explicit zero differs from omitted zero.");
         Check(readId.Invoke(null, new object[] { XElement.Parse("<li><loadID>-1</loadID></li>") }) is null, "Invalid negative faction ID accepted.");
         DefenseLord();
+        RemoteObservationDiplomacyTests.Run();
     }
     private static void DefenseLord()
     {
