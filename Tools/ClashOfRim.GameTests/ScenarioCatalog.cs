@@ -31,6 +31,7 @@ internal static class ScenarioCatalog
     internal static readonly ScenarioGroup ThirdPartyPawns = ScenarioGroup.Cases("third-party-pawns", "alien-statue-fixture", "statue-native-reload-control", "alien-statue-cancel", "alien-statue-delivery-reload", "alliance-request-accept", "caravan-load-travel", "vef-pawn-support-restore");
     internal static readonly ScenarioGroup ThirdPartyMaps = ScenarioGroup.Cases("third-party-maps", "alliance-request-accept", "third-party-map-fixture", "third-party-map-projection", "caravan-load-travel", "third-party-vehicle-defense");
     internal static readonly ScenarioGroup Relocation = ScenarioGroup.Cases("relocation", "relocation-caravan", "relocation-quest-site");
+    internal static readonly ScenarioGroup Pockets = ScenarioGroup.Cases("pocket-maps", "alliance-request-accept", "pocket-observation-cleanup", "caravan-load-travel", "pocket-raid-roundtrip-reload-settlement");
     internal static readonly ScenarioGroup Gravship = ScenarioGroup.Cases("gravship", "gravship-new-map", "gravship-quest-site");
     internal static readonly ScenarioGroup Transfers = ScenarioGroup.Cases("transfers", "alliance-request-accept", "remote-map-isolation-repeat", "pawn-state-fixture",
         "caravan-load-travel", "support-state-early-return", "support-state-rejected-return", "support-state-expired-return", "raid-loss-reload-settlement");
@@ -45,7 +46,7 @@ internal static class ScenarioCatalog
     // Reload last so a broken serialized world cannot hide independent live feature results.
     internal static readonly ScenarioGroup Finish = ScenarioGroup.Cases("finish", "snapshot-save-reload", "session-reconnect", "runtime-errors");
     private static readonly IReadOnlyDictionary<string, ScenarioGroup> stability = new[]
-    { Offline, Account, Bank, Combat, ThirdPartyPawns, ThirdPartyMaps, Relocation, Gravship, Transfers, SupportReturns, Catalog, CatalogSample, Stress, Items, Permanent, Death }
+    { Offline, Account, Bank, Combat, ThirdPartyPawns, ThirdPartyMaps, Pockets, Relocation, Gravship, Transfers, SupportReturns, Catalog, CatalogSample, Stress, Items, Permanent, Death }
         .ToDictionary(g => g.Name, StringComparer.Ordinal);
     internal static bool SupportsStability(string kind) => stability.ContainsKey(kind);
     internal static ScenarioPlan Plan(SuiteProfile profile)

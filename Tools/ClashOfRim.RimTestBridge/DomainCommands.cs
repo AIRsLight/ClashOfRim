@@ -22,6 +22,7 @@ internal static class DomainCommands
         _ = new GiftCommands(router, objects, policy);
         _ = new EventCommands(router, objects, readEvents);
         _ = new RemoteMapCommands(router, objects, policy);
+        _ = new PocketMapCommands(router, objects, policy);
         _ = new CombatCommands(router, policy);
         _ = new TradeCommands(router, objects, policy);
         _ = new StabilityCommands(router, objects, policy);

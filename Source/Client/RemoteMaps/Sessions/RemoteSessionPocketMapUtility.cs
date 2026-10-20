@@ -78,6 +78,7 @@ public static class RemoteSessionPocketMapUtility
                 + closed
                 + ", source=Map_"
                 + sourceMap.uniqueID
+                + ", reason=" + reason
                 + ".");
         }
 
@@ -98,11 +99,6 @@ public static class RemoteSessionPocketMapUtility
             return;
         }
 
-        Map? fallback = Current.Game.Maps.FirstOrDefault(candidate => !ReferenceEquals(candidate, map));
-        if (fallback is not null)
-        {
-            Current.Game.CurrentMap = fallback;
-            CameraJumper.TryJump(fallback.Center, fallback, CameraJumper.MovementMode.Cut);
-        }
+        RemoteSessionMapUtility.PrepareCurrentMapForRemoval(map);
     }
 }

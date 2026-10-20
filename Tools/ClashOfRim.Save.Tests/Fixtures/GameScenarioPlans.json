@@ -404,6 +404,26 @@
       "snapshot-save-reload",
       "session-reconnect",
       "runtime-errors"
+    ],
+    "pocket-maps": [
+      "launch-profile",
+      "shared-world-entry",
+      "world-parameters",
+      "world-geometry",
+      "world-tile-data",
+      "world-feature-identities",
+      "storyteller-difficulty",
+      "culture-references",
+      "world-persistence",
+      "storyteller-permission",
+      "runtime-difficulty-sync",
+      "alliance-request-accept",
+      "pocket-observation-cleanup",
+      "caravan-load-travel",
+      "pocket-raid-roundtrip-reload-settlement",
+      "snapshot-save-reload",
+      "session-reconnect",
+      "runtime-errors"
     ]
   }
 }

@@ -110,6 +110,16 @@
     "mode": "fixture"
   },
   {
+    "method": "clash.fixture.pocket",
+    "description": "FIXTURE: spawn and mature a pit gate, checking settling admission, and optionally generate its native child map.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.pocketDestroy",
+    "description": "FIXTURE: invoke native pocket destruction to test collapse cleanup without waiting for the cave event.",
+    "mode": "fixture"
+  },
+  {
     "method": "clash.fixture.relocation",
     "description": "FIXTURE: move current colonists and silver/10 steel into a nearby caravan or generated ItemStash site; settlement and server registration remain untouched.",
     "mode": "fixture"
@@ -208,6 +218,11 @@
     "method": "clash.mercenary.recall",
     "description": "Use the original quest recall action on an active contract.",
     "mode": "semantic"
+  },
+  {
+    "method": "clash.pocket.state",
+    "description": "Observe native pocket links, remote ownership, pawn placement and cleanup residue.",
+    "mode": "observe"
   },
   {
     "method": "clash.relocation",

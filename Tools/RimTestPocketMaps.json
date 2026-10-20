@@ -1,0 +1,8 @@
+{
+  "id": "pocket-maps",
+  "features": false,
+  "stability": "pocket-maps",
+  "expansions": ["Anomaly"],
+  "A": {"language": "English", "culture": "en-US"},
+  "B": {"language": "English", "culture": "fr-FR"}
+}

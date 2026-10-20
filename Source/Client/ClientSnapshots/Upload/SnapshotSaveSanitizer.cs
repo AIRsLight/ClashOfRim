@@ -57,10 +57,9 @@ public static class SnapshotSaveSanitizer
         HashSet<string> removedWorldObjectLoadIds = removeRaidBattleSessions
             ? RemoveRemoteSessionWorldObjects(document)
             : new HashSet<string>(StringComparer.Ordinal);
-        HashSet<string> removedMapLoadIds = new(StringComparer.Ordinal);
         int removedWorldObjects = removedWorldObjectLoadIds.Count;
         var removedPockets = SavePocketMapTree.IncludeDescendantParents(document, removedWorldObjectLoadIds);
-        int removedMaps = RemoveMapsByParent(document, removedWorldObjectLoadIds, removedMapLoadIds);
+        int removedMaps = RemoveMapsByParent(document, removedWorldObjectLoadIds);
         foreach (var pocket in removedPockets) pocket.Remove();
         int clearedComponents = removeRaidBattleSessions
             ? ClearRaidBattleComponentState(document)
@@ -200,8 +199,7 @@ public static class SnapshotSaveSanitizer
 
     private static int RemoveMapsByParent(
         XDocument document,
-        HashSet<string> removedWorldObjectLoadIds,
-        HashSet<string> removedMapLoadIds)
+        HashSet<string> removedWorldObjectLoadIds)
     {
         if (removedWorldObjectLoadIds.Count == 0)
         {
@@ -217,12 +215,6 @@ public static class SnapshotSaveSanitizer
 
         foreach (XElement map in maps)
         {
-            string? uniqueId = map.Element("uniqueID")?.Value?.Trim();
-            if (!string.IsNullOrWhiteSpace(uniqueId))
-            {
-                removedMapLoadIds.Add("Map_" + uniqueId);
-            }
-
             map.Remove();
         }
 
