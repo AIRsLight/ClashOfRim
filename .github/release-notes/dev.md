@@ -2,6 +2,18 @@
 
 ## Current development changes
 
+### 0.4.1 testing update
+
+- **Remote pocket maps:** entering a portal loads the defender's saved submap on demand, including nested maps. Supported unopened portals can generate an isolated attacker-side map; unsupported entries are blocked. Session cleanup and raid losses include units in loaded submaps.
+- **Remote map loading:** snapshot validation, decompression and XML parsing now run in the background before map import. Native map initialization still pauses the game thread; this does not eliminate loading stalls.
+- **Remote defense and third-party compatibility:** repaired NPC defense lords and faction identities, colony mech defense eligibility, vehicle AI exclusions, and MVCF state restoration.
+- **Pawn transfers:** gifts, support and returns preserve the species and PawnKind of missing relationship pawns, including alien races and animal bonds. Explicit species that are unavailable fail restoration instead of silently becoming human.
+- **World and session correctness:** repaired complete world-tile baseline replacement, configuration application in the incoming server profile, logout authorization, and stale connection cleanup.
+- **Multilingual UI and DLC:** improved dialog layouts across languages, repaired shared ideology identity collisions, and added a targeted workaround for the malformed Odyssey Russian faction naming rule.
+- **Testing scope:** this build includes targeted unit and RimTest coverage accumulated during development. The release pipeline checks portable behavior and package isolation; it does not certify every DLC/mod combination or replace a fresh full in-game regression.
+
+### Included development features
+
 - **RimWorld 1.7 migration:** active clients now target Waylith, .NET 10 and Harmony 3. Existing 1.6 support is frozen at 0.3.4, with isolated client resources and a preserved Windows server package; all future features target 1.7.
 
 - **Authoritative world baseline:** new players receive the server's complete world substrate, preventing divergent world generation when all players use the same baseline.

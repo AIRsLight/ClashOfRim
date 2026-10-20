@@ -22,7 +22,7 @@ namespace AIRsLight.ClashOfRim.Compatibility;
 public static class ClashOfRimVersion
 {
     public const string ProductName = "ClashOfRim";
-    public const string ProductVersion = "0.4.0";
+    public const string ProductVersion = "0.4.1";
     public const string ProtocolVersion = "2026-07-25.1";
     public const int ProtocolMajor = 4;
     public const int ProtocolMinor = 2;
