@@ -178,9 +178,4 @@ internal sealed class ClientWorldConfigurationRuntime : IClientWorldConfiguratio
         }
     }
 
-    internal static bool IsValidTile(int tile)
-    {
-        return tile >= 0 && tile < Find.WorldGrid.TilesCount;
-    }
-
 }

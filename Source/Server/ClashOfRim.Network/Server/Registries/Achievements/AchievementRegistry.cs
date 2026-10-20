@@ -807,17 +807,6 @@ public sealed class AchievementRegistry
         return true;
     }
 
-    private IReadOnlyList<AchievementAggregateRecord> ListAggregatesLocked()
-    {
-        return aggregatesByKey.Values
-            .Where(record => !IsDeprecatedAchievementId(record.AchievementId))
-            .OrderBy(record => record.Category, StringComparer.Ordinal)
-            .ThenBy(record => record.AchievementId, StringComparer.Ordinal)
-            .ThenBy(record => record.UserId, StringComparer.Ordinal)
-            .ThenBy(record => record.ColonyId, StringComparer.Ordinal)
-            .ToArray();
-    }
-
     private static string NormalizeAggregation(string? value)
     {
         return string.Equals(value, AggregationSum, StringComparison.OrdinalIgnoreCase)

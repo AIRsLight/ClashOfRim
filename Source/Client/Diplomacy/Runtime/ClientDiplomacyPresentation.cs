@@ -44,19 +44,6 @@ internal static class ClientDiplomacyPresentation
         };
     }
 
-    internal static string FormatDiplomacyKind(string kind)
-    {
-        return kind switch
-        {
-            "AllianceRequest" => ClashOfRimText.Key("ClashOfRim.EventType.AllianceRequest"),
-            "AllianceCancellation" => ClashOfRimText.Key("ClashOfRim.EventType.AllianceCancellation"),
-            "SupportRequest" => ClashOfRimText.Key("ClashOfRim.EventType.SupportRequest"),
-            "WarDeclaration" => ClashOfRimText.Key("ClashOfRim.EventType.WarDeclaration"),
-            "PeaceRequest" => ClashOfRimText.Key("ClashOfRim.EventType.PeaceRequest"),
-            _ => kind
-        };
-    }
-
     internal static string FormatDiplomacyRelationKind(FactionRelationKind relationKind)
     {
         return relationKind switch

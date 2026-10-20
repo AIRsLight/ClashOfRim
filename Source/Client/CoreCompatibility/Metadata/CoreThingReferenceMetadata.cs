@@ -1335,17 +1335,6 @@ internal static class CoreThingReferenceMetadata
             || TechprintProjectByThingDefName().ContainsKey(def.defName);
     }
 
-    internal static string? TechprintProjectDefName(ThingDef? def)
-    {
-        if (def is null)
-        {
-            return null;
-        }
-
-        return def.GetCompProperties<CompProperties_Techprint>()?.project?.defName
-            ?? (TechprintProjectByThingDefName().TryGetValue(def.defName, out string projectDefName) ? projectDefName : null);
-    }
-
     internal static string ResearchProjectLabel(string? defName)
     {
         ResearchProjectDef? project = ResolveResearchProjectDef(defName);
