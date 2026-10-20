@@ -7,6 +7,7 @@ using System.Xml.Linq;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.RemoteMaps;
+using AIRsLight.ClashOfRim.Raids;
 using HarmonyLib;
 using RimWorld.Planet;
 using Verse;
@@ -25,6 +26,7 @@ internal static class RemotePocketMapTests
         try
         {
             Current.Game = New<Game>(); Current.Game.World = New<World>();
+            AccessTools.Field(typeof(Game), "components").SetValue(Current.Game, new List<GameComponent> { new ClashOfRimGameComponent(Current.Game) });
             Find.World.pocketMaps = new(); Find.World.renderer = New<WorldRenderer>();
             harmony.Patch(AccessTools.PropertyGetter(typeof(Game), nameof(Game.Maps)), prefix: Method(nameof(Maps)));
             harmony.Patch(AccessTools.PropertyGetter(typeof(MapParent), nameof(MapParent.Map)), prefix: Method(nameof(ParentMap)));
@@ -42,8 +44,13 @@ internal static class RemotePocketMapTests
                 && RemoteSessionGlobalStateGuard.IsRemoteMapParent(nested.Parent)
                 && !RemoteSessionGlobalStateGuard.IsRemoteMap(localPocket), "Nested ownership escaped the remote guard or included local pockets.");
             Check(RemoteSessionPocketMapUtility.MapTree(root).SequenceEqual(new[] { root, child, nested }), "Map tree omitted descendants.");
-            var pawn = New<Pawn>(); RemoteSessionPocketMapPawnPatch.Postfix(pawn, nested);
+            var pawn = New<Pawn>(); pawn.def = new ThingDef { defName = "TestPawn" }; pawn.thingIDNumber = 17;
+            RemoteSessionPocketMapPawnPatch.Postfix(pawn, nested);
             Check(RemoteSessionThingCleanup.HasRemoteSessionCleanupTag(pawn), "New child pawn missed cleanup identity.");
+            pawn.questTags = null;
+            ClashOfRimGameComponent.SetActiveRaidBattleSession(new ActiveRaidBattleSession { EventId = "battle", AttackPawnThingIds = new List<string> { pawn.ThingID } });
+            RemoteSessionPocketMapPawnPatch.Postfix(pawn, nested);
+            Check(!RemoteSessionThingCleanup.HasRemoteSessionCleanupTag(pawn), "Owned attacker became disposable after native portal entry.");
             RemoteSessionPocketMapUtility.ClosePocketMapsForSource(root, "test");
             Check(removed.SequenceEqual(new[] { nested, child }) && cleaned.SequenceEqual(removed)
                 && maps.SequenceEqual(new[] { root, home, localPocket }) && Find.World.pocketMaps.Single() == localPocket.Parent,

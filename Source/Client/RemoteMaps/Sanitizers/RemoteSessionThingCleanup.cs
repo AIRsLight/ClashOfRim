@@ -42,6 +42,9 @@ public static class RemoteSessionThingCleanup
 
     internal static void MarkThingForCleanup(Thing thing, RemoteSessionMapParent? parent)
     {
+        // Entering a native child map must not turn an owned attack/support pawn
+        // into a disposable projection pawn.
+        if (thing is Pawn pawn && ShouldLetVanillaUnloadPawn(pawn)) return;
         if (parent is not null && !string.IsNullOrWhiteSpace(parent.SessionId))
             QuestUtility.AddQuestTag(ref thing.questTags, CleanupTag(parent.SessionId));
     }
