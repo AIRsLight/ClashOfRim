@@ -10,6 +10,7 @@
     <Compile Include="../TestSupport/EventInboxModuleTests.cs" Link="EventInboxModuleTests.cs" />
     <Compile Include="../../Source/Client/Modules/Snapshots/ClientSnapshotPackageBuilder.cs" Link="ClientSnapshotPackageBuilder.cs" />
     <Compile Include="../../Source/Client/Modules/Snapshots/ClientSnapshotPayloadCodec.cs" Link="ClientSnapshotPayloadCodec.cs" />
+    <Compile Include="../../Source/Client/Modules/Snapshots/ClientSnapshotRestoreFailure.cs" Link="ClientSnapshotRestoreFailure.cs" />
     <Compile Include="../../Source/Client/Modules/Snapshots/ClientSnapshotSaveData.cs" Link="ClientSnapshotSaveData.cs" />
     <Compile Include="../../Source/Client/ClientSnapshots/Build/ModSnapshotPackageBuildResult.cs" Link="ModSnapshotPackageBuildResult.cs" />
     <Compile Include="../TestSupport/SnapshotPackageModuleTests.cs" Link="SnapshotPackageModuleTests.cs" />
