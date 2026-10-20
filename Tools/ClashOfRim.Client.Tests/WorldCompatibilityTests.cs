@@ -10,6 +10,7 @@ internal static class WorldCompatibilityTests
 {
     internal static void Run()
     {
+        OdysseyFactionNameRuleTests.Run();
         CultureInfo previous = CultureInfo.CurrentCulture;
         try
         {

@@ -12,7 +12,11 @@
     },
     "stability": "ui-layout",
     "expansions": [
-      "Biotech"
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
     ]
   },
   {

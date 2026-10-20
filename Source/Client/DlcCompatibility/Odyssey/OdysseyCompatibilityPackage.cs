@@ -29,6 +29,7 @@ internal static class OdysseyCompatibilityPackage
 
         if (Active)
         {
+            OdysseyFactionNameRulePatch.Apply(harmony);
             ClashOfRimCompatibilityApi.RegisterPlayerColonySiteRegistrationSuppressor(
                 () => OdysseyGravshipLandingSnapshotPatch.SuppressPlayerColonySiteRegistration);
             ClashOfRimCompatibilityApi.RegisterThingReferenceEditor(
