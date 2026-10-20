@@ -81,7 +81,7 @@ internal static class GameEconomicScenarioTests
             if (args.String("action") == "StartRefreshBankStatus") return new { };
             Check(args.String("action") == "StartHireMercenary", "Wrong hire action.");
             var input = args.GetProperty("arguments");
-            Check(input.String("skillDefName") == "Mining" && input.Int("skillLevel") == 7 && input.Int("durationDays") == 4, "Hire lost bank duration or skill selection.");
+            Check(input.String("skill") == "Mining" && input.Int("level") == 7 && input.Int("days") == 4, "Hire lost bank duration or skill selection.");
             hires++; silver -= 20 + (fault == "undercharge" ? -1 : fault == "overcharge" ? 1 : 0); return new { };
         }
         object Observe()
