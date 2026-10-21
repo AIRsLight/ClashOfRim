@@ -2,6 +2,13 @@
 
 ## Current development changes
 
+### 0.4.3 testing update
+
+- **Periodic stutter:** location polling no longer exports the entire ideology catalog. Entry, explicit colony changes, saves and ideology reforms still collect live extensions. Ideology timestamps now change with content, not with every observation.
+- **World synchronization:** accepted responses are isolated in the background and reused during publication; content fingerprints use bounded hashes instead of retaining multi-megabyte serialized strings. Session ownership and independent marker/site projections remain enforced.
+- **Snapshot saving:** lineage verification runs with background packaging and preserves already-correct save bytes. Native Scribe and compatibility cleanup callbacks remain on the game thread, so saving can still cause a pause.
+- **Compatibility:** protocol requirements are unchanged. RimWorld 1.6 remains frozen at 0.3.4. This update does not claim to fix the intermittent first-colony single-player entry report.
+
 ### 0.4.2 testing update
 
 - **Neutral colony observation:** observing a neutral colony preserves its diplomatic relationship and neutral pawn behavior. Scout maps still hide traps and apply fog of war; player-list synchronization no longer produces a spurious relationship recovery notice.
