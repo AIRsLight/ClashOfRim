@@ -79,14 +79,16 @@ internal sealed class ClientColonyRegistration
         nextSitePoll = ticks + 10000;
         if (requests.Busy || !Eligible(ClientColonyRegistrationKind.Sites, scope) || !requests.TryApply(scope, static () => { })) return Task.CompletedTask;
         var appearance = captureAppearance();
-        return requests.TryApply(scope, static () => { }) ? StartAsync(ClientColonyRegistrationKind.Sites, appearance) : Task.CompletedTask;
+        return requests.TryApply(scope, static () => { }) ? StartAsync(ClientColonyRegistrationKind.Sites, appearance, pollOnly: true) : Task.CompletedTask;
     }
     internal Task StartAsync(ClientColonyRegistrationKind kind, ModColonyAppearanceDto? appearance = null)
+        => StartAsync(kind, appearance, pollOnly: false);
+    private Task StartAsync(ClientColonyRegistrationKind kind, ModColonyAppearanceDto? appearance, bool pollOnly)
     {
         using var publication = ClientSessionWork.EnterPublication();
         var scope = requests.Capture();
         if (!Eligible(kind, scope) || !requests.TryApply(scope, static () => { })) return Task.CompletedTask;
-        var input = new Pending(kind, appearance is null ? null : ClientProtocolJson.Copy(appearance));
+        var input = new Pending(kind, appearance is null ? null : ClientProtocolJson.Copy(appearance), pollOnly);
         if (requests.Busy)
         {
             if (activeKind != kind) pending[(int)kind] ??= input;
@@ -157,10 +159,12 @@ internal sealed class ClientColonyRegistration
             if (input.Kind == ClientColonyRegistrationKind.Sites
                 && !Step(() => sites = ClientProtocolJson.Copy(runtime.CaptureSites(context.UserId, context.ColonyId, input.Appearance).ToArray()))) return;
             var extensions = Array.Empty<ModWorldConfigurationExtensionDto>();
-            if (!Step(() => extensions = ClientProtocolJson.Copy(runtime.CaptureExtensions(context.UserId, context.ColonyId, context.CurrentSnapshotId ?? "unknown").ToArray()))) return;
+            // Periodic location checks must not export every ideology. Explicit site
+            // events, entry, saves and reform notifications still collect live extensions.
+            if (!input.PollOnly && !Step(() => extensions = ClientProtocolJson.Copy(runtime.CaptureExtensions(context.UserId, context.ColonyId, context.CurrentSnapshotId ?? "unknown").ToArray()))) return;
             string siteSignature = Signature(sites), extensionSignature = Signature(extensions);
             if (sites.Length == 0 && extensions.Length == 0) return;
-            if (accepted[1] == extensionSignature && (input.Kind == ClientColonyRegistrationKind.Extensions || accepted[0] == siteSignature)) return;
+            if ((input.PollOnly || accepted[1] == extensionSignature) && (input.Kind == ClientColonyRegistrationKind.Extensions || accepted[0] == siteSignature)) return;
             bool mute = input.Kind == ClientColonyRegistrationKind.Sites && muteNext;
             if (input.Kind == ClientColonyRegistrationKind.Sites) muteNext = false;
             await ClientSessionWork.Run(async () =>
@@ -183,13 +187,13 @@ internal sealed class ClientColonyRegistration
                         bound.PublishingWorldId = world;
                         try
                         {
-                            if (!publication.Publish(observation, response.WorldConfiguration, ClientWorldProjection.Catalog, Ready, (source, response.WorldMapMarkers))) return;
+                            if (!publication.Publish(observation, response.WorldConfiguration, input.PollOnly ? ClientWorldProjection.Sites : ClientWorldProjection.Catalog, Ready, (source, response.WorldMapMarkers))) return;
                             if (identity.WorldId != world) return;
                             if (bound.WorldId != world) { accepted[0] = accepted[1] = null; bound.WorldId = world; }
                         }
                         finally { bound.PublishingWorldId = null; }
                         if (input.Kind == ClientColonyRegistrationKind.Sites && ReferenceEquals(revisions[0], siteRevision)) accepted[0] = siteSignature;
-                        if (ReferenceEquals(revisions[1], extensionRevision)) accepted[1] = extensionSignature;
+                        if (!input.PollOnly && ReferenceEquals(revisions[1], extensionRevision)) accepted[1] = extensionSignature;
                         Report("[ClashOfRim] Colony " + input.Kind + " registered: sites=" + response.AcceptedCount + ", extensions=" + extensions.Length);
                     }).ConfigureAwait(false);
             }).ConfigureAwait(false);
@@ -206,7 +210,7 @@ internal sealed class ClientColonyRegistration
     // and every DTO field while ignoring input enumeration order and UI culture.
     internal static string Signature<T>(IEnumerable<T> values)
         => ClientProtocolJson.UnorderedSignature(values);
-    private sealed record Pending(ClientColonyRegistrationKind Kind, ModColonyAppearanceDto? Appearance);
+    private sealed record Pending(ClientColonyRegistrationKind Kind, ModColonyAppearanceDto? Appearance, bool PollOnly = false);
     private sealed class Boundary
     {
         internal readonly IClientColonyRegistrationSession Runtime;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
@@ -9,6 +10,7 @@ namespace AIRsLight.ClashOfRim.DlcCompatibility;
 
 internal static class IdeologyWorldConfigurationCompatibility
 {
+    private static readonly ConditionalWeakTable<RimWorld.IdeoManager, IdeoCatalogObservation> Observations = new();
     internal static IReadOnlyList<ModWorldIdeoSummaryDto> ReadWorldIdeoCatalog(ModWorldConfigurationDto configuration)
     {
         return WorldConfigurationExtensionPayloadJson.Read<ModWorldIdeoSummaryDto>(
@@ -22,8 +24,10 @@ internal static class IdeologyWorldConfigurationCompatibility
         string? colonyId,
         string worldConfigurationId)
     {
-        ModWorldConfigurationExtensionDto? extension = BuildWorldIdeoCatalogExtension(
-            IdeologyPawnReferenceCompatibility.ReadCurrentWorldIdeos(userId, colonyId, worldConfigurationId));
+        var ideos = IdeologyPawnReferenceCompatibility.ReadCurrentWorldIdeos(userId, colonyId, worldConfigurationId);
+        if (Verse.Find.IdeoManager is { } owner)
+            Observations.GetValue(owner, static _ => new()).Observe(ideos, Verse.Find.TickManager?.TicksGame);
+        ModWorldConfigurationExtensionDto? extension = BuildWorldIdeoCatalogExtension(ideos);
         return extension is null
             ? Array.Empty<ModWorldConfigurationExtensionDto>()
             : new[] { extension };

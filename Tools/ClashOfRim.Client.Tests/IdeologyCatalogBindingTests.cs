@@ -26,6 +26,7 @@ internal static class IdeologyCatalogBindingTests
 
     public static void Run()
     {
+        ContentTimestamps();
         ServerFactionIdeologyBindingTests.Run();
         var previous = ClientSharedIdeologyWorld.Current;
         var previousGame = Current.Game;
@@ -83,6 +84,34 @@ internal static class IdeologyCatalogBindingTests
             RemoteIdeoCatalog.Unregister(stale); RemoteIdeoCatalog.Unregister(live);
             ClientSharedIdeologyWorld.Attach(previous); Current.Game = previousGame; ClientSessionWork.Reset();
         }
+    }
+
+    private static void ContentTimestamps()
+    {
+        var observation = new IdeoCatalogObservation();
+        var item = new ModWorldIdeoSummaryDto { GlobalKey = "owner:alice/ideo:1", Name = "文化", SourceSnapshotId = "first", SavedIdeoPackageXml = "<ideo />" };
+        observation.Observe(new[] { item }, 100);
+        observation.Observe(new[] { item }, 10100);
+        if (item.UpdatedAtGameTicks != 100 || item.SavedIdeoPackageXml != "<ideo />") throw new Exception("Unchanged observation changed content time or lost the live package.");
+        item.SourceSnapshotId = "next";
+        observation.Observe(new[] { item }, 20100);
+        if (item.UpdatedAtGameTicks != 100 || item.SourceSnapshotId != "next") throw new Exception("Snapshot provenance changed ideology content time.");
+        item.SavedIdeoPackageXml = "<ideo><thirdParty>changed</thirdParty></ideo>";
+        observation.Observe(new[] { item }, 30100);
+        if (item.UpdatedAtGameTicks != 30100) throw new Exception("Third-party package change was missed.");
+        item.SavedIdeoPackageSha256 = "hash-a";
+        observation.Observe(new[] { item }, 40100);
+        item.SavedIdeoPackageSha256 = "hash-b";
+        observation.Observe(new[] { item }, 50100);
+        if (item.UpdatedAtGameTicks != 50100) throw new Exception("Changed live package hash was ignored.");
+        item.Name = "reformed";
+        observation.Observe(new[] { item }, 60100);
+        if (item.UpdatedAtGameTicks != 60100) throw new Exception("Metadata reform was ignored.");
+        observation.Observe(Array.Empty<ModWorldIdeoSummaryDto>(), 70100);
+        observation.Observe(new[] { item }, 80100);
+        if (item.UpdatedAtGameTicks != 80100) throw new Exception("Removed ideology retained its old observation.");
+        new IdeoCatalogObservation().Observe(new[] { item }, 1);
+        if (item.UpdatedAtGameTicks != 1) throw new Exception("New world retained a previous world's content time.");
     }
 
     private static void SharedWorldLifecycle(Faction player)

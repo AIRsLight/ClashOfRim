@@ -44,11 +44,13 @@ internal static class ClientColonyRegistrationTests
         Task Poll(int ticks) => f.Ports.PumpUntil(f.Registration.PollSitesAsync(ticks, Appearance));
         await Poll(0); await Poll(0); await Poll(9999);
         Check(captures == 1 && f.Calls.Count == 1 && f.CapturedAppearance?.ColorHex == "123abc", "Site polling lost its immediate/10000-tick cadence or appearance.");
+        Check(f.Calls[0].Extensions.Length == 0 && f.Projects == 0, "Location polling collected or applied the full extension catalog.");
         await Poll(10000); Check(captures == 2 && f.Calls.Count == 1, "Periodic unchanged sites bypassed accepted-signature deduplication.");
         f.Sites[0].Label = "changed"; await Poll(20000);
         Check(captures == 3 && f.Calls.Count == 2, "Periodic changed sites were skipped.");
         await f.Ports.PumpUntil(f.Registration.RequestAsync(ClientColonyRegistrationKind.Sites, "explicit"));
         Check(f.Calls.Count == 3, "Periodic cadence throttled an explicit registration event.");
+        Check(f.Calls[2].Extensions.Length == 1 && f.Projects == 1, "Explicit registration no longer refreshed live extensions after a location-only receipt.");
         await Poll(29999); Check(captures == 3, "Explicit registration reset the polling deadline.");
         f.Sites[0].Label = "failed"; f.Fault = "http"; await Poll(30000); f.Fault = null; await Poll(40000);
         Check(f.Calls.Count == 5, "Periodic failure consumed the changed-site signature."); scenarios++;

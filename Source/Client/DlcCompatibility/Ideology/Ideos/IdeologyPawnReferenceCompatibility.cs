@@ -352,7 +352,6 @@ internal static class IdeologyPawnReferenceCompatibility
                 SavedIdeoPackageSha256 = string.IsNullOrWhiteSpace(savedIdeoPackageXml)
                     ? null
                     : IdeoPackageHash.Compute(savedIdeoPackageXml!),
-                UpdatedAtGameTicks = Find.TickManager?.TicksGame,
                 MemeDefNames = ideo.memes?
                     .Where(meme => meme != null)
                     .Select(meme => meme.defName)
