@@ -88,6 +88,7 @@ internal static class ClientColonyRegistrationTests
     {
         var a = Site(); var b = Site(); b.TileLayerId = 7;
         string before = ClientColonyRegistration.Signature(new[] { a, b });
+        Check(before.Length == 64, "Registration retained an unbounded serialized payload as its fingerprint.");
         Check(before == ClientColonyRegistration.Signature(new[] { b, a }), "Enumeration order changed fingerprint.");
         b.Appearance!.ColorHex = "different"; Check(before != ClientColonyRegistration.Signature(new[] { a, b }), "Appearance change was missed.");
         a.Label = "x\u001fy"; a.FactionName = "z"; b = Site(); b.Label = "x"; b.FactionName = "y\u001fz";

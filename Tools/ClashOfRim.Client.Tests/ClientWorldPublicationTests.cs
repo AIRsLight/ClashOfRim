@@ -27,7 +27,7 @@ internal static class ClientWorldPublicationTests
                     foreach (string phase in new[] { "remember", "extensions", "write", "proxy", "summary" }) Reentry(mode, phase);
                     MarkerRace(mode); Failure(mode); Empty(mode); AdoptionOwnership(mode);
                 }
-                PreferenceReentry(); QueueAfterSourceCompletion();
+                PreferenceReentry(); QueueAfterSourceCompletion(); OwnedConfiguration();
             }
             Console.WriteLine($"  world publication: {scenarios} scenarios checked");
         }
@@ -151,6 +151,26 @@ internal static class ClientWorldPublicationTests
             Check(f.P.Trace.Contains("markers") != changeOwner, "Queued projection lost cache ownership or followed an obsolete game."); scenarios++;
         }
     }
+    private static void OwnedConfiguration()
+    {
+        foreach (bool owned in new[] { false, true })
+        {
+            var f = new Fixture(); var source = Data("server");
+            f.Applying = data =>
+            {
+                Check(ReferenceEquals(source, data) == owned, "Owned response was recopied or borrowed input was not isolated.");
+                data.PlayerColonySites[0].Label = "callback mutation";
+                data.PlayerColonySites[0].Appearance!.ColorHex = "callback mutation";
+            };
+            var observation = f.Flow.Capture();
+            bool ok = owned ? f.Flow.PublishOwned(observation, source, ClientWorldProjection.Catalog, () => true)
+                : f.Flow.Publish(observation, source, ClientWorldProjection.Catalog, () => true);
+            Check(ok && f.P.Sites.IsBlocked(4, 7, out var site) && site!.Label == "server" && f.P.Appearance.Read().ColorHex == "server",
+                "Configuration callback mutated the independently captured site view.");
+            if (!owned) Check(source.PlayerColonySites[0].Label == "server", "Borrowed source was mutated by configuration projection.");
+            scenarios++;
+        }
+    }
     internal static ColonyAppearanceSelection Selection(string value) => new(null, null, null, value);
     internal static ModWorldConfigurationDto Data(string value, string world = "world") => new()
     {
@@ -169,6 +189,7 @@ internal static class ClientWorldPublicationTests
         internal ClientWorldPublication Flow => P.Flow;
         internal string Id = "world", LastConfiguration = "";
         internal object World = new(); internal int Projects; internal Action<string>? Hook;
+        internal Action<ModWorldConfigurationDto>? Applying;
         internal string? Label => P.Markers.Snapshot.SingleOrDefault()?.Label;
         internal Fixture()
         {
@@ -193,7 +214,7 @@ internal static class ClientWorldPublicationTests
             public void ApplyFactions(ModWorldConfigurationDto config) { }
             public void ApplyRoads(ModWorldConfigurationDto config) { }
             public void ApplyObjectLabels(ModWorldConfigurationDto config) { }
-            public void ApplyExtensions(ModWorldConfigurationDto config, string user, bool state) { F.Projects++; F.LastConfiguration = config.SeedString; F.Hook?.Invoke("extensions"); }
+            public void ApplyExtensions(ModWorldConfigurationDto config, string user, bool state) { F.Projects++; F.LastConfiguration = config.SeedString; F.Applying?.Invoke(config); F.Hook?.Invoke("extensions"); }
             public ClientStorytellerBaseline Capture() => new(null, null, null);
             public IClientStorytellerChange? Prepare(ClientStorytellerBaseline value) => null;
             public void LockCommitment() { }

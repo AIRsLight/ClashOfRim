@@ -96,7 +96,7 @@ internal sealed class ClientWorldCatalog
                         bool Step(Action action) => requests.TryApply(request, action) && Current();
                         if (!Step(() => _ = metadata.Apply(prepared.ServerCompatibilityManifestJson, prepared.IsAdministrator, true,
                             () => Current() && publication.Owns(observation)))) return;
-                        if (!publication.Publish(observation, world, generation ? ClientWorldProjection.Full : ClientWorldProjection.Storyteller, Current)) return;
+                        if (!publication.PublishOwned(observation, world, generation ? ClientWorldProjection.Full : ClientWorldProjection.Storyteller, Current)) return;
                         if (world is null) Report(request, () => presentation.Text("ClashOfRim.WorldCatalog.StatusNoConfiguration"));
                         else
                         {

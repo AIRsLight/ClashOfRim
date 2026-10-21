@@ -39,13 +39,25 @@ internal sealed class ClientWorldPublication
 
     internal bool Publish(Observation observation, ModWorldConfigurationDto? source, ClientWorldProjection projection,
         Func<bool> current, (string Source, ModWorldMapMarkerDeliveryDto? Delivery)? markerUpdate = null)
+        => PublishCore(observation, source, projection, current, markerUpdate, owned: false);
+
+    // Only for response DTOs already copied off the game thread. The caller must
+    // relinquish mutable ownership; game ports may mutate the configuration.
+    internal bool PublishOwned(Observation observation, ModWorldConfigurationDto? source, ClientWorldProjection projection,
+        Func<bool> current, (string Source, ModWorldMapMarkerDeliveryDto? Delivery)? markerUpdate = null)
+        => PublishCore(observation, source, projection, current, markerUpdate, owned: true);
+
+    private bool PublishCore(Observation observation, ModWorldConfigurationDto? source, ClientWorldProjection projection,
+        Func<bool> current, (string Source, ModWorldMapMarkerDeliveryDto? Delivery)? markerUpdate, bool owned)
     {
         using var p = ClientSessionWork.EnterPublication();
         if (!current() || !markers.Owns(observation.Markers)) return false;
         long number = observation.Markers.Number;
         if (number <= accepted) return true; // Superseded local view, not a failed server operation.
         accepted = number;
-        var world = source is null ? null : ClientProtocolJson.Copy(source);
+        var world = source is null || owned ? source : ClientProtocolJson.Copy(source);
+        // Keep the small site view separate from arbitrary extension callbacks.
+        var siteView = world?.PlayerColonySites is { } entries ? ClientProtocolJson.Copy(entries) : null;
         var update = markerUpdate is { } value ? (value.Source, Delivery: value.Delivery is null ? null : ClientProtocolJson.Copy(value.Delivery)) : markerUpdate;
         var original = observation.Markers;
         string expected = string.IsNullOrWhiteSpace(world?.WorldConfigurationId) ? original.Scope.Boundary : world!.WorldConfigurationId.Trim();
@@ -58,8 +70,7 @@ internal sealed class ClientWorldPublication
         if (world is not null)
         {
             if (projection == ClientWorldProjection.Sites) configuration.Remember(world);
-            else if (!(projection == ClientWorldProjection.Full ? configuration.Apply(world, current: Current)
-                : configuration.ApplyCatalog(world, applyStoryteller: projection == ClientWorldProjection.Storyteller, current: Current))) return false;
+            else if (!configuration.ApplyOwned(world, projection, Current)) return false;
         }
         if (!Current() || identity.WorldId != expected) return false;
         var marker = changedWorld ? markers.AdoptWorld(original, expected) : original;
@@ -69,7 +80,7 @@ internal sealed class ClientWorldPublication
         // Marker deltas also update the occupied-site cache. Do not replace that
         // newer view with an older full catalog; configuration has its own stream.
         if (!markers.HasNewerObservation(marker))
-            sites.Replace(world?.PlayerColonySites, selected => { if (preference is not null) appearance.ObserveServer(preference, selected, Bound); }, Bound);
+            sites.Replace(siteView, selected => { if (preference is not null) appearance.ObserveServer(preference, selected, Bound); }, Bound);
         if (!Bound()) return false;
         if (update is { } acceptedMarkers)
             markers.Observe(marker, acceptedMarkers.Delivery, reason: acceptedMarkers.Source, current: Bound);

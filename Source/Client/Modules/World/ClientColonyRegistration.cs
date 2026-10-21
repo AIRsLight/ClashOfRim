@@ -187,7 +187,7 @@ internal sealed class ClientColonyRegistration
                         bound.PublishingWorldId = world;
                         try
                         {
-                            if (!publication.Publish(observation, response.WorldConfiguration, input.PollOnly ? ClientWorldProjection.Sites : ClientWorldProjection.Catalog, Ready, (source, response.WorldMapMarkers))) return;
+                            if (!publication.PublishOwned(observation, response.WorldConfiguration, input.PollOnly ? ClientWorldProjection.Sites : ClientWorldProjection.Catalog, Ready, (source, response.WorldMapMarkers))) return;
                             if (identity.WorldId != world) return;
                             if (bound.WorldId != world) { accepted[0] = accepted[1] = null; bound.WorldId = world; }
                         }

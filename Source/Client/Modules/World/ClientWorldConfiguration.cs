@@ -35,12 +35,16 @@ internal sealed class ClientWorldConfiguration
         var scope = requests.Capture(); requests.TryApply(scope, () => store.Remember(configuration!.WorldConfigurationId.Trim()));
     }
     internal bool Apply(ModWorldConfigurationDto configuration, bool worldState = false, bool features = true, ClientWorldFeatureNames? generatedNames = null, Func<bool>? current = null)
-        => Project(configuration, true, worldState, features, true, generatedNames, current);
+        => Project(ClientProtocolJson.Copy(configuration), true, worldState, features, true, generatedNames, current);
     internal bool ApplyCatalog(ModWorldConfigurationDto? configuration, bool applyStoryteller = false, Func<bool>? current = null)
-        => configuration is not null && Project(configuration, false, false, false, applyStoryteller, null, current);
-    private bool Project(ModWorldConfigurationDto source, bool full, bool worldState, bool features, bool applyStoryteller, ClientWorldFeatureNames? names, Func<bool>? current)
+        => configuration is not null && Project(ClientProtocolJson.Copy(configuration), false, false, false, applyStoryteller, null, current);
+    // Publication has already isolated this DTO and its site/marker projection.
+    internal bool ApplyOwned(ModWorldConfigurationDto configuration, ClientWorldProjection projection, Func<bool> current)
+        => Project(configuration, projection == ClientWorldProjection.Full, false, true,
+            projection is ClientWorldProjection.Full or ClientWorldProjection.Storyteller, null, current);
+    private bool Project(ModWorldConfigurationDto configuration, bool full, bool worldState, bool features, bool applyStoryteller, ClientWorldFeatureNames? names, Func<bool>? current)
     {
-        var scope = requests.Capture(); var configuration = ClientProtocolJson.Copy(source); var runtime = scope.Boundary;
+        var scope = requests.Capture(); var runtime = scope.Boundary;
         bool Step(Action action)
         {
             bool applied = false;
