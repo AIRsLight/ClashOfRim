@@ -106,13 +106,13 @@
   <ClashOfRim.Compatibility.ApplyAndRestart>Применить</ClashOfRim.Compatibility.ApplyAndRestart>
   <ClashOfRim.Compatibility.ApplyAndRestartDesc>Применить серверный список модов и порядок загрузки, затем перезапустить игру.</ClashOfRim.Compatibility.ApplyAndRestartDesc>
   <ClashOfRim.Compatibility.JoinAnyway>Войти</ClashOfRim.Compatibility.JoinAnyway>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Временно</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Перезаписать</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Применить настройки сервера как overlay без изменения локальных файлов Config, затем перезапустить игру.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Записать настройки сервера в локальные файлы Config, удалить активный overlay и перезапустить игру.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>Серверный overlay настроек применен. Перезапуск.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Временно применить настройки сервера, сохранив локальные файлы настроек, затем перезапустить игру.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Записать настройки сервера в локальные файлы, отменить временное применение настроек и перезапустить игру.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>Настройки сервера временно применены. Перезапуск.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>Локальные настройки перезаписаны. Перезапуск.</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
-  <ClashOfRim.Compatibility.ConfigApplyAvailable>При различиях настроек можно использовать серверный overlay или перезаписать локальные настройки перед перезапуском.</ClashOfRim.Compatibility.ConfigApplyAvailable>
+  <ClashOfRim.Compatibility.ConfigApplyAvailable>При различиях настроек можно временно применить настройки сервера или перезаписать локальные настройки, затем перезапустить игру.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>Мастерская</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>Заменить</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.OverrideBaselineDesc>Заменить базовый манифест сервера списком модов, хешами файлов и правилами настроек этого клиента. Это повлияет на последующие подключения всех игроков; используйте только после проверки окружения.</ClashOfRim.Compatibility.OverrideBaselineDesc>

@@ -106,13 +106,13 @@
   <ClashOfRim.Compatibility.ApplyAndRestart>套用</ClashOfRim.Compatibility.ApplyAndRestart>
   <ClashOfRim.Compatibility.ApplyAndRestartDesc>套用服务器模组列表与加载顺序，然后重启游戏。</ClashOfRim.Compatibility.ApplyAndRestartDesc>
   <ClashOfRim.Compatibility.JoinAnyway>仍然加入</ClashOfRim.Compatibility.JoinAnyway>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>临时套用</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>覆盖本地</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>采用服务器配置 Overlay，不修改本地 Config 文件，然后重启游戏。</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>将服务器配置直接写入本地 Config，移除当前服务器 Overlay，然后重启游戏。</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>已采用服务器配置 Overlay，正在重启。</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>临时套用服务器配置，保留本地配置文件，然后重启游戏。</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>将服务器配置直接写入本地配置文件，取消当前临时套用，然后重启游戏。</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>已临时套用服务器配置，正在重启。</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>已覆盖本地配置，正在重启。</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
-  <ClashOfRim.Compatibility.ConfigApplyAvailable>配置不一致时，可采用服务器 Overlay，或直接覆盖本地配置后重启。</ClashOfRim.Compatibility.ConfigApplyAvailable>
+  <ClashOfRim.Compatibility.ConfigApplyAvailable>配置不一致时，可临时套用服务器配置，或直接覆盖本地配置后重启。</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>创意工坊</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>覆盖清单</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.OverrideBaselineDesc>用当前客户端的模组列表、文件哈希和配置规则覆盖服务器清单基线。此操作会影响所有玩家后续加入，请仅在确认当前环境正确时使用。</ClashOfRim.Compatibility.OverrideBaselineDesc>

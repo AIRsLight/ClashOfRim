@@ -106,13 +106,13 @@
   <ClashOfRim.Compatibility.ApplyAndRestart>Apply</ClashOfRim.Compatibility.ApplyAndRestart>
   <ClashOfRim.Compatibility.ApplyAndRestartDesc>Apply the server mod list and load order, then restart the game.</ClashOfRim.Compatibility.ApplyAndRestartDesc>
   <ClashOfRim.Compatibility.JoinAnyway>Join anyway</ClashOfRim.Compatibility.JoinAnyway>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Apply temporarily</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Overwrite</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Use the server configuration as an overlay without modifying local Config files, then restart the game.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Write the server configuration to local Config files, remove the active server overlay, then restart the game.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>Server configuration overlay applied. Restarting.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Temporarily apply the server configuration, keeping local configuration files, then restart the game.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Write the server configuration to local configuration files, stop using the temporary settings, then restart the game.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>Server configuration applied temporarily. Restarting.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>Local configuration overwritten. Restarting.</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
-  <ClashOfRim.Compatibility.ConfigApplyAvailable>For configuration differences, use the server overlay or overwrite local configuration before restarting.</ClashOfRim.Compatibility.ConfigApplyAvailable>
+  <ClashOfRim.Compatibility.ConfigApplyAvailable>For configuration differences, temporarily apply the server settings or overwrite local configuration, then restart.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>Workshop</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>Overwrite</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.OverrideBaselineDesc>Replace the server manifest baseline with this client's mod list, file hashes, and configuration rules. This affects future joins for every player; use only after verifying this environment.</ClashOfRim.Compatibility.OverrideBaselineDesc>

@@ -106,13 +106,13 @@
   <ClashOfRim.Compatibility.ApplyAndRestart>適用</ClashOfRim.Compatibility.ApplyAndRestart>
   <ClashOfRim.Compatibility.ApplyAndRestartDesc>サーバーのMOD一覧と読み込み順を適用して、ゲームを再起動します。</ClashOfRim.Compatibility.ApplyAndRestartDesc>
   <ClashOfRim.Compatibility.JoinAnyway>そのまま参加</ClashOfRim.Compatibility.JoinAnyway>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>一時適用</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>ローカル上書き</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>ローカルの Config ファイルを変更せず、サーバー設定をオーバーレイとして適用してゲームを再起動します。</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>サーバー設定をローカルの Config ファイルへ書き込み、現在のオーバーレイを削除してゲームを再起動します。</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>サーバー設定オーバーレイを適用しました。再起動しています。</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>ローカル設定ファイルを保持したままサーバー設定を一時適用し、ゲームを再起動します。</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>サーバー設定をローカル設定ファイルに書き込み、現在の一時適用を解除してゲームを再起動します。</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>サーバー設定を一時適用しました。再起動しています。</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>ローカル設定を上書きしました。再起動しています。</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
-  <ClashOfRim.Compatibility.ConfigApplyAvailable>設定の差異は、サーバーオーバーレイを使用するか、ローカル設定を上書きして再起動できます。</ClashOfRim.Compatibility.ConfigApplyAvailable>
+  <ClashOfRim.Compatibility.ConfigApplyAvailable>設定が異なる場合、サーバー設定を一時適用するか、ローカル設定を上書きして再起動できます。</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>ワークショップ</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>上書き</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.OverrideBaselineDesc>現在のクライアントのMOD一覧、ファイルハッシュ、設定ルールでサーバーのマニフェスト基準を置き換えます。全プレイヤーの今後の参加に影響するため、環境が正しいことを確認してから使用してください。</ClashOfRim.Compatibility.OverrideBaselineDesc>

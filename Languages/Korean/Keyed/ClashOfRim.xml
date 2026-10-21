@@ -106,13 +106,13 @@
   <ClashOfRim.Compatibility.ApplyAndRestart>적용</ClashOfRim.Compatibility.ApplyAndRestart>
   <ClashOfRim.Compatibility.ApplyAndRestartDesc>서버 모드 목록과 로드 순서를 적용한 후 게임을 다시 시작합니다.</ClashOfRim.Compatibility.ApplyAndRestartDesc>
   <ClashOfRim.Compatibility.JoinAnyway>계속 참가</ClashOfRim.Compatibility.JoinAnyway>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>오버레이</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>임시 적용</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>로컬 덮어쓰기</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>로컬 Config 파일을 수정하지 않고 서버 설정을 오버레이로 적용한 후 게임을 다시 시작합니다.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>서버 설정을 로컬 Config 파일에 쓰고 현재 오버레이를 제거한 후 게임을 다시 시작합니다.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>서버 설정 오버레이를 적용했습니다. 재시작 중입니다.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>로컬 설정 파일을 유지하면서 서버 설정을 임시 적용한 후 게임을 다시 시작합니다.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>서버 설정을 로컬 설정 파일에 쓰고 현재 임시 적용을 해제한 후 게임을 다시 시작합니다.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>서버 설정을 임시 적용했습니다. 재시작 중입니다.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>로컬 설정을 덮어썼습니다. 재시작 중입니다.</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
-  <ClashOfRim.Compatibility.ConfigApplyAvailable>설정 차이는 서버 오버레이를 사용하거나 로컬 설정을 덮어쓴 뒤 재시작할 수 있습니다.</ClashOfRim.Compatibility.ConfigApplyAvailable>
+  <ClashOfRim.Compatibility.ConfigApplyAvailable>설정이 다르면 서버 설정을 임시 적용하거나 로컬 설정을 덮어쓴 후 재시작할 수 있습니다.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>워크샵</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>덮어쓰기</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.OverrideBaselineDesc>현재 클라이언트의 모드 목록, 파일 해시 및 설정 규칙으로 서버 매니페스트 기준을 교체합니다. 모든 플레이어의 이후 접속에 영향을 주므로 현재 환경이 올바른 경우에만 사용하십시오.</ClashOfRim.Compatibility.OverrideBaselineDesc>
