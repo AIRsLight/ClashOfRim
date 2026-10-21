@@ -14,6 +14,8 @@ internal static class WorldSessionPreparationTests
     public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
         int count = 0; void Case(Action run) { run(); count++; }
+        foreach (string role in new[] { "administrator", "member", "wrong-password", "revoked" })
+        foreach (bool summary in new[] { false, true }) Case(() => UpdatedBaselineRecovery(factory, role, summary));
         foreach (string invalid in new[] { "protocol", "user", "password", "account", "manifest", "manifest-null", "manifest-missing", "mismatch", "ban", "maintenance", "lockout", "malformed", "null", "empty" }) Case(() => Invalid(factory, invalid));
         foreach (string change in new[] { "none", "password", "same-password", "lockout", "auth-mode", "steam-key", "app-id", "ban", "maintenance", "role", "mismatch", "compatible", "failure", "publication-failure", "compete" }) Case(() => Preparing(factory, change));
         foreach (string change in new[] { "password", "same-password", "lockout", "auth-mode", "ban", "maintenance", "role", "mismatch" }) Case(() => Published(factory, change));
@@ -28,6 +30,42 @@ internal static class WorldSessionPreparationTests
         foreach (string mode in new[] { "uncommitted", "reset", "same-password", "compete", "lockout", "failure", "repeat" }) Case(() => CredentialProof(mode));
         foreach (string mode in new[] { "bootstrap-maintenance", "active-session" }) Case(() => WorldEntryPolicy(factory, mode));
         Console.WriteLine($"World session preparation scenarios passed: {count}");
+    }
+    private static void UpdatedBaselineRecovery(Func<string, SaveSnapshotPackage> factory, string role, bool summary)
+    {
+        using var e = new Env(factory);
+        var state = e.F.State;
+        if (role != "member") state.WorldConfiguration.PromoteAdministrator("receiver");
+        if (role == "revoked") Require(state.WorldConfiguration.RevokeAdministrator("receiver"), "Cannot revoke test administrator.");
+        var original = Manifest("old", "1.7.4980") with { Mods = [new() { PackageId = "updated.mod",
+            Files = [new() { RelativePath = "Assemblies/Updated.dll", Sha256 = "old", Size = 10 }] }] };
+        var updated = original with { ManifestId = "updated", RimWorldVersion = "1.7.4982",
+            Mods = [original.Mods[0] with { Files = [original.Mods[0].Files[0] with { Sha256 = "new", Size = 11 }] }] };
+        state.CompatibilityBaseline.ReplaceBaseline(original, "admin", DateTimeOffset.UtcNow);
+        string json = CompatibilityManifestJsonWriter.Write(updated), before = e.Baseline.Read()!;
+        string password = role == "wrong-password" ? "wrong" : "pw";
+        using var denied = e.F.Post(ProtocolMessageKind.PrepareWorldSession, new PrepareWorldSessionRequest(
+            ProtocolApiVersion.Current, "receiver", "away", summary ? null : json, password: password,
+            compatibilityManifestSummaryJson: summary ? CompatibilityManifestJsonWriter.WriteSummary(CompatibilityManifestSummaryBuilder.Build(updated)) : null));
+        var response = Body(denied);
+        Require(!response.Result.Accepted && response.CanOverrideCompatibilityBaseline == (role == "administrator"),
+            "Updated administrator lost baseline recovery or unauthorized account gained it: " + role + "/" + summary);
+        Require(response.AssignedColonyId is null && response.WorldConfiguration is null && e.Baseline.Read() == before,
+            "Rejected preparation published colony state or replaced the baseline.");
+        using var overwrite = e.F.Post(ProtocolMessageKind.OverrideCompatibilityBaseline,
+            new OverrideCompatibilityBaselineRequest("receiver", null, json, password: password));
+        overwrite.EnsureSuccessStatusCode();
+        var result = JsonSerializer.Deserialize<OverrideCompatibilityBaselineResponse>(overwrite.Content.ReadAsStringAsync().GetAwaiter().GetResult(),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        Require(result.Result.Accepted == (role == "administrator"), "Credential recovery did not enforce administrator authorization.");
+        if (role == "administrator")
+        {
+            Require(new CompatibilityBaselineRegistry(e.Baseline).Current!.ManifestId == updated.ManifestId, "Updated baseline was not persisted.");
+            using var retry = e.F.Post(ProtocolMessageKind.PrepareWorldSession,
+                new PrepareWorldSessionRequest(ProtocolApiVersion.Current, "receiver", "away", json, password: "pw"));
+            Require(Accepted(retry).IsAdministrator, "Administrator could not enter after replacing the stale baseline.");
+        }
+        else Require(e.Baseline.Read() == before, "Unauthorized override changed the persisted baseline.");
     }
     private static void WorldEntryPolicy(Func<string, SaveSnapshotPackage> factory, string mode)
     {

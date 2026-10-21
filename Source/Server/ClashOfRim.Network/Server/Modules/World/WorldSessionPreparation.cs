@@ -59,6 +59,7 @@ internal sealed class WorldSessionPreparation(AccountService accounts, EntryHand
         => new(rejection, false, false, false, null, null,
             serverCompatibilityManifestJson: compatibility?.ServerCompatibilityManifestJson,
             compatibilityIssues: compatibility?.CompatibilityIssues,
+            canOverrideCompatibilityBaseline: compatibility?.CanOverrideCompatibilityBaseline ?? false,
             requiresFullCompatibilityManifest: compatibility?.RequiresFullCompatibilityManifest ?? false,
             requestedCompatibilityPackageIds: compatibility?.RequestedCompatibilityPackageIds);
 }
