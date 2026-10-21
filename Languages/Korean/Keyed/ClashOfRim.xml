@@ -118,13 +118,13 @@
   <ClashOfRim.Compatibility.OverrideBaselineDesc>현재 클라이언트의 모드 목록, 파일 해시 및 설정 규칙으로 서버 매니페스트 기준을 교체합니다. 모든 플레이어의 이후 접속에 영향을 주므로 현재 환경이 올바른 경우에만 사용하십시오.</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>현재 클라이언트 모드 목록 또는 로드 순서가 서버 기준과 일치하지 않습니다. 계속하면 서버가 이 클라이언트를 새 기준으로 사용합니다. 로컬 싱글플레이 모드 목록을 불러온 것이 아닌지 확인하세요.</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>모드 {MODS} / 파일 {FILES} / 설정 {CONFIGS}</ClashOfRim.Compatibility.Summary>
-  <ClashOfRim.Compatibility.SummaryFilesManual>. 파일 차이는 자동으로 고칠 수 없습니다. 모드를 업데이트하거나 서버 업데이트를 기다리세요.</ClashOfRim.Compatibility.SummaryFilesManual>
-  <ClashOfRim.Compatibility.SummaryAdminCanOverride>. 서버 업데이트 후 새 서버 데이터를 저장할 수 있습니다.</ClashOfRim.Compatibility.SummaryAdminCanOverride>
+  <ClashOfRim.Compatibility.SummaryFilesManual>. 버전이나 파일 차이는 설정 적용으로 해결되지 않습니다.</ClashOfRim.Compatibility.SummaryFilesManual>
+  <ClashOfRim.Compatibility.SummaryAdminCanOverride>. 관리자는 이 클라이언트의 목록으로 서버 기준을 덮어쓸 수 있습니다.</ClashOfRim.Compatibility.SummaryAdminCanOverride>
   <ClashOfRim.Compatibility.SummaryApplyServer>. 서버 모드 목록을 적용하세요.</ClashOfRim.Compatibility.SummaryApplyServer>
   <ClashOfRim.Compatibility.ServerManifestLine>서버 모드 목록: {ID}</ClashOfRim.Compatibility.ServerManifestLine>
   <ClashOfRim.Compatibility.LocalManifestLine>로컬 모드 목록: {ID}</ClashOfRim.Compatibility.LocalManifestLine>
-  <ClashOfRim.Compatibility.FileMismatchCannotApply>파일 차이는 자동으로 고칠 수 없습니다. 해당 모드를 업데이트하거나 관리자가 서버 데이터를 업데이트할 때까지 기다리세요.</ClashOfRim.Compatibility.FileMismatchCannotApply>
-  <ClashOfRim.Compatibility.ManifestApplyAllowed>모드 목록, 로드 순서, DLC, 파일이 일치하면 서버 모드 목록을 적용하고 게임을 재시작할 수 있습니다.</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.FileMismatchCannotApply>설정을 적용해도 게임 버전이나 모드 파일은 바뀌지 않습니다. 서버 기준에 맞추거나 관리자가 업데이트를 확인한 후 기준을 덮어써야 합니다.</ClashOfRim.Compatibility.FileMismatchCannotApply>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>서버의 활성 모드, 로드 순서와 설정을 적용하고 재시작합니다. 게임이나 모드 파일을 다운로드하거나 교체하지 않습니다.</ClashOfRim.Compatibility.ManifestApplyAllowed>
   <ClashOfRim.Compatibility.ServerColumn>서버</ClashOfRim.Compatibility.ServerColumn>
   <ClashOfRim.Compatibility.LocalColumn>로컬</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>모드 목록 스키마 버전</ClashOfRim.Compatibility.SchemaVersion>

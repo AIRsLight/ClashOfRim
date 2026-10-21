@@ -118,13 +118,13 @@
   <ClashOfRim.Compatibility.OverrideBaselineDesc>用当前客户端的模组列表、文件哈希和配置规则覆盖服务器清单基线。此操作会影响所有玩家后续加入，请仅在确认当前环境正确时使用。</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>当前客户端的模组列表或加载顺序与服务器基线不一致。若继续更新服务器资料，服务器会使用当前客户端的模组列表作为新基线。请确认你没有加载本地单人存档使用的模组列表。</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>模组 {MODS} / 文件 {FILES} / 配置 {CONFIGS}</ClashOfRim.Compatibility.Summary>
-  <ClashOfRim.Compatibility.SummaryFilesManual>。文件差异不能自动修复，请更新模组或等待服务器更新。</ClashOfRim.Compatibility.SummaryFilesManual>
-  <ClashOfRim.Compatibility.SummaryAdminCanOverride>。服务器更新后可重新保存服务器资料。</ClashOfRim.Compatibility.SummaryAdminCanOverride>
+  <ClashOfRim.Compatibility.SummaryFilesManual>。版本或文件差异不能通过套用配置修复。</ClashOfRim.Compatibility.SummaryFilesManual>
+  <ClashOfRim.Compatibility.SummaryAdminCanOverride>。管理员可用本机清单覆盖服务器基线。</ClashOfRim.Compatibility.SummaryAdminCanOverride>
   <ClashOfRim.Compatibility.SummaryApplyServer>。请套用服务器模组列表。</ClashOfRim.Compatibility.SummaryApplyServer>
   <ClashOfRim.Compatibility.ServerManifestLine>服务器模组列表：{ID}</ClashOfRim.Compatibility.ServerManifestLine>
   <ClashOfRim.Compatibility.LocalManifestLine>本地模组列表：{ID}</ClashOfRim.Compatibility.LocalManifestLine>
-  <ClashOfRim.Compatibility.FileMismatchCannotApply>文件不一致不能自动修复。请更新对应模组，或等待管理员更新服务器资料。</ClashOfRim.Compatibility.FileMismatchCannotApply>
-  <ClashOfRim.Compatibility.ManifestApplyAllowed>模组列表、加载顺序、DLC 和文件一致时，可以套用服务器模组列表并重启。</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.FileMismatchCannotApply>套用配置不会更改游戏版本或模组文件。请匹配服务器要求的版本，或由管理员确认更新后覆盖基线。</ClashOfRim.Compatibility.FileMismatchCannotApply>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>套用服务器的模组启用状态、加载顺序和配置并重启；不会下载或替换游戏及模组文件。</ClashOfRim.Compatibility.ManifestApplyAllowed>
   <ClashOfRim.Compatibility.ServerColumn>服务器</ClashOfRim.Compatibility.ServerColumn>
   <ClashOfRim.Compatibility.LocalColumn>本地</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>模组列表版本</ClashOfRim.Compatibility.SchemaVersion>

@@ -118,13 +118,13 @@
   <ClashOfRim.Compatibility.OverrideBaselineDesc>Replace the server manifest baseline with this client's mod list, file hashes, and configuration rules. This affects future joins for every player; use only after verifying this environment.</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>The current client mod list or load order does not match the server baseline. If you continue, the server will use this client as the new baseline. Make sure you did not load a local single-player mod list.</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>Mods {MODS} / files {FILES} / config {CONFIGS}</ClashOfRim.Compatibility.Summary>
-  <ClashOfRim.Compatibility.SummaryFilesManual>. File differences cannot be auto-fixed. Update mods or wait for a server update.</ClashOfRim.Compatibility.SummaryFilesManual>
-  <ClashOfRim.Compatibility.SummaryAdminCanOverride>. After a server update, you can save new server data.</ClashOfRim.Compatibility.SummaryAdminCanOverride>
+  <ClashOfRim.Compatibility.SummaryFilesManual>. Version or file differences require manual updates.</ClashOfRim.Compatibility.SummaryFilesManual>
+  <ClashOfRim.Compatibility.SummaryAdminCanOverride>. Administrators can replace the baseline with this client’s manifest.</ClashOfRim.Compatibility.SummaryAdminCanOverride>
   <ClashOfRim.Compatibility.SummaryApplyServer>. Apply the server mod list.</ClashOfRim.Compatibility.SummaryApplyServer>
   <ClashOfRim.Compatibility.ServerManifestLine>Server mod list: {ID}</ClashOfRim.Compatibility.ServerManifestLine>
   <ClashOfRim.Compatibility.LocalManifestLine>Local mod list: {ID}</ClashOfRim.Compatibility.LocalManifestLine>
-  <ClashOfRim.Compatibility.FileMismatchCannotApply>File differences cannot be auto-fixed. Update the matching mods or wait for an administrator to update the server data.</ClashOfRim.Compatibility.FileMismatchCannotApply>
-  <ClashOfRim.Compatibility.ManifestApplyAllowed>When the mod list, load order, DLCs, and files match, the server mod list can be applied and the game restarted.</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.FileMismatchCannotApply>Applying settings cannot change game versions or mod files. Match the server baseline, or have an administrator confirm the update and replace it.</ClashOfRim.Compatibility.FileMismatchCannotApply>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>Apply the server’s enabled mods, load order and settings, then restart. This does not download or replace game or mod files.</ClashOfRim.Compatibility.ManifestApplyAllowed>
   <ClashOfRim.Compatibility.ServerColumn>Server</ClashOfRim.Compatibility.ServerColumn>
   <ClashOfRim.Compatibility.LocalColumn>Local</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>Mod list schema version</ClashOfRim.Compatibility.SchemaVersion>

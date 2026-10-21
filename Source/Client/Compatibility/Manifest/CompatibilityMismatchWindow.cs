@@ -46,7 +46,7 @@ internal sealed class CompatibilityMismatchWindow : Window
             switch (selectedTab)
             {
                 case CompatibilityTab.Overview:
-                    DrawOverviewTab(tabInner, Report.ManifestEntries.Count, Report.HashEntries.Count, Report.ConfigEntries.Count, Report.OnlyFileMismatch);
+                    DrawOverviewTab(tabInner, Report.ManifestEntries.Count, Report.HashEntries.Count, Report.ConfigEntries.Count);
                     break;
                 case CompatibilityTab.Manifest:
                     DrawManifestTab(tabInner);
@@ -143,23 +143,23 @@ internal sealed class CompatibilityMismatchWindow : Window
         else Start();
     }
 
-    private string BuildIntro(int manifestCount, int hashCount, int configCount, bool onlyFileMismatch)
+    private string BuildIntro(int manifestCount, int hashCount, int configCount)
     {
         string summary = FormatSummary(manifestCount, hashCount, configCount);
-        if (onlyFileMismatch)
-        {
-            return summary + T("ClashOfRim.Compatibility.SummaryFilesManual");
-        }
-
         if (model.CanContinue)
         {
             return summary;
         }
 
-        if (Report.CanOverride)
+        if (Report.RequiresManualUpdate)
+            summary += T("ClashOfRim.Compatibility.SummaryFilesManual");
+
+        if (model.CanOverride)
         {
             return summary + T("ClashOfRim.Compatibility.SummaryAdminCanOverride");
         }
+
+        if (Report.RequiresManualUpdate) return summary;
 
         return model.CanApplyManifest
             ? summary + T("ClashOfRim.Compatibility.SummaryApplyServer")
@@ -168,7 +168,7 @@ internal sealed class CompatibilityMismatchWindow : Window
             : summary;
     }
 
-    private void DrawOverviewTab(Rect inRect, int manifestCount, int hashCount, int configCount, bool onlyFileMismatch)
+    private void DrawOverviewTab(Rect inRect, int manifestCount, int hashCount, int configCount)
     {
         Rect contentRect = inRect.ContractedBy(8f);
         float y = contentRect.y + 8f;
@@ -177,7 +177,7 @@ internal sealed class CompatibilityMismatchWindow : Window
             FormatSummary(manifestCount, hashCount, configCount));
         y += 34f;
 
-        Widgets.Label(new Rect(contentRect.x, y, contentRect.width, 54f), BuildIntro(manifestCount, hashCount, configCount, onlyFileMismatch));
+        Widgets.Label(new Rect(contentRect.x, y, contentRect.width, 54f), BuildIntro(manifestCount, hashCount, configCount));
         y += 66f;
 
         Widgets.DrawBox(new Rect(contentRect.x, y, contentRect.width, 134f));
@@ -221,12 +221,12 @@ internal sealed class CompatibilityMismatchWindow : Window
 
         Widgets.Label(
             new Rect(contentRect.x, y, contentRect.width, 80f),
-            model.CanApplyManifest
+            Report.RequiresManualUpdate
+                ? T("ClashOfRim.Compatibility.FileMismatchCannotApply")
+                : model.CanApplyManifest
                 ? T("ClashOfRim.Compatibility.ManifestApplyAllowed")
                 : model.CanApplyConfig
                 ? T("ClashOfRim.Compatibility.ConfigApplyAvailable")
-                : onlyFileMismatch
-                ? T("ClashOfRim.Compatibility.FileMismatchCannotApply")
                 : string.Empty);
     }
 

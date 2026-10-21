@@ -118,13 +118,13 @@
   <ClashOfRim.Compatibility.OverrideBaselineDesc>Заменить базовый манифест сервера списком модов, хешами файлов и правилами настроек этого клиента. Это повлияет на последующие подключения всех игроков; используйте только после проверки окружения.</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>Текущий список модов или порядок загрузки клиента не совпадает с базовой линией сервера. Если продолжить, сервер будет использовать этот клиент как новую базовую линию. Убедитесь, что вы не загрузили локальный одиночный список модов.</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>Моды {MODS} / файлы {FILES} / конфиг {CONFIGS}</ClashOfRim.Compatibility.Summary>
-  <ClashOfRim.Compatibility.SummaryFilesManual>. Различия файлов нельзя исправить автоматически. Обновите моды или дождитесь обновления сервера.</ClashOfRim.Compatibility.SummaryFilesManual>
-  <ClashOfRim.Compatibility.SummaryAdminCanOverride>. После обновления сервера можно сохранить новые серверные данные.</ClashOfRim.Compatibility.SummaryAdminCanOverride>
+  <ClashOfRim.Compatibility.SummaryFilesManual>. Различия версий и файлов требуют ручного обновления.</ClashOfRim.Compatibility.SummaryFilesManual>
+  <ClashOfRim.Compatibility.SummaryAdminCanOverride>. Администратор может заменить эталон манифестом этого клиента.</ClashOfRim.Compatibility.SummaryAdminCanOverride>
   <ClashOfRim.Compatibility.SummaryApplyServer>. Примените список модов сервера.</ClashOfRim.Compatibility.SummaryApplyServer>
   <ClashOfRim.Compatibility.ServerManifestLine>Список модов сервера: {ID}</ClashOfRim.Compatibility.ServerManifestLine>
   <ClashOfRim.Compatibility.LocalManifestLine>Локальный список модов: {ID}</ClashOfRim.Compatibility.LocalManifestLine>
-  <ClashOfRim.Compatibility.FileMismatchCannotApply>Различия файлов нельзя исправить автоматически. Обновите подходящие моды или дождитесь обновления серверных данных администратором.</ClashOfRim.Compatibility.FileMismatchCannotApply>
-  <ClashOfRim.Compatibility.ManifestApplyAllowed>Если список модов, порядок загрузки, DLC и файлы совпадают, можно применить список модов сервера и перезапустить игру.</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.FileMismatchCannotApply>Применение настроек не меняет версию игры и файлы модов. Используйте версии из эталона сервера или попросите администратора подтвердить обновление и заменить эталон.</ClashOfRim.Compatibility.FileMismatchCannotApply>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>Применить список активных модов, порядок загрузки и настройки сервера, затем перезапустить игру. Файлы игры и модов не скачиваются и не заменяются.</ClashOfRim.Compatibility.ManifestApplyAllowed>
   <ClashOfRim.Compatibility.ServerColumn>Сервер</ClashOfRim.Compatibility.ServerColumn>
   <ClashOfRim.Compatibility.LocalColumn>Локально</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>Версия схемы списка модов</ClashOfRim.Compatibility.SchemaVersion>

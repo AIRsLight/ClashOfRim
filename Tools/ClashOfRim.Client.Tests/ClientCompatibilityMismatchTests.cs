@@ -19,7 +19,7 @@ internal static class ClientCompatibilityMismatchTests
             foreach (string name in new[] { "en-US", "zh-CN", "tr-TR", "ar-SA" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
-                Report(); Fallback(); Malformed(); Continue(); Repairs(); Queued(); Exceptions();
+                Report(); UpdatedFiles(); Fallback(); Malformed(); Continue(); Repairs(); Queued(); Exceptions();
                 foreach (string change in new[] { "close", "user", "server", "colony", "auth", "login", "game", "generation", "password", "steam", "unavailable", "caller" })
                     foreach (bool opened in new[] { false, true }) Stale(change, opened);
                 foreach (string phase in new[] { "capture", "text", "close", "repair", "order" }) Reentry(phase);
@@ -74,9 +74,47 @@ internal static class ClientCompatibilityMismatchTests
         Check(report.ManifestJson == Json(changed) && report.CanOverride, "Report retained mutable response state.");
         var fileOnly = new ClientCompatibilityReport(Response(original with { Mods = new[] { originalMod with
         { Files = new[] { originalMod.Files[0] with { Sha256 = "different" } } } } }), Json(original), null, f);
-        Check(fileOnly.OnlyFileMismatch && !fileOnly.CanApplyManifest && !fileOnly.CanApplyConfig, "File-only mismatch offered an ineffective restart repair.");
+        Check(fileOnly.RequiresManualUpdate && !fileOnly.CanApplyManifest && !fileOnly.CanApplyConfig, "File-only mismatch offered an ineffective restart repair.");
         var protocol = new ClientCompatibilityReport(Response(original with { ProtocolVersion = "other" }), Json(original), null, f);
         Check(protocol.ProtocolMismatch && protocol.ManifestEntries.Count == 0, "Protocol mismatch became a mod list entry.");
+    }
+    private static void UpdatedFiles()
+    {
+        var f = new Fixture(); var original = Manifest();
+        foreach (string difference in new[] { "version", "schema", "files", "version-and-files" })
+        foreach (bool administrator in new[] { false, true })
+        {
+            var changed = original with
+            {
+                RimWorldVersion = difference.Contains("version") ? "1.7.updated" : original.RimWorldVersion,
+                SchemaVersion = difference == "schema" ? original.SchemaVersion + 1 : original.SchemaVersion,
+                Mods = difference.Contains("files") ? new[] { original.Mods[0] with
+                { Files = new[] { original.Mods[0].Files[0] with { Sha256 = "updated" } } } } : original.Mods
+            };
+            var response = Response(original); response.CanOverrideCompatibilityBaseline = administrator;
+            var report = new ClientCompatibilityReport(response, Json(changed), null, f);
+            Check(report.RequiresManualUpdate && !report.CanApplyManifest && !report.CanApplyConfig && report.CanOverride == administrator,
+                "File/version update offered an ineffective mod-list repair or lost administrator recovery: " + difference);
+            changed = changed with { ConfigSha256 = "changed", DlcIds = new[] { "Ideology" } };
+            report = new ClientCompatibilityReport(response, Json(changed), null, f);
+            Check(report.RequiresManualUpdate && report.CanApplyManifest && report.CanApplyConfig && report.CanOverride == administrator,
+                "Mixed differences hid an applicable repair or the remaining manual update: " + difference);
+        }
+        foreach (string code in new[] { "RimWorldVersionMismatch", "SchemaVersionMismatch", "ProtocolVersionMismatch", "FutureCode" })
+        {
+            var response = Response(); response.CompatibilityIssues = new() { Issue(code) };
+            var report = new ClientCompatibilityReport(response, Json(original), null, f);
+            Check(!report.CanApplyManifest, "Fallback issue was mistaken for an applicable mod list: " + code);
+            Check(report.RequiresManualUpdate == (code != "FutureCode"), "Version/protocol fallback lost its manual update explanation.");
+        }
+        foreach (string code in new[] { "DlcListMismatch", "ModListMismatch", "ModOrderMismatch", "MissingMod", "UnexpectedMod" })
+        {
+            var response = Response(); response.CompatibilityIssues = new() { Issue(code) };
+            var report = new ClientCompatibilityReport(response, Json(original), null, f);
+            Check(report.CanApplyManifest, "Actionable mod selection no longer offers repair: " + code);
+            response.ServerCompatibilityManifestJson = null;
+            Check(!new ClientCompatibilityReport(response, Json(original), null, f).CanApplyManifest, "Repair offered without a server manifest.");
+        }
     }
     private static void Fallback()
     {
@@ -262,14 +300,14 @@ internal static class ClientCompatibilityMismatchTests
     {
         internal readonly ClientCompatibilityOverrideTests.Fixture Recovery = new();
         internal readonly ModLoginResponseDto Response;
-        internal string OriginalServer => Json(Manifest() with { SchemaVersion = 2, ConfigSha256 = "different" });
+        internal string OriginalServer => Json(Manifest() with { DlcIds = new[] { "Ideology" }, ConfigSha256 = "different" });
         internal int Accepted, Cancelled, Closed, Diagnostics;
         internal bool Caller = true;
         internal string[]? Order = new[] { " MOD.I_steam " };
         internal Action? OnText, OnApply, OnOrder, OnCurrent;
         internal readonly List<(ClientCompatibilityRepair Kind, string Manifest)> Repairs = new();
         internal Fixture()
-        { Recovery.Manifest = Json(Manifest()); Response = ClientCompatibilityMismatchTests.Response(Manifest() with { SchemaVersion = 2, ConfigSha256 = "different" }); }
+        { Recovery.Manifest = Json(Manifest()); Response = ClientCompatibilityMismatchTests.Response(Manifest() with { DlcIds = new[] { "Ideology" }, ConfigSha256 = "different" }); }
         internal void Language()
         { Response.Result!.Accepted = true; Response.CompatibilityIssues = new() { Issue("GameLanguageMismatch", "Warning"), Issue("AllowedPureTranslationMod", "Info") }; }
         internal ClientCompatibilityMismatch Create(bool accept = true) => new(Recovery.Session, Recovery.Ports, Recovery.Access,

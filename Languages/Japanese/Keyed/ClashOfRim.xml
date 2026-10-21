@@ -118,13 +118,13 @@
   <ClashOfRim.Compatibility.OverrideBaselineDesc>現在のクライアントのMOD一覧、ファイルハッシュ、設定ルールでサーバーのマニフェスト基準を置き換えます。全プレイヤーの今後の参加に影響するため、環境が正しいことを確認してから使用してください。</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>現在のクライアントMODリストまたは読み込み順がサーバー基線と一致しません。続行すると、サーバーはこのクライアントを新しい基線として使用します。ローカルのシングルプレイ用MODリストを読み込んでいないことを確認してください。</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>MOD {MODS} / ファイル {FILES} / 設定 {CONFIGS}</ClashOfRim.Compatibility.Summary>
-  <ClashOfRim.Compatibility.SummaryFilesManual>。ファイル差異は自動修正できません。MODを更新するかサーバー更新を待ってください。</ClashOfRim.Compatibility.SummaryFilesManual>
-  <ClashOfRim.Compatibility.SummaryAdminCanOverride>。サーバー更新後、新しいサーバーデータを保存できます。</ClashOfRim.Compatibility.SummaryAdminCanOverride>
+  <ClashOfRim.Compatibility.SummaryFilesManual>。バージョンやファイルの差異は設定の適用では解消できません。</ClashOfRim.Compatibility.SummaryFilesManual>
+  <ClashOfRim.Compatibility.SummaryAdminCanOverride>。管理者はこのクライアントの一覧でサーバー基準を上書きできます。</ClashOfRim.Compatibility.SummaryAdminCanOverride>
   <ClashOfRim.Compatibility.SummaryApplyServer>。サーバーMODリストを適用してください。</ClashOfRim.Compatibility.SummaryApplyServer>
   <ClashOfRim.Compatibility.ServerManifestLine>サーバーMODリスト: {ID}</ClashOfRim.Compatibility.ServerManifestLine>
   <ClashOfRim.Compatibility.LocalManifestLine>ローカルMODリスト: {ID}</ClashOfRim.Compatibility.LocalManifestLine>
-  <ClashOfRim.Compatibility.FileMismatchCannotApply>ファイル差異は自動修正できません。対応するMODを更新するか、管理者がサーバーデータを更新するのを待ってください。</ClashOfRim.Compatibility.FileMismatchCannotApply>
-  <ClashOfRim.Compatibility.ManifestApplyAllowed>MODリスト、読み込み順、DLC、ファイルが一致している場合、サーバーMODリストを適用してゲームを再起動できます。</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.FileMismatchCannotApply>設定の適用ではゲームのバージョンやMODファイルは変わりません。サーバー基準に合わせるか、管理者が更新内容を確認して基準を上書きしてください。</ClashOfRim.Compatibility.FileMismatchCannotApply>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>サーバーの有効MOD、読み込み順、設定を適用して再起動します。ゲームやMODファイルのダウンロード・置換は行いません。</ClashOfRim.Compatibility.ManifestApplyAllowed>
   <ClashOfRim.Compatibility.ServerColumn>サーバー</ClashOfRim.Compatibility.ServerColumn>
   <ClashOfRim.Compatibility.LocalColumn>ローカル</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>MODリストスキーマバージョン</ClashOfRim.Compatibility.SchemaVersion>

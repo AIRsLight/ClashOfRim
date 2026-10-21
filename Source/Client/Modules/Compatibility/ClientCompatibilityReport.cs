@@ -34,7 +34,7 @@ internal sealed class ClientCompatibilityReport
     internal bool ProtocolMismatch { get; }
     internal bool LanguageOnly { get; }
     internal bool CanOverride { get; }
-    internal bool OnlyFileMismatch { get; }
+    internal bool RequiresManualUpdate { get; }
     internal bool CanApplyManifest { get; }
     internal bool CanApplyConfig { get; }
     internal IReadOnlyList<UiDiffEntry> ManifestEntries { get; }
@@ -62,8 +62,8 @@ internal sealed class ClientCompatibilityReport
             || (!string.IsNullOrWhiteSpace(ServerProtocol) && ServerProtocol != LocalProtocol);
         LanguageOnly = CompatibilityLanguageMismatchPolicy.CanContinue(owned);
         CanOverride = owned.CanOverrideCompatibilityBaseline;
-        OnlyFileMismatch = !ProtocolMismatch && ManifestEntries.Count == 0 && ConfigEntries.Count == 0 && HashEntries.Count > 0;
-        CanApplyManifest = ManifestEntries.Count > 0 && !OnlyFileMismatch;
+        RequiresManualUpdate = ProtocolMismatch || HashEntries.Count > 0 || ManifestEntries.Any(entry => entry.RequiresManualUpdate);
+        CanApplyManifest = serverManifest is not null && ManifestEntries.Any(entry => entry.ModSelectionChange);
         CanApplyConfig = ConfigEntries.Count > 0 && serverManifest is not null;
     }
     private UiManifest? Read(string? json)
@@ -118,8 +118,8 @@ internal sealed class ClientCompatibilityReport
             return entries;
         }
 
-        AddScalar(entries, T("ClashOfRim.Compatibility.SchemaVersion"), server.SchemaVersion.ToString(), local.SchemaVersion.ToString());
-        AddScalar(entries, T("ClashOfRim.Compatibility.RimWorldVersion"), server.RimWorldVersion, local.RimWorldVersion);
+        AddScalar(entries, T("ClashOfRim.Compatibility.SchemaVersion"), server.SchemaVersion.ToString(), local.SchemaVersion.ToString(), requiresManualUpdate: true);
+        AddScalar(entries, T("ClashOfRim.Compatibility.RimWorldVersion"), server.RimWorldVersion, local.RimWorldVersion, requiresManualUpdate: true);
         AddSequence(entries, T("ClashOfRim.Compatibility.DlcList"), server.DlcIds, local.DlcIds);
 
         Dictionary<string, UiMod> localById = local.ModsById;
@@ -128,7 +128,7 @@ internal sealed class ClientCompatibilityReport
         {
             if (!localById.ContainsKey(NormalizeId(serverMod.PackageId)))
             {
-                entries.Add(new UiDiffEntry(UiDiffStatus.Missing, T("ClashOfRim.Compatibility.MissingRequiredMod"), DisplayModName(serverMod), serverMod.PackageId));
+                entries.Add(new UiDiffEntry(UiDiffStatus.Missing, T("ClashOfRim.Compatibility.MissingRequiredMod"), DisplayModName(serverMod), serverMod.PackageId, ModSelectionChange: true));
             }
         }
 
@@ -136,7 +136,7 @@ internal sealed class ClientCompatibilityReport
         {
             if (!serverById.ContainsKey(NormalizeId(localMod.PackageId)))
             {
-                entries.Add(new UiDiffEntry(UiDiffStatus.Added, T("ClashOfRim.Compatibility.UnexpectedLocalMod"), DisplayModName(localMod), localMod.PackageId));
+                entries.Add(new UiDiffEntry(UiDiffStatus.Added, T("ClashOfRim.Compatibility.UnexpectedLocalMod"), DisplayModName(localMod), localMod.PackageId, ModSelectionChange: true));
             }
         }
 
@@ -151,7 +151,7 @@ internal sealed class ClientCompatibilityReport
                     UiDiffStatus.Modified,
                     T("ClashOfRim.Compatibility.LoadOrderMismatch", ("INDEX", (i + 1))),
                     FormatServerLocal(serverId, localId),
-                    "mods"));
+                    "mods", ModSelectionChange: true));
             }
         }
 
@@ -365,7 +365,12 @@ internal sealed class ClientCompatibilityReport
                 LocalizeCode(issue.Code),
                 (string.IsNullOrWhiteSpace(issue.Subject) ? string.Empty : "[" + issue.Subject + "] ")
                 + (string.IsNullOrWhiteSpace(issue.Message) ? T("ClashOfRim.Compatibility.ServerIssueFallback") : issue.Message.Trim()),
-                issue.Subject));
+                issue.Subject,
+                ModSelectionChange: issue.Code is nameof(CompatibilityIssueCode.DlcListMismatch)
+                    or nameof(CompatibilityIssueCode.ModListMismatch) or nameof(CompatibilityIssueCode.ModOrderMismatch)
+                    or nameof(CompatibilityIssueCode.MissingMod) or nameof(CompatibilityIssueCode.UnexpectedMod),
+                RequiresManualUpdate: issue.Code is nameof(CompatibilityIssueCode.RimWorldVersionMismatch)
+                    or nameof(CompatibilityIssueCode.SchemaVersionMismatch)));
     }
 
     private void AppendUnrepresentedFallbackEntries(
@@ -412,7 +417,7 @@ internal sealed class ClientCompatibilityReport
         };
     }
 
-    private void AddScalar(List<UiDiffEntry> entries, string title, string server, string local)
+    private void AddScalar(List<UiDiffEntry> entries, string title, string server, string local, bool requiresManualUpdate = false)
     {
         if (!string.Equals(server ?? string.Empty, local ?? string.Empty, StringComparison.Ordinal))
         {
@@ -420,7 +425,7 @@ internal sealed class ClientCompatibilityReport
                 UiDiffStatus.Modified,
                 title,
                 FormatServerLocal(server ?? string.Empty, local ?? string.Empty),
-                title));
+                title, RequiresManualUpdate: requiresManualUpdate));
         }
     }
 
@@ -434,7 +439,7 @@ internal sealed class ClientCompatibilityReport
                 UiDiffStatus.Modified,
                 title,
                 FormatServerLocal(serverText, localText),
-                title));
+                title, ModSelectionChange: true));
         }
     }
 
@@ -513,7 +518,8 @@ internal sealed class ClientCompatibilityReport
 
     internal enum CompatibilityTab { Overview, Manifest, Hash, Config }
     internal enum UiDiffStatus { Match, Missing, Added, Modified }
-    internal sealed record UiDiffEntry(UiDiffStatus Status, string Title, string Detail, string? Subject);
+    internal sealed record UiDiffEntry(UiDiffStatus Status, string Title, string Detail, string? Subject,
+        bool ModSelectionChange = false, bool RequiresManualUpdate = false);
     internal sealed record ModRow(string PackageId, string Name, UiDiffStatus Status);
 
     [DataContract]
