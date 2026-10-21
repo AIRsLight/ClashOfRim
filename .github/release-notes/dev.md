@@ -2,6 +2,14 @@
 
 ## Current development changes
 
+### 0.4.2 testing update
+
+- **Neutral colony observation:** observing a neutral colony preserves its diplomatic relationship and neutral pawn behavior. Scout maps still hide traps and apply fog of war; player-list synchronization no longer produces a spurious relationship recovery notice.
+- **Compatibility update recovery:** administrators can replace the server compatibility baseline after a game or mod update even when world entry is rejected. Update both the client and server to receive this fix.
+- **Actionable compatibility controls:** game/mod version and file differences no longer offer an ineffective mod-list application. Actual mod selection and configuration differences retain their applicable recovery actions, with manual updates explained separately.
+- **Temporary configuration application:** the configuration overlay is now labeled **Apply temporarily** (Chinese: **临时套用**) across all five supported languages. Descriptions clarify that this preserves local configuration files and requires a restart.
+- **First-colony startup investigation:** repeated new-world tests with the supplied mod list, Miho single-pawn scenario and fixed custom ideology did not reproduce the reported missing multiplayer controls. That issue remains under observation and is not claimed as fixed in this build.
+
 ### 0.4.1 testing update
 
 - **Remote pocket maps:** entering a portal loads the defender's saved submap on demand, including nested maps. Supported unopened portals can generate an isolated attacker-side map; unsupported entries are blocked. Session cleanup and raid losses include units in loaded submaps.
@@ -18,7 +26,7 @@
 
 - **Authoritative world baseline:** new players receive the server's complete world substrate, preventing divergent world generation when all players use the same baseline.
 - **Storyteller and difficulty synchronization:** server storyteller, custom difficulty, and threat-scale settings are now enforced after snapshot loading, lightweight world refreshes, and live baseline updates.
-- **Compatibility and configuration:** registered mod settings are checked consistently; configuration differences are shown separately from file differences. You can either use a server-scoped configuration overlay or write the server configuration into local `Config` files before restarting.
+- **Compatibility and configuration:** registered mod settings are checked consistently; configuration differences are shown separately from file differences. You can either temporarily apply the server configuration while preserving local files or write it into local `Config` files before restarting.
 - **Multiplayer session startup:** new colonies now release the world-entry gate before map play begins, allowing automatic login and the initial snapshot upload to start normally.
 - **Snapshot and remote-world reliability:** improved snapshot metadata, remote map projection, player colony/site handling, and stale session cleanup.
 - **Trading and transfers:** expanded support for stateful items, animals, mechanoids, pawn-related payloads, and best-effort fallback data for unsupported item state.
