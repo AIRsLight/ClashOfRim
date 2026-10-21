@@ -19,6 +19,7 @@ internal static class SnapshotPackagePresentationTests
             prefix: new HarmonyMethod(typeof(SnapshotPackagePresentationTests), nameof(Translate)));
         try
         {
+            LineageCompletion();
             var cases = new[]
             {
                 (Data: SnapshotPackageModuleTests.Save(), Owner: "", Error: SnapshotPackageError.MissingIdentity),
@@ -67,6 +68,28 @@ internal static class SnapshotPackagePresentationTests
                 "Capture failure was reclassified as a package failure.");
         }
         finally { harmony.UnpatchAll(harmony.Id); Translations.Clear(); }
+    }
+
+    private static void LineageCompletion()
+    {
+        var input = SnapshotPackageModuleTests.Save();
+        byte[] correct = SnapshotSaveSanitizer.EnsureLineageMarker(input, "saved<&>", "token<&>");
+        Require(ReferenceEquals(correct, SnapshotSaveSanitizer.EnsureLineageMarker(correct, "saved<&>", "token<&>")),
+            "Already-correct lineage rewrote the full save.");
+        byte[] changed = SnapshotSaveSanitizer.EnsureLineageMarker(correct, "advanced", "new-token");
+        Require(!ReferenceEquals(correct, changed) && ReferenceEquals(changed, SnapshotSaveSanitizer.EnsureLineageMarker(changed, "advanced", "new-token")),
+            "Changed lineage was skipped or failed to become stable.");
+        int completions = 0;
+        var capture = new SnapshotSaveCapture(correct, null, Array.Empty<ModSnapshotAchievementCandidateDto>(), CompleteSave: bytes =>
+        { completions++; return SnapshotSaveSanitizer.EnsureLineageMarker(bytes, "captured", "captured-token"); });
+        Require(completions == 0, "Capture executed deferred save completion.");
+        var build = ClientSnapshotPreparation.Build(capture, "owner", "colony");
+        Require(build.Success && completions == 1 && build.Package!.PreviousSnapshotId == "captured" && build.Package.LineageToken == "captured-token",
+            "Packaging did not use the captured lineage before computing package metadata.");
+        var failure = ClientSnapshotPreparation.Build(capture with { CompleteSave = _ => throw new InvalidOperationException("completion fault") }, "owner", "colony");
+        Require(!failure.Success && failure.ErrorCode == "SaveCompletionFailed", "Completion failure did not stop packaging.");
+        byte[] nested = Encoding.UTF8.GetBytes("<savegame><game><maps><li><components><li Class='AIRsLight.ClashOfRim.ClashOfRimGameComponent'><clashOfRimLineageSnapshotId>decoy</clashOfRimLineageSnapshotId><clashOfRimLineageToken>token</clashOfRimLineageToken></li></components></li></maps></game></savegame>");
+        Require(!ReferenceEquals(nested, SnapshotSaveSanitizer.EnsureLineageMarker(nested, "decoy", "token")), "Nested map component bypassed game-lineage repair.");
     }
 
     private static bool Translate(string key, ref string __result)

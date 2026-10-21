@@ -42,6 +42,11 @@ internal sealed class ClientSnapshotPreparation
         if (capture.Failure is { } failure)
             return ModSnapshotPackageBuildResult.Failed(failure.Code, failure.Message ?? failure.Code);
         byte[] saveBytes = capture.SaveBytes ?? Array.Empty<byte>();
+        // Completion only receives captured bytes/values. It must never read live
+        // game state; ordinary uploads execute this with background packaging.
+        try { if (capture.CompleteSave is { } complete) saveBytes = complete(saveBytes); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { return ModSnapshotPackageBuildResult.Failed("SaveCompletionFailed", $"{ex.GetType().Name} {ex.Message}"); }
         // An invalid XML payload remains intact; the builder returns the structured parse failure.
         if (submittedAchievements is { Count: > 0 }) saveBytes = ClientSnapshotSaveData.RemovePendingAchievementQueue(saveBytes, out _);
         var build = ClientSnapshotPackageBuilder.FromSaveBytes(saveBytes, "memory", ownerId, colonyId, DateTime.UtcNow);

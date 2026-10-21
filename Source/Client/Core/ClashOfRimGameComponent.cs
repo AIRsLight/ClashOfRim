@@ -246,12 +246,9 @@ public sealed class ClashOfRimGameComponent : GameComponent
         component.lineageToken = token ?? string.Empty;
     }
 
-    internal static bool TrySaveCurrentGameToBytes(out byte[] saveBytes, out string failureReason)
-    {
-        return TrySaveCurrentGameToBytes(removeRaidBattleSessions: false, out saveBytes, out failureReason);
-    }
-
-    internal static bool TrySaveCurrentGameToBytes(
+    // Scribe, identity capture and compatibility callbacks retain game-thread
+    // ordering. Pure lineage verification is deferred by the upload adapter.
+    internal static bool TryCaptureCurrentGameToBytes(
         bool removeRaidBattleSessions,
         out byte[] saveBytes,
         out string failureReason)
@@ -310,9 +307,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
                 saveBytes,
                 out _,
                 removeRaidBattleSessions);
-            (string snapshotId, string token) = CopySnapshotLineage();
-            saveBytes = SnapshotSaveSanitizer.EnsureLineageMarker(saveBytes, snapshotId, token);
-
             return true;
         }
         catch (Exception ex)

@@ -107,6 +107,9 @@ public static class SnapshotSaveSanitizer
         XDocument document;
         try
         {
+            // Native ExposeData normally wrote the correct lineage already.
+            // Inspect only the component; do not construct/rewrite the entire save.
+            if (HasLineageMarker(saveBytes, snapshotId!, lineageToken ?? string.Empty)) return saveBytes;
             using var source = new MemoryStream(saveBytes);
             using XmlReader reader = XmlReader.Create(source, new XmlReaderSettings
             {
@@ -151,6 +154,40 @@ public static class SnapshotSaveSanitizer
         }
 
         return target.ToArray();
+    }
+
+    private static bool HasLineageMarker(byte[] bytes, string snapshot, string token)
+    {
+        using var source = new MemoryStream(bytes);
+        using var reader = XmlReader.Create(source, new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit });
+        if (reader.MoveToContent() != XmlNodeType.Element || reader.Name != "savegame"
+            || !Child("game") || !Child("components") || reader.IsEmptyElement) return false;
+        int depth = reader.Depth + 1;
+        reader.ReadStartElement();
+        while (reader.MoveToContent() == XmlNodeType.Element && reader.Depth == depth)
+        {
+            if (reader.Name == "li" && reader.GetAttribute("Class")?.IndexOf("AIRsLight.ClashOfRim.ClashOfRimGameComponent", StringComparison.Ordinal) >= 0)
+            {
+                var component = (XElement)XNode.ReadFrom(reader);
+                return component.Element("clashOfRimLineageSnapshotId")?.Value == snapshot
+                    && component.Element("clashOfRimLineageToken")?.Value == token;
+            }
+            reader.Skip();
+        }
+        return false;
+
+        bool Child(string name)
+        {
+            if (reader.IsEmptyElement) return false;
+            int childDepth = reader.Depth + 1;
+            reader.ReadStartElement();
+            while (reader.MoveToContent() == XmlNodeType.Element && reader.Depth == childDepth)
+            {
+                if (reader.Name == name) return true;
+                reader.Skip();
+            }
+            return false;
+        }
     }
 
     public static byte[] RemovePendingAchievementQueue(byte[] saveBytes)

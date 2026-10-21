@@ -51,10 +51,12 @@ internal sealed class ClientSnapshotGame : IClientSnapshotGame
         public string RuntimeSnapshotId => ClashOfRimGameComponent.CopySnapshotLineage().SnapshotId;
         public SnapshotSaveCapture Capture(bool removeRaidBattleSessions)
         {
-            if (!ClashOfRimGameComponent.TrySaveCurrentGameToBytes(removeRaidBattleSessions, out byte[] saveBytes, out string reason))
+            if (!ClashOfRimGameComponent.TryCaptureCurrentGameToBytes(removeRaidBattleSessions, out byte[] saveBytes, out string reason))
                 return new(null, null, Array.Empty<ModSnapshotAchievementCandidateDto>(),
                     new("SaveToMemoryFailed", reason, SnapshotUploadMessage.SaveFailed));
-            return new(saveBytes, SnapshotDefenderThreatPointsCapture.TryCapture(), ClashOfRimGameComponent.CopyPendingAchievementCandidates());
+            var lineage = ClashOfRimGameComponent.CopySnapshotLineage();
+            return new(saveBytes, SnapshotDefenderThreatPointsCapture.TryCapture(), ClashOfRimGameComponent.CopyPendingAchievementCandidates(),
+                CompleteSave: bytes => SnapshotSaveSanitizer.EnsureLineageMarker(bytes, lineage.SnapshotId, lineage.Token));
         }
         public void Publish(string snapshotId, string? lineageToken, IReadOnlyList<ModSnapshotAchievementCandidateDto> achievements)
         {

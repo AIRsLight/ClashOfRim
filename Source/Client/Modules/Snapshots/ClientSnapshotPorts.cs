@@ -39,7 +39,8 @@ internal interface IClientSnapshotTransport
 }
 
 internal sealed record SnapshotSaveCapture(byte[]? SaveBytes, float? DefenderThreatPoints,
-    IReadOnlyList<ModSnapshotAchievementCandidateDto> Achievements, SnapshotUploadFailure? Failure = null);
+    IReadOnlyList<ModSnapshotAchievementCandidateDto> Achievements, SnapshotUploadFailure? Failure = null,
+    Func<byte[], byte[]>? CompleteSave = null);
 internal sealed record SnapshotUploadFailure(string Code, string? Message, SnapshotUploadMessage Fallback,
     string? ExpectedSnapshot = null, string? RuntimeSnapshot = null, SnapshotPackageError? PackageError = null)
 {

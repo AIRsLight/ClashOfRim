@@ -24,7 +24,7 @@ internal static class LocalMutationContinuationTests
         var harmony = new Harmony("ClashOfRim.Tests.LocalMutationContinuation");
         harmony.Patch(typeof(ClashOfRimText).GetMethod("Key", BindingFlags.Static | BindingFlags.NonPublic, null,
             new[] { typeof(string), typeof(NamedArgument[]) }, null), prefix: new HarmonyMethod(typeof(LocalMutationContinuationTests), nameof(Translate)));
-        harmony.Patch(AccessTools.Method(typeof(ClashOfRimGameComponent), "TrySaveCurrentGameToBytes",
+        harmony.Patch(AccessTools.Method(typeof(ClashOfRimGameComponent), "TryCaptureCurrentGameToBytes",
             new[] { typeof(bool), typeof(byte[]).MakeByRefType(), typeof(string).MakeByRefType() }),
             prefix: new HarmonyMethod(typeof(LocalMutationContinuationTests), nameof(FailSave)));
         harmony.Patch(AccessTools.Method(typeof(ClientSnapshotFailureView), nameof(ClientSnapshotFailureView.Show)),
