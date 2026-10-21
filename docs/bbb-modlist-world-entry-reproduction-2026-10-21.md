@@ -11,6 +11,7 @@
 - 主客户端、第三方兼容包来自已发布 `0.4.1-dev.76e4c0c4` 的下载产物。主程序集 SHA-256：`D0CF7AAE61A5D8FB4083D02498AA66E6B8F9A056C461C94A8CC108130ACC1EC9`。没有使用工作区尚未提交的 `GameComponentUpdate` 自动启动改动。
 - 服务端使用此前隔离的源码副本，通过正常 `ClashOfRimNetworkServer.Build` 启动；第三方服务端插件取自对应发布包。使用 loopback HTTP，无人为网络延迟或登录成功注入。
 - 简体中文 `ChineseSimplified (简体中文)`，区域 `zh-CN`；默认 Crashlanded、Cassandra/Peaceful、30% 世界覆盖率。三轮种子分别为 `bbb new colony 1/2/3`。
+- 理念文化模式为**经典**：测试在 `Page_ChooseIdeoPreset` 沿默认选择继续，未进入固定自定义文化编辑流程。用户追问后解包核对三轮首次服务器快照，存档中的 `hiddenIdeoMode` 均为 `True`。这三轮不覆盖固定自定义或流变文化开局。
 - 每轮独立启动游戏，使用全新 profile、服务端数据目录和账号；模组设置为新 profile 默认值，未复制用户个人模组设置、存档或账号。
 - 图形模式隐藏窗口，`headless=false`，`DOTNET_PROCESSOR_COUNT=4`。通过真实产品入口和原版页面回调操作；按钮检查读取实际 `MainButtonWorker.Visible`，没有做鼠标点击或像素级菜单布局验收。
 
