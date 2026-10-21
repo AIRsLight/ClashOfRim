@@ -83,6 +83,15 @@ internal sealed class ClientColonyRegistration
     }
     internal Task StartAsync(ClientColonyRegistrationKind kind, ModColonyAppearanceDto? appearance = null)
         => StartAsync(kind, appearance, pollOnly: false);
+    // A combined followup captures extensions once. If sites are unavailable
+    // (for example during relocation), their gate must not suppress extensions.
+    internal Task StartCatalogAsync(ModColonyAppearanceDto? appearance = null)
+    {
+        using var publication = ClientSessionWork.EnterPublication();
+        var scope = requests.Capture();
+        var kind = Eligible(ClientColonyRegistrationKind.Sites, scope) ? ClientColonyRegistrationKind.Sites : ClientColonyRegistrationKind.Extensions;
+        return requests.TryApply(scope, static () => { }) ? StartAsync(kind, appearance) : Task.CompletedTask;
+    }
     private Task StartAsync(ClientColonyRegistrationKind kind, ModColonyAppearanceDto? appearance, bool pollOnly)
     {
         using var publication = ClientSessionWork.EnterPublication();

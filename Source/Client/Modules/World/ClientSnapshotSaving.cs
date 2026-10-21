@@ -150,8 +150,7 @@ internal sealed class ClientSnapshotSaving
                     { Step(() => _ = registration.RequestAsync(ClientColonyRegistrationKind.Extensions, message)); return; }
                     ModColonyAppearanceDto? captured = null;
                     if (!Step(() => captured = appearance.Capture())) return;
-                    Step(() => _ = registration.StartAsync(ClientColonyRegistrationKind.Sites, captured));
-                    if (!Step(() => _ = registration.StartAsync(ClientColonyRegistrationKind.Extensions))) return;
+                    if (!Step(() => _ = registration.StartCatalogAsync(captured))) return;
                     if (kind == ClientSnapshotSaveKind.Menu && onSavedExit is not null && Current())
                     {
                         var exit = session.EndOwned(request.Scope.Owner, session.ReadContext(), requireSnapshot: true, sendLogout: true);

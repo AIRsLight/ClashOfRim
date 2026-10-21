@@ -19,7 +19,7 @@ internal static class ClientColonyRegistrationTests
         var culture = CultureInfo.CurrentCulture; scenarios = 0;
         try
         {
-            await PeriodicSites();
+            await PeriodicSites(); await CombinedCatalog();
             foreach (string name in new[] { "en-US", "zh-CN", "fr-FR", "tr-TR" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name); Signatures();
@@ -37,6 +37,18 @@ internal static class ClientColonyRegistrationTests
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
     }
     private static readonly string[] Changes = { "user", "auth", "server", "colony", "login", "generation", "world-id", "game", "world", "reset", "unavailable", "snapshot" };
+    private static async Task CombinedCatalog()
+    {
+        foreach (bool suppressed in new[] { false, true })
+        {
+            var f = new Fixture(); int captures = 0;
+            f.Registration.Suppressed = suppressed;
+            f.Once("extensions", () => captures++);
+            await f.Ports.PumpUntil(f.Registration.StartCatalogAsync());
+            Check(captures == 1 && f.Calls.Count == 1 && f.Calls[0].Extensions.Length == 1 && f.Calls[0].Sites.Length == (suppressed ? 0 : 1),
+                "Combined save followup duplicated collection or lost the extension-only fallback."); scenarios++;
+        }
+    }
     private static async Task PeriodicSites()
     {
         var f = new Fixture(); int captures = 0, extensionCaptures = 0;

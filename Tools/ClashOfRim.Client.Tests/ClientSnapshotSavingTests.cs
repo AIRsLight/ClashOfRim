@@ -27,7 +27,7 @@ internal static class ClientSnapshotSavingTests
                 {
                     using (var f = new Fixture())
                     {
-                        await f.Run(kind); await f.Registrations(kind == ClientSnapshotSaveKind.Manual ? 1 : 2);
+                        await f.Run(kind); await f.Registrations(1);
                         Require(f.Uploads == 1 && f.Ports.Published == 1 && f.Ports.GamePublished == 1 && f.Ports.Snapshot == "saved" && !f.Sync.IsBusy, "Save did not publish/release once.");
                         Require(f.UploadKind == (kind == ClientSnapshotSaveKind.Autosave ? ModSnapshotUploadKinds.AutoSave : ModSnapshotUploadKinds.ManualUpload)
                             && f.Ports.CaptureModes.SequenceEqual(new[] { false }), "Save changed upload kind or removed raid state.");
