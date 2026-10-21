@@ -74,3 +74,36 @@
 最终额外校验三份报告、实际模组顺序、九份阶段状态以及重进前后的快照一致性，结果写入 `validated-summary.json`。本轮启动的所有游戏测试进程均已停止；未运行全量业务回归。
 
 本地复跑脚本为 `LocalOnly/Run-BbbEntryProbe.ps1`，探针源码为 `LocalOnly/third-party-review-clean/Tools/ClashOfRim.GameTests/InitialWorldEntryProbe.cs`。复制的模组输入位于证据根目录的 `ModInputs`。这些本地材料、游戏资源、日志、存档和二进制不纳入 Git。隔离游戏目录含资源 junction，不应递归删除。
+
+## 补测：Miho 单人剧本与固定自定义文化
+
+用户补充实际使用固定自定义文化和 Miho 单人剧本后，按该组合重新测试。沿用上述冻结的 117 项模组及加载顺序、全部五个 DLC、简体中文、已发布客户端和独立本地服务端；未将工作区未提交的自动入服改动带入游戏。三轮分别新建 profile、世界及服务端数据，逐轮运行，种子仍为 `bbb new colony 1/2/3`。
+
+本轮明确选择 `Miho_Start`（汉化名称“美狐族冒险者”），玩家阵营 `Miho_PlayerColony`，一名 `Alien_Miho` / `Miho_PlayerColonist`。文化经过原版 `CustomFixed`、`Page_ConfigureIdeo`、结构和模因对话框，再由原版校验与确认回调完成创建；没有直接替换落地后的文化或手动启动多人会话。测试适配器只选择当前页面的输入，后续流程仍运行游戏及模组原有代码。
+
+用户尚未提供具体模因或保存的文化预设，因此本轮采用新建的“泛灵论（`Structure_Animist`）＋个人主义（`Individualist`）”，其余信条由原版初始化。结果覆盖这一固定自定义组合，不等于覆盖用户的完整文化配置或所有模因组合。
+
+### 补测结果
+
+**三轮有效独立开局均通过，9/9 个阶段成功，仍未复现落地后持续缺少多人按钮的问题。**
+
+| 种子后缀 | 首次入服 | 继续 1200 ticks | 退出重进 | 落地可操作至会话与快照就绪 |
+| --- | --- | --- | --- | --- |
+| 1 | 通过 | 通过 | 通过 | 2.536 秒 |
+| 2 | 通过 | 通过 | 通过 | 2.591 秒 |
+| 3 | 通过 | 通过 | 通过 | 2.078 秒 |
+
+计时仍为轨迹采样间隔，包含原版落地叙述确认。三轮有效目录分别为 `20261021-041115-1-release-miho-fixed`、`20261021-041253-2-release-miho-fixed`、`20261021-041433-3-release-miho-fixed`；原始失败尝试未计入。三个游戏测试进程均已按各自 manifest 停止。
+
+每个阶段独立核验实际多人按钮可见、会话有效、快照非空、服务端世界已保存和玩家在线；同时检查单名美狐、固定文化模式、文化与 pawn 的关联。另行解包服务端的 `CORSPKG1` 快照，对照玩家初始文化的名字、模因、`hiddenIdeoMode=false`、`fluid=false`（保存格式可省略默认 false 字段）。退出重进前后的快照 ID、pawn ID 和文化名字必须相同。
+
+### 证据与限制
+
+- 证据根目录仍为 `G:/RimTestRuns/bbb-world-entry-2026-10-21/`，补测目录后缀为 `release-miho-fixed`；阶段 JSON 新增 `configuration`，记录实际剧本、阵营、文化和殖民者。
+- 复跑：`LocalOnly/Run-BbbEntryProbe.ps1 -Attempt 1 -MihoFixedIdeology`（后两轮使用 2、3）；独立校验脚本为 `LocalOnly/Validate-MihoFixedProbe.py`，汇总为 `miho-fixed-validated-summary.json`。探针源码副本保留在证据根目录的 `MihoFixedProbeSources/`。
+- 首次适配器尝试 `20261021-040834-1-release-miho-fixed` 错把模因定义名写为 `Animist`，在文化编辑页失败、尚未生成殖民地。修正为资源中的 `Structure_Animist` 后重新开局；该尝试保留失败报告及 `harness-aborted.txt`，不计入有效轮次，也不归因于产品。
+- 针对本机游戏程序集的 REA 身份证据为 `ev_6fc529c145774af2271351edd8953f176ef7f659cff6b896f9185ac078a41332`，SHA-256 `EFF7D97949F919FB2B151EBFB906E9BE749B63410B7DBDA78EEEBB7972B245C3`。REA 元数据解析受表示预算限制，原版文化对话框行为另用本机 ILSpy 对该程序集的单个类型核对，并以实机结果验证；未将反编译源码提交。
+- 仍存在此前记录的第三方纹理及 Harmony 初始化报错。第二轮另记录 `RemoteRepairerImplant has null Part`、重进时 `Hediff_Level has null part after loading`；本轮入服判据通过不能视作这些身体部位/植入物错误已修复。
+- 本机仍为 `1.7.4980 rev60`，与列表记录的 `1.7.4982 rev1280` 不同；也未复制用户个人模组设置或远程网络条件。本轮仅补测该开局组合，没有运行全量业务回归或修改产品启动逻辑。
+
+本轮结论是补上了固定自定义文化与 Miho 单人剧本的覆盖，不能据三次成功否定用户现场日志所反映的故障。原始问题仍保持“未复现、根因未确认”，后续需要结合发生故障那次的客户端状态/日志继续定位。
