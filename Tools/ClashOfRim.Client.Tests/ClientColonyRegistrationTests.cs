@@ -39,21 +39,30 @@ internal static class ClientColonyRegistrationTests
     private static readonly string[] Changes = { "user", "auth", "server", "colony", "login", "generation", "world-id", "game", "world", "reset", "unavailable", "snapshot" };
     private static async Task PeriodicSites()
     {
-        var f = new Fixture(); int captures = 0;
+        var f = new Fixture(); int captures = 0, extensionCaptures = 0;
+        f.Once("extensions", () => extensionCaptures++);
         ModColonyAppearanceDto Appearance() { captures++; return new() { ColorHex = "123abc" }; }
         Task Poll(int ticks) => f.Ports.PumpUntil(f.Registration.PollSitesAsync(ticks, Appearance));
         await Poll(0); await Poll(0); await Poll(9999);
         Check(captures == 1 && f.Calls.Count == 1 && f.CapturedAppearance?.ColorHex == "123abc", "Site polling lost its immediate/10000-tick cadence or appearance.");
-        Check(f.Calls[0].Extensions.Length == 0 && f.Projects == 0, "Location polling collected or applied the full extension catalog.");
+        Check(extensionCaptures == 0 && f.Calls[0].Extensions.Length == 0 && f.Projects == 0, "Location polling collected or applied the full extension catalog.");
         await Poll(10000); Check(captures == 2 && f.Calls.Count == 1, "Periodic unchanged sites bypassed accepted-signature deduplication.");
         f.Sites[0].Label = "changed"; await Poll(20000);
         Check(captures == 3 && f.Calls.Count == 2, "Periodic changed sites were skipped.");
         await f.Ports.PumpUntil(f.Registration.RequestAsync(ClientColonyRegistrationKind.Sites, "explicit"));
         Check(f.Calls.Count == 3, "Periodic cadence throttled an explicit registration event.");
-        Check(f.Calls[2].Extensions.Length == 1 && f.Projects == 1, "Explicit registration no longer refreshed live extensions after a location-only receipt.");
+        Check(extensionCaptures == 1 && f.Calls[2].Extensions.Length == 1 && f.Projects == 1, "Explicit registration no longer refreshed live extensions after a location-only receipt.");
         await Poll(29999); Check(captures == 3, "Explicit registration reset the polling deadline.");
         f.Sites[0].Label = "failed"; f.Fault = "http"; await Poll(30000); f.Fault = null; await Poll(40000);
         Check(f.Calls.Count == 5, "Periodic failure consumed the changed-site signature."); scenarios++;
+
+        var busy = new Fixture { Hold = NewSignal() };
+        Task poll = busy.Registration.PollSitesAsync(0, () => null);
+        await busy.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await busy.Ports.PumpUntil(busy.Registration.RequestAsync(ClientColonyRegistrationKind.Sites, "changed during poll"));
+        busy.Hold.SetResult(); await busy.Ports.PumpUntil(poll);
+        Check(busy.Calls.Count == 2 && busy.Calls[0].Extensions.Length == 0 && busy.Calls[1].Extensions.Length == 1,
+            "An in-flight periodic poll downgraded the pending explicit registration."); scenarios++;
 
         foreach (string change in Changes)
         {
