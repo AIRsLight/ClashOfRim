@@ -21,7 +21,7 @@ public sealed class ServerShopListingDialogWindow : Window
     private float editorContentHeight;
     private float labelWidth;
     private float FieldX => labelWidth + 10f;
-    private static readonly string[] FieldLabels = { "Kind", "DemandShort", "StockShort", "ItemCount", "UnitPayout", "UnitPrice",
+    private static readonly string[] FieldLabels = { "Kind", "DemandShort", "StockShort", "ItemCount", "UnitPayout", "UnitPrice", "LotPrice", "LotPayout",
         "PriceIncreaseRatio", "VanillaMarketValue", "Stuff", "Quality", "QualityRequirement", "HitPoints", "HitPointsRequirement" };
     private string searchText = string.Empty;
 
@@ -144,7 +144,11 @@ public sealed class ServerShopListingDialogWindow : Window
         editor.Refresh();
         y += 36f;
         Widgets.Label(new Rect(inner.x, y, labelWidth, 24f), ClashOfRimText.Key(editor.IsBuyOrder ? "ClashOfRim.Shop.UnitPayout" : "ClashOfRim.Shop.UnitPrice"));
-        editor.SetPrice(Widgets.TextField(new Rect(inner.x + FieldX, y, inner.width - FieldX, 26f), editor.PriceText));
+        editor.SetUnitPrice(Widgets.TextField(new Rect(inner.x + FieldX, y, inner.width - FieldX, 26f), editor.UnitPriceText));
+        y += 34f;
+        Widgets.Label(new Rect(inner.x, y, labelWidth, 24f), ClashOfRimText.Key(editor.IsBuyOrder ? "ClashOfRim.Shop.LotPayout" : "ClashOfRim.Shop.LotPrice"));
+        Widgets.Label(new Rect(inner.x + FieldX, y, inner.width - FieldX, 24f), editor.LotPrice?.ToString() ?? "—");
+        TooltipHandler.TipRegion(new Rect(inner.x, y, inner.width, 28f), ClashOfRimText.Key("ClashOfRim.Shop.LotPriceDesc"));
         y += 34f;
         Widgets.Label(new Rect(inner.x, y, labelWidth, 24f), ClashOfRimText.Key("ClashOfRim.Shop.PriceIncreaseRatio"));
         editor.RatioText = Widgets.TextField(new Rect(inner.x + FieldX, y, inner.width - FieldX, 26f), editor.RatioText);

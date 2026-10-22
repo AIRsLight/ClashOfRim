@@ -5,7 +5,7 @@ namespace AIRsLight.ClashOfRim.Modules.Shop;
 
 internal sealed record ClientShopDefinition(string DefName, string Label);
 internal sealed record ClientShopItemFeatures(bool Stuff, bool Quality, bool HitPoints, int HitPointsPercent);
-internal sealed record ClientShopItemValue(int SuggestedPrice, string UnitLabel);
+internal sealed record ClientShopItemValue(float UnitPrice, string UnitLabel);
 
 internal interface IClientShopListingRuntime
 {

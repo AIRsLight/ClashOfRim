@@ -98,25 +98,29 @@ internal sealed class ClientAdminShopPanel
 
     internal sealed class Row
     {
+        private readonly CultureInfo inputCulture = CultureInfo.CurrentCulture;
         internal ModServerShopListingDto Listing { get; set; }
         internal string Signature { get; }
         internal string StockText { get; set; }
-        internal string PriceText { get; set; }
+        internal string UnitPriceText { get; set; }
+        internal int? LotPrice => TryLotPrice(out int price) ? price : null;
         internal Row(ModServerShopListingDto listing, string signature)
         {
             Listing = listing; Signature = signature;
             StockText = listing.StockCount.ToString(CultureInfo.InvariantCulture);
-            PriceText = ClientShopRules.BasePrice(listing).ToString(CultureInfo.InvariantCulture);
+            UnitPriceText = ClientShopRules.UnitPriceText(listing);
         }
         internal bool TryBuild(out ClientShopListingEdit? edit)
         {
             edit = null;
             if (Listing.Item is null || !PanelNumberInput.TryInt(StockText, out int stock) || stock < 0
-                || !PanelNumberInput.TryInt(PriceText, out int price) || price < 1) return false;
+                || !TryLotPrice(out int price)) return false;
             edit = new(Listing.ListingId, Listing.ListingKind, Listing.Item, price, stock,
                 Listing.PriceIncreaseRatio, Listing.QualityRequirementMode, Listing.HitPointsRequirementMode);
             return true;
         }
+        private bool TryLotPrice(out int price) => ClientShopRules.TryLotPrice(
+            UnitPriceText, Listing.Item?.StackCount ?? 0, inputCulture, out price);
     }
 
     internal sealed class Edit

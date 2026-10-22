@@ -8,7 +8,6 @@ using AIRsLight.ClashOfRim.Modules.Shop;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
 using RimWorld;
-using UnityEngine;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.ServerShop;
@@ -90,6 +89,6 @@ internal sealed class ClientShopListingRuntime : IClientShopListingRuntime
         TradeUiUtility.HitPointsFromPercent(TradeThingReferenceUtility.ResolveReferenceDef(item)!, percent);
     public IReadOnlyList<string> ValueKeyParts(ModThingReferenceDto item) => ClashOfRimCompatibilityApi.ThingReferenceCacheKeyParts(item).ToList();
     public ClientShopItemValue Estimate(ModThingReferenceDto item) => TradeUiUtility.TryEstimateUnitMarketValue(item, out float unitValue)
-        ? new(Mathf.RoundToInt(unitValue * Math.Max(1, item.StackCount)), TradeUiUtility.FormatMarketValue(unitValue))
+        ? new(unitValue, TradeUiUtility.FormatMarketValue(unitValue))
         : new(0, ClashOfRimText.Key("ClashOfRim.Unknown"));
 }

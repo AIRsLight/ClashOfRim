@@ -1801,8 +1801,8 @@
   <ClashOfRim.Shop.NoListings>No shop listings.</ClashOfRim.Shop.NoListings>
   <ClashOfRim.Shop.Stock>Stock left: {COUNT} lots</ClashOfRim.Shop.Stock>
   <ClashOfRim.Shop.Demand>Buying left: {COUNT} lots</ClashOfRim.Shop.Demand>
-  <ClashOfRim.Shop.Price>Price {PRICE}</ClashOfRim.Shop.Price>
-  <ClashOfRim.Shop.Payout>Payout {PRICE}</ClashOfRim.Shop.Payout>
+  <ClashOfRim.Shop.Price>Price/lot {PRICE}</ClashOfRim.Shop.Price>
+  <ClashOfRim.Shop.Payout>Payout/lot {PRICE}</ClashOfRim.Shop.Payout>
   <ClashOfRim.Shop.BuyCount>Count</ClashOfRim.Shop.BuyCount>
   <ClashOfRim.Shop.SellCount>Count</ClashOfRim.Shop.SellCount>
   <ClashOfRim.Shop.TotalPrice>Total &lt;color=#d7dadb&gt;{PRICE} silver&lt;/color&gt;</ClashOfRim.Shop.TotalPrice>
@@ -1823,10 +1823,13 @@
   <ClashOfRim.Shop.KindBuy>Buying</ClashOfRim.Shop.KindBuy>
   <ClashOfRim.Shop.StockShort>Stock</ClashOfRim.Shop.StockShort>
   <ClashOfRim.Shop.DemandShort>Demand</ClashOfRim.Shop.DemandShort>
-  <ClashOfRim.Shop.PriceShort>Price</ClashOfRim.Shop.PriceShort>
-  <ClashOfRim.Shop.PayoutShort>Payout</ClashOfRim.Shop.PayoutShort>
-  <ClashOfRim.Shop.UnitPrice>Price</ClashOfRim.Shop.UnitPrice>
-  <ClashOfRim.Shop.UnitPayout>Payout</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.PriceShort>Each</ClashOfRim.Shop.PriceShort>
+  <ClashOfRim.Shop.PayoutShort>Each</ClashOfRim.Shop.PayoutShort>
+  <ClashOfRim.Shop.UnitPrice>Price per item</ClashOfRim.Shop.UnitPrice>
+  <ClashOfRim.Shop.UnitPayout>Payout per item</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.LotPrice>Lot total</ClashOfRim.Shop.LotPrice>
+  <ClashOfRim.Shop.LotPayout>Lot payout</ClashOfRim.Shop.LotPayout>
+  <ClashOfRim.Shop.LotPriceDesc>Enter the price of one item; decimals are allowed. Lot total = price per item × items per lot, rounded to the nearest whole silver (ties to even), with a minimum of 1 silver. The repeat multiplier applies to the lot total.</ClashOfRim.Shop.LotPriceDesc>
   <ClashOfRim.Shop.PriceIncreaseRatio>Repeat multiplier</ClashOfRim.Shop.PriceIncreaseRatio>
   <ClashOfRim.Shop.PriceIncreaseRatioDesc>Price multiplier applied after each purchase or sale by the same player/colony. 1 keeps the price unchanged, 1.2 makes the next price about 120%, and 0.8 makes it about 80%. The minimum price is 1 silver.</ClashOfRim.Shop.PriceIncreaseRatioDesc>
   <ClashOfRim.Shop.ItemCount>Items per lot</ClashOfRim.Shop.ItemCount>

@@ -1795,8 +1795,8 @@
   <ClashOfRim.Shop.NoListings>상점 상품이 없습니다.</ClashOfRim.Shop.NoListings>
   <ClashOfRim.Shop.Stock>남은 재고: {COUNT}묶음</ClashOfRim.Shop.Stock>
   <ClashOfRim.Shop.Demand>남은 매입: {COUNT}묶음</ClashOfRim.Shop.Demand>
-  <ClashOfRim.Shop.Price>가격 {PRICE}</ClashOfRim.Shop.Price>
-  <ClashOfRim.Shop.Payout>지급 {PRICE}</ClashOfRim.Shop.Payout>
+  <ClashOfRim.Shop.Price>묶음 가격 {PRICE}</ClashOfRim.Shop.Price>
+  <ClashOfRim.Shop.Payout>묶음 매입가 {PRICE}</ClashOfRim.Shop.Payout>
   <ClashOfRim.Shop.BuyCount>수량</ClashOfRim.Shop.BuyCount>
   <ClashOfRim.Shop.SellCount>수량</ClashOfRim.Shop.SellCount>
   <ClashOfRim.Shop.TotalPrice>합계 &lt;color=#d7dadb&gt;{PRICE} 은&lt;/color&gt;</ClashOfRim.Shop.TotalPrice>
@@ -1817,10 +1817,13 @@
   <ClashOfRim.Shop.KindBuy>매입</ClashOfRim.Shop.KindBuy>
   <ClashOfRim.Shop.StockShort>재고</ClashOfRim.Shop.StockShort>
   <ClashOfRim.Shop.DemandShort>매입</ClashOfRim.Shop.DemandShort>
-  <ClashOfRim.Shop.PriceShort>가격</ClashOfRim.Shop.PriceShort>
-  <ClashOfRim.Shop.PayoutShort>지급</ClashOfRim.Shop.PayoutShort>
-  <ClashOfRim.Shop.UnitPrice>가격</ClashOfRim.Shop.UnitPrice>
-  <ClashOfRim.Shop.UnitPayout>지급</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.PriceShort>개당</ClashOfRim.Shop.PriceShort>
+  <ClashOfRim.Shop.PayoutShort>개당</ClashOfRim.Shop.PayoutShort>
+  <ClashOfRim.Shop.UnitPrice>개당 판매가</ClashOfRim.Shop.UnitPrice>
+  <ClashOfRim.Shop.UnitPayout>개당 매입가</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.LotPrice>묶음 총액</ClashOfRim.Shop.LotPrice>
+  <ClashOfRim.Shop.LotPayout>묶음 매입 총액</ClashOfRim.Shop.LotPayout>
+  <ClashOfRim.Shop.LotPriceDesc>물품 한 개의 가격을 입력하세요. 소수도 사용할 수 있습니다. 묶음 총액 = 개당 가격 × 묶음당 수량이며, 가장 가까운 정수로 반올림합니다(정확히 중간이면 짝수). 최소 금액은 은 1입니다. 반복 배율은 묶음 총액에 적용됩니다.</ClashOfRim.Shop.LotPriceDesc>
   <ClashOfRim.Shop.PriceIncreaseRatio>반복 배율</ClashOfRim.Shop.PriceIncreaseRatio>
   <ClashOfRim.Shop.PriceIncreaseRatioDesc>같은 플레이어/거주지가 구매하거나 판매할 때마다 적용되는 가격 배율입니다. 1은 가격 유지, 1.2는 다음 가격 약 120%, 0.8은 약 80%입니다. 최저 가격은 은 1입니다.</ClashOfRim.Shop.PriceIncreaseRatioDesc>
   <ClashOfRim.Shop.ItemCount>묶음당 수량</ClashOfRim.Shop.ItemCount>

@@ -1795,8 +1795,8 @@
   <ClashOfRim.Shop.NoListings>ショップの商品はありません。</ClashOfRim.Shop.NoListings>
   <ClashOfRim.Shop.Stock>残り在庫: {COUNT} 組</ClashOfRim.Shop.Stock>
   <ClashOfRim.Shop.Demand>残り買取: {COUNT} 組</ClashOfRim.Shop.Demand>
-  <ClashOfRim.Shop.Price>価格 {PRICE}</ClashOfRim.Shop.Price>
-  <ClashOfRim.Shop.Payout>支払い {PRICE}</ClashOfRim.Shop.Payout>
+  <ClashOfRim.Shop.Price>1組の価格 {PRICE}</ClashOfRim.Shop.Price>
+  <ClashOfRim.Shop.Payout>1組の買取額 {PRICE}</ClashOfRim.Shop.Payout>
   <ClashOfRim.Shop.BuyCount>数量</ClashOfRim.Shop.BuyCount>
   <ClashOfRim.Shop.SellCount>数量</ClashOfRim.Shop.SellCount>
   <ClashOfRim.Shop.TotalPrice>合計 &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;</ClashOfRim.Shop.TotalPrice>
@@ -1817,10 +1817,13 @@
   <ClashOfRim.Shop.KindBuy>買取</ClashOfRim.Shop.KindBuy>
   <ClashOfRim.Shop.StockShort>在庫</ClashOfRim.Shop.StockShort>
   <ClashOfRim.Shop.DemandShort>買取</ClashOfRim.Shop.DemandShort>
-  <ClashOfRim.Shop.PriceShort>価格</ClashOfRim.Shop.PriceShort>
-  <ClashOfRim.Shop.PayoutShort>支払い</ClashOfRim.Shop.PayoutShort>
-  <ClashOfRim.Shop.UnitPrice>価格</ClashOfRim.Shop.UnitPrice>
-  <ClashOfRim.Shop.UnitPayout>支払い</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.PriceShort>単価</ClashOfRim.Shop.PriceShort>
+  <ClashOfRim.Shop.PayoutShort>単価</ClashOfRim.Shop.PayoutShort>
+  <ClashOfRim.Shop.UnitPrice>1個の販売価格</ClashOfRim.Shop.UnitPrice>
+  <ClashOfRim.Shop.UnitPayout>1個の買取価格</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.LotPrice>1組の合計額</ClashOfRim.Shop.LotPrice>
+  <ClashOfRim.Shop.LotPayout>1組の買取総額</ClashOfRim.Shop.LotPayout>
+  <ClashOfRim.Shop.LotPriceDesc>1個あたりの価格を入力します（小数可）。合計額 = 単価 × 1組の数量。最も近い整数に丸め、ちょうど中間なら偶数に丸めます。最低額は1シルバーです。反復倍率は1組の合計額に適用されます。</ClashOfRim.Shop.LotPriceDesc>
   <ClashOfRim.Shop.PriceIncreaseRatio>反復倍率</ClashOfRim.Shop.PriceIncreaseRatio>
   <ClashOfRim.Shop.PriceIncreaseRatioDesc>同じプレイヤー/コロニーが購入または売却するたびに適用される価格倍率です。1なら価格は変わらず、1.2なら次回価格は約120%、0.8なら約80%になります。最低価格は1シルバーです。</ClashOfRim.Shop.PriceIncreaseRatioDesc>
   <ClashOfRim.Shop.ItemCount>1組あたりの数量</ClashOfRim.Shop.ItemCount>

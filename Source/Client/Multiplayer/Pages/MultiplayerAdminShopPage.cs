@@ -23,7 +23,7 @@ internal sealed class MultiplayerAdminShopPage
         var current = model.Ownership;
         if (!ReferenceEquals(owner, current)) { owner = current; scroll = default; }
         var listings = model.Read();
-        Rect view = BeginAdminScroll(rect, ref scroll, Math.Max(rect.height, 80f + listings.Count * 54f));
+        Rect view = BeginAdminScroll(rect, ref scroll, Math.Max(rect.height, 80f + listings.Count * 74f));
         float y = 0f;
         DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionShop"));
         Text.Font = GameFont.Tiny;
@@ -49,8 +49,8 @@ internal sealed class MultiplayerAdminShopPage
 
         foreach (var draft in listings)
         {
-            DrawRow(new Rect(0f, y, view.width, 48f), draft);
-            y += 54f;
+            DrawRow(new Rect(0f, y, view.width, 68f), draft);
+            y += 74f;
         }
 
         Widgets.EndScrollView();
@@ -78,11 +78,14 @@ internal sealed class MultiplayerAdminShopPage
                 hitPointsRequirementMode: buyFromPlayer ? listing.HitPointsRequirementMode : null);
         string kindLabel = ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.KindBuy" : "ClashOfRim.Shop.KindSell");
         TradeUiUtility.DrawTruncatedLabel(new Rect(iconRect.xMax + 8f, inner.y + 7f, inner.width - 520f, 24f), kindLabel + " - " + label);
+        TradeUiUtility.DrawTruncatedLabel(new Rect(iconRect.xMax + 8f, inner.y + 31f, inner.width - 50f, 24f),
+            ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.Payout" : "ClashOfRim.Shop.Price", (draft.LotPrice?.ToString() ?? "—").Named("PRICE")));
 
         Widgets.Label(new Rect(inner.xMax - 510f, inner.y + 7f, 42f, 24f), ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.DemandShort" : "ClashOfRim.Shop.StockShort"));
         draft.StockText = Widgets.TextField(new Rect(inner.xMax - 468f, inner.y + 5f, 70f, 26f), draft.StockText);
         Widgets.Label(new Rect(inner.xMax - 388f, inner.y + 7f, 42f, 24f), ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.PayoutShort" : "ClashOfRim.Shop.PriceShort"));
-        draft.PriceText = Widgets.TextField(new Rect(inner.xMax - 346f, inner.y + 5f, 70f, 26f), draft.PriceText);
+        draft.UnitPriceText = Widgets.TextField(new Rect(inner.xMax - 346f, inner.y + 5f, 70f, 26f), draft.UnitPriceText);
+        TooltipHandler.TipRegion(new Rect(inner.xMax - 388f, inner.y + 5f, 112f, 26f), ClashOfRimText.Key("ClashOfRim.Shop.LotPriceDesc"));
 
         if (Widgets.ButtonText(new Rect(inner.xMax - 266f, inner.y + 5f, 78f, 28f), ClashOfRimText.Key("ClashOfRim.Admin.Save"), active: model.CanSave(draft)))
         {

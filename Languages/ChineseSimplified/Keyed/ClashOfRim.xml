@@ -1801,8 +1801,8 @@
   <ClashOfRim.Shop.NoListings>商店暂无商品。</ClashOfRim.Shop.NoListings>
   <ClashOfRim.Shop.Stock>库存剩余 {COUNT} 组</ClashOfRim.Shop.Stock>
   <ClashOfRim.Shop.Demand>剩余收购 {COUNT} 组</ClashOfRim.Shop.Demand>
-  <ClashOfRim.Shop.Price>单价 {PRICE}</ClashOfRim.Shop.Price>
-  <ClashOfRim.Shop.Payout>收购价 {PRICE}</ClashOfRim.Shop.Payout>
+  <ClashOfRim.Shop.Price>每份价格 {PRICE}</ClashOfRim.Shop.Price>
+  <ClashOfRim.Shop.Payout>每份收购价 {PRICE}</ClashOfRim.Shop.Payout>
   <ClashOfRim.Shop.BuyCount>数量</ClashOfRim.Shop.BuyCount>
   <ClashOfRim.Shop.SellCount>数量</ClashOfRim.Shop.SellCount>
   <ClashOfRim.Shop.TotalPrice>合计 &lt;color=#d7dadb&gt;{PRICE} 白银&lt;/color&gt;</ClashOfRim.Shop.TotalPrice>
@@ -1823,13 +1823,16 @@
   <ClashOfRim.Shop.KindBuy>收购</ClashOfRim.Shop.KindBuy>
   <ClashOfRim.Shop.StockShort>库存</ClashOfRim.Shop.StockShort>
   <ClashOfRim.Shop.DemandShort>收购</ClashOfRim.Shop.DemandShort>
-  <ClashOfRim.Shop.PriceShort>单价</ClashOfRim.Shop.PriceShort>
-  <ClashOfRim.Shop.PayoutShort>收购价</ClashOfRim.Shop.PayoutShort>
-  <ClashOfRim.Shop.UnitPrice>价格</ClashOfRim.Shop.UnitPrice>
-  <ClashOfRim.Shop.UnitPayout>收购价</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.PriceShort>单件价</ClashOfRim.Shop.PriceShort>
+  <ClashOfRim.Shop.PayoutShort>单件价</ClashOfRim.Shop.PayoutShort>
+  <ClashOfRim.Shop.UnitPrice>单件售价</ClashOfRim.Shop.UnitPrice>
+  <ClashOfRim.Shop.UnitPayout>单件收购价</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.LotPrice>每份总价</ClashOfRim.Shop.LotPrice>
+  <ClashOfRim.Shop.LotPayout>每份收购总价</ClashOfRim.Shop.LotPayout>
+  <ClashOfRim.Shop.LotPriceDesc>输入单件物品的价格（可用小数）。每份总价 = 单件价格 × 每份数量，取最接近的整数，正好一半时取偶数，最低为 1 白银。重复倍率作用于每份总价。</ClashOfRim.Shop.LotPriceDesc>
   <ClashOfRim.Shop.PriceIncreaseRatio>重复倍率</ClashOfRim.Shop.PriceIncreaseRatio>
   <ClashOfRim.Shop.PriceIncreaseRatioDesc>同一玩家/殖民地重复购买或出售该商品时，每次成交后的下一次价格倍率。1 表示不变，1.2 表示下次约为 120%，0.8 表示下次约为 80%。最低价格为 1 白银。</ClashOfRim.Shop.PriceIncreaseRatioDesc>
-  <ClashOfRim.Shop.ItemCount>每组数量</ClashOfRim.Shop.ItemCount>
+  <ClashOfRim.Shop.ItemCount>每份数量</ClashOfRim.Shop.ItemCount>
   <ClashOfRim.Shop.VanillaMarketValue>原版市场价</ClashOfRim.Shop.VanillaMarketValue>
   <ClashOfRim.Shop.ConfirmRemove>确定下架 {THING}？</ClashOfRim.Shop.ConfirmRemove>
   <ClashOfRim.Shop.EditListing>编辑商店商品</ClashOfRim.Shop.EditListing>

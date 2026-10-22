@@ -75,7 +75,7 @@ internal static class ClientShopListingRuntimeTests
                 Check(!item.Metadata.ContainsKey("remove") && runtime.IsComplete(item, surface), "Editor bypassed extension cleaner/completeness.");
                 item.Metadata["incomplete"] = "x"; Check(!runtime.IsComplete(item, surface), "Extension veto was ignored.");
                 item.StackCount = 3; estimates = 0; var value = runtime.Estimate(item);
-                Check(estimates == 1 && value.SuggestedPrice == 8 && value.UnitLabel == "unit:2.5", "Suggestion/display repeated estimation or changed batch rounding.");
+                Check(estimates == 1 && value.UnitPrice == 2.5f && value.UnitLabel == "unit:2.5", "Suggestion/display repeated estimation or changed the fractional unit value.");
             }
             var ordinary = runtime.Create(plain.defName, ThingReferenceSurfaces.ServerShopListing); ordinary.StuffDefName = steel.defName;
             runtime.Normalize(ordinary, ThingReferenceSurfaces.ServerShopListing);

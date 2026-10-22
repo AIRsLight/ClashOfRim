@@ -1795,8 +1795,8 @@
   <ClashOfRim.Shop.NoListings>В магазине нет позиций.</ClashOfRim.Shop.NoListings>
   <ClashOfRim.Shop.Stock>Остаток: {COUNT} партий</ClashOfRim.Shop.Stock>
   <ClashOfRim.Shop.Demand>Осталось закупок: {COUNT} партий</ClashOfRim.Shop.Demand>
-  <ClashOfRim.Shop.Price>Цена {PRICE}</ClashOfRim.Shop.Price>
-  <ClashOfRim.Shop.Payout>Выплата {PRICE}</ClashOfRim.Shop.Payout>
+  <ClashOfRim.Shop.Price>За партию {PRICE}</ClashOfRim.Shop.Price>
+  <ClashOfRim.Shop.Payout>Выкуп партии {PRICE}</ClashOfRim.Shop.Payout>
   <ClashOfRim.Shop.BuyCount>Количество</ClashOfRim.Shop.BuyCount>
   <ClashOfRim.Shop.SellCount>Количество</ClashOfRim.Shop.SellCount>
   <ClashOfRim.Shop.TotalPrice>Итого &lt;color=#d7dadb&gt;{PRICE} серебра&lt;/color&gt;</ClashOfRim.Shop.TotalPrice>
@@ -1817,10 +1817,13 @@
   <ClashOfRim.Shop.KindBuy>Закупка</ClashOfRim.Shop.KindBuy>
   <ClashOfRim.Shop.StockShort>Запас</ClashOfRim.Shop.StockShort>
   <ClashOfRim.Shop.DemandShort>Спрос</ClashOfRim.Shop.DemandShort>
-  <ClashOfRim.Shop.PriceShort>Цена</ClashOfRim.Shop.PriceShort>
-  <ClashOfRim.Shop.PayoutShort>Выплата</ClashOfRim.Shop.PayoutShort>
-  <ClashOfRim.Shop.UnitPrice>Цена</ClashOfRim.Shop.UnitPrice>
-  <ClashOfRim.Shop.UnitPayout>Выплата</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.PriceShort>За ед.</ClashOfRim.Shop.PriceShort>
+  <ClashOfRim.Shop.PayoutShort>За ед.</ClashOfRim.Shop.PayoutShort>
+  <ClashOfRim.Shop.UnitPrice>Цена за предмет</ClashOfRim.Shop.UnitPrice>
+  <ClashOfRim.Shop.UnitPayout>Выкуп за предмет</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.LotPrice>Итого за партию</ClashOfRim.Shop.LotPrice>
+  <ClashOfRim.Shop.LotPayout>Выкуп партии</ClashOfRim.Shop.LotPayout>
+  <ClashOfRim.Shop.LotPriceDesc>Введите цену одного предмета; дробные значения допустимы. Сумма за партию = цена за предмет × размер партии. Округление до ближайшего целого (при равенстве — до чётного), минимум 1 серебро. Множитель повторов применяется к сумме за партию.</ClashOfRim.Shop.LotPriceDesc>
   <ClashOfRim.Shop.PriceIncreaseRatio>Множитель повторов</ClashOfRim.Shop.PriceIncreaseRatio>
   <ClashOfRim.Shop.PriceIncreaseRatioDesc>Множитель цены после каждой покупки или продажи той же игроком/колонией. 1 сохраняет цену, 1.2 делает следующую цену около 120%, 0.8 - около 80%. Минимальная цена: 1 серебро.</ClashOfRim.Shop.PriceIncreaseRatioDesc>
   <ClashOfRim.Shop.ItemCount>Предметов в партии</ClashOfRim.Shop.ItemCount>

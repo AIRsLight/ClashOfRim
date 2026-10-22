@@ -21,9 +21,17 @@ internal sealed class ClientShopListingEditor
     private string? query;
     private ValueKey? valueKey;
     private bool manualPrice;
+    private bool manualRatio;
+    private string ratioText;
     internal ModThingReferenceDto? Item { get; private set; }
-    internal string StockText, CountText, RatioText;
-    internal string PriceText { get; private set; }
+    internal string StockText, CountText;
+    internal string RatioText
+    {
+        get => ratioText;
+        set { if (value == ratioText) return; ratioText = value; manualRatio = true; }
+    }
+    internal string UnitPriceText { get; private set; }
+    internal int? LotPrice => TryLotPrice(out int price) ? price : null;
     internal string Kind { get; private set; }
     internal string QualityMode { get; private set; }
     internal string HitPointsMode { get; private set; }
@@ -41,12 +49,13 @@ internal sealed class ClientShopListingEditor
         Item = listing?.Item;
         StockText = (listing?.StockCount ?? 1).ToString(CultureInfo.InvariantCulture);
         CountText = Math.Max(1, Item?.StackCount ?? 1).ToString(CultureInfo.InvariantCulture);
-        RatioText = ServerShopPricing.NormalizeRatio(listing?.PriceIncreaseRatio ?? 1d).ToString("R", CultureInfo.InvariantCulture);
         Kind = ClientShopRules.NormalizeListingKind(listing?.ListingKind);
+        ratioText = ServerShopPricing.NormalizeRatio(listing?.PriceIncreaseRatio ?? ClientShopRules.DefaultPriceRatio(Kind)).ToString("R", CultureInfo.InvariantCulture);
+        manualRatio = listing is not null;
         QualityMode = NormalizeMode(listing?.QualityRequirementMode);
         HitPointsMode = NormalizeMode(listing?.HitPointsRequirementMode);
         manualPrice = listing is not null;
-        PriceText = (listing is null ? 0 : ClientShopRules.BasePrice(listing)).ToString(CultureInfo.InvariantCulture);
+        UnitPriceText = listing is null ? "0" : ClientShopRules.UnitPriceText(listing);
         Refresh();
     }
 
@@ -73,8 +82,8 @@ internal sealed class ClientShopListingEditor
         manualPrice = false; valueKey = null;
         Refresh();
     });
-    internal void SetPrice(string text)
-    { if (text == PriceText) return; PriceText = text; manualPrice = true; }
+    internal void SetUnitPrice(string text)
+    { if (text == UnitPriceText) return; UnitPriceText = text; manualPrice = true; }
     internal void Refresh()
     {
         if (!edit.IsCurrent || Item is null) return;
@@ -88,7 +97,7 @@ internal sealed class ClientShopListingEditor
         valueKey = key;
         var value = runtime.Estimate(Item);
         MarketValue = value.UnitLabel;
-        if (!manualPrice) PriceText = value.SuggestedPrice.ToString(CultureInfo.InvariantCulture);
+        if (!manualPrice) UnitPriceText = value.UnitPrice.ToString("R", CultureInfo.InvariantCulture);
     }
     internal IReadOnlyList<ClientShopDefinition> Materials() => Item is null ? Array.Empty<ClientShopDefinition>() : runtime.Materials(Item);
     internal Action<string?> ChooseStuff() => BindItem<string?>((item, value) =>
@@ -101,6 +110,7 @@ internal sealed class ClientShopListingEditor
         string kind = ClientShopRules.NormalizeListingKind(value);
         if (kind == Kind) return;
         Kind = kind;
+        if (!manualRatio) ratioText = ClientShopRules.DefaultPriceRatio(Kind).ToString("R", CultureInfo.InvariantCulture);
         if (Item is not null) runtime.ApplyDefaults(Item, Surface);
         Refresh();
     });
@@ -132,10 +142,15 @@ internal sealed class ClientShopListingEditor
     {
         command = null; Refresh();
         if (Item is null || !PanelNumberInput.TryInt(StockText, out int stock) || stock < 0
-            || !PanelNumberInput.TryInt(PriceText, out int price) || price < 1
-            || !PanelNumberInput.TryInt(CountText, out int count) || count < 1 || !TryRatio(RatioText, out double ratio) || !Complete) return false;
+            || !TryLotPrice(out int price) || !TryRatio(RatioText, out double ratio) || !Complete) return false;
         command = new(null, Kind, Item, price, stock, ratio, QualityMode, HitPointsMode);
         return true;
+    }
+    private bool TryLotPrice(out int price)
+    {
+        price = 0;
+        return PanelNumberInput.TryInt(CountText, out int count)
+            && ClientShopRules.TryLotPrice(UnitPriceText, count, inputCulture, out price);
     }
     private bool TryRatio(string text, out double ratio)
     {

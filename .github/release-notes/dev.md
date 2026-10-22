@@ -2,6 +2,12 @@
 
 ## Current development changes
 
+### 0.4.4 testing update
+
+- **Shop pricing:** sale and buy-order editors now accept the price of one item, including decimals, and calculate/display the total for each lot as its quantity changes. The quick-edit list uses the same conversion. Existing listings retain their total price when opened and saved without changes.
+- **Repeat multipliers:** new sale listings default to 1.05 and new buy orders to 0.95. Switching the direction updates the default while preserving custom input and existing listing settings. Labels and calculation hints are updated in all five supported languages.
+- **Compatibility:** network pricing remains whole silver per lot; the protocol requirements and frozen RimWorld 1.6 release are unchanged.
+
 ### 0.4.3 testing update
 
 - **Periodic stutter:** location polling no longer exports the entire ideology catalog. Entry, explicit colony changes, saves and ideology reforms still collect live extensions. Ideology timestamps now change with content, not with every observation. Post-save site and extension followups now share one collection.

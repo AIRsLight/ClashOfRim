@@ -20,6 +20,7 @@ internal static class MultiplayerAdminShopTests
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
                 await Drafts(); await SaveRow();
+                foreach (string kind in new[] { "SellToPlayer", "BuyFromPlayer" }) await RowUnitPrice(kind);
             }
             foreach (string change in new[] { "close", "user", "colony", "auth", "server", "game", "login", "reset", "generation",
                 "permission", "permission-return", "unavailable", "changed", "removed" }) await Stale(change);
@@ -32,23 +33,25 @@ internal static class MultiplayerAdminShopTests
     private static async Task Drafts()
     {
         using var f = new Fixture(); await f.Catalog.Load(Listing("I"), Listing("ı"));
-        var rows = f.Model.Read(); var row = rows[0]; row.StockText = "-"; row.PriceText = "";
+        var rows = f.Model.Read(); var row = rows[0]; row.StockText = "-"; row.UnitPriceText = "";
         Check(ReferenceEquals(rows, f.Model.Read()) && row.Listing == f.Shop.Read().All[0], "Admin page rebuilt/copied the shared projection per frame.");
         Check(rows[1].StockText == "3", "Culture-sensitive ID matching mixed distinct drafts.");
         await f.Catalog.Load(Listing("ı"), Listing("I"));
-        Check(ReferenceEquals(f.Model.Read()[1], row) && row.StockText == "-" && row.PriceText == "", "Identical refresh discarded incomplete edits or server ordering.");
-        row.StockText = "0"; row.PriceText = "1";
+        Check(ReferenceEquals(f.Model.Read()[1], row) && row.StockText == "-" && row.UnitPriceText == "", "Identical refresh discarded incomplete edits or server ordering.");
+        row.StockText = "0"; row.UnitPriceText = "1";
         Check(f.Model.CanSave(row), "Valid zero-stock/base-price draft was rejected.");
         foreach (string invalid in new[] { "", "-", "2147483648", "1.5", "1,000", "-1" })
         {
             row.StockText = invalid; Check(!f.Model.CanSave(row), "Invalid stock passed: " + invalid);
             int calls = f.Catalog.Calls; await f.Model.SaveAsync(row); Check(calls == f.Catalog.Calls, "Invalid draft reached transport.");
-            row.StockText = "3"; row.PriceText = invalid; Check(!f.Model.CanSave(row), "Invalid price passed: " + invalid); row.PriceText = "1";
+            row.StockText = "3";
         }
-        row.PriceText = "0"; Check(!f.Model.CanSave(row), "Zero price passed.");
+        foreach (string invalid in new[] { "", "-", "2147483648", "-1", "NaN", "Infinity", "1e999" })
+        { row.UnitPriceText = invalid; Check(!f.Model.CanSave(row), "Invalid price passed: " + invalid); row.UnitPriceText = "1"; }
+        row.UnitPriceText = "0"; Check(!f.Model.CanSave(row), "Zero price passed.");
         var price = Listing("I"); price.BasePriceSilver = 17; f.Catalog.State.Upsert(price);
         var updated = f.Model.Read().Single(r => r.Listing.ListingId == "I");
-        Check(!ReferenceEquals(updated, row) && updated.PriceText == "17", "Changed product retained an obsolete price draft.");
+        Check(!ReferenceEquals(updated, row) && updated.UnitPriceText == "8.5" && updated.LotPrice == 17, "Changed product retained an obsolete price draft.");
         price.Item = null; f.Catalog.State.Upsert(price);
         Check(!f.Model.CanSave(f.Model.Read().Single(r => r.Listing.ListingId == "I")), "Missing item allowed row save.");
     }
@@ -71,10 +74,10 @@ internal static class MultiplayerAdminShopTests
             int calls = f.Catalog.Calls; await remove(); Check(calls == f.Catalog.Calls, "Delete ignored product revision.");
             f.Catalog.State.Replace(new[] { Listing("a") });
         }
-        var original = f.Model.Read()[0]; original.PriceText = "unfinished";
+        var original = f.Model.Read()[0]; original.UnitPriceText = "unfinished";
         var preview = f.Catalog.State.CopyListings()[0]; preview.Item!.PawnPackage!.PendingPreviewPng = new byte[] { 9 };
         f.Catalog.State.Upsert(preview);
-        Check(ReferenceEquals(original, f.Model.Read()[0]) && original.PriceText == "unfinished"
+        Check(ReferenceEquals(original, f.Model.Read()[0]) && original.UnitPriceText == "unfinished"
             && original.Listing.Item!.PawnPackage!.PendingPreviewPng![0] == 9, "Non-wire preview hydration discarded edits or kept an old preview.");
         var standalone = f.Model.PrepareExistingEdit(Listing("missing"));
         Check(standalone.Listing?.ListingId == "missing" && !standalone.CanSubmit && standalone.Submit(Command()) is null,
@@ -109,18 +112,18 @@ internal static class MultiplayerAdminShopTests
     private static async Task SaveRow()
     {
         using var f = new Fixture(); await f.Catalog.Load(Listing("a"));
-        var row = f.Model.Read()[0]; row.PriceText = "23"; row.StockText = "0";
+        var row = f.Model.Read()[0]; row.UnitPriceText = "23"; row.StockText = "0";
         f.Operations.Ports.Snapshot = "advanced"; f.Access.SetAdministrator(true);
         Task work = f.Model.SaveAsync(row); var call = await f.Catalog.Next();
         Check(call.Kind == "upsert" && call.Context.CurrentSnapshotId == "advanced" && call.Edit is
-            { ListingId: "a", StockCount: 0, PriceSilver: 23, ListingKind: "BuyFromPlayer", PriceIncreaseRatio: 1.25,
+            { ListingId: "a", StockCount: 0, PriceSilver: 46, ListingKind: "BuyFromPlayer", PriceIncreaseRatio: 1.25,
                 QualityRequirementMode: "AtMost", HitPointsRequirementMode: "AtLeast" }, "Row save lost current context or listing terms.");
         string frozen = ClientProtocolJson.Serialize(call.Edit!.Item);
         row.StockText = "999"; row.Listing.Item!.Metadata["label"] = "mutated"; row.Listing.Item.PawnPackage!.PendingPreviewPng![0] = 9;
         Check(ClientProtocolJson.Serialize(call.Edit.Item) == frozen && call.Edit.Item.PawnPackage!.PendingPreviewPng![0] == 1, "In-flight row command shares editable data.");
-        f.Model.Close(); var accepted = Listing("a"); accepted.BasePriceSilver = 23; accepted.StockCount = 0;
+        f.Model.Close(); var accepted = Listing("a"); accepted.BasePriceSilver = 46; accepted.StockCount = 0;
         call.Complete(new ModUpsertServerShopListingResponseDto { Listing = accepted }); await work;
-        Check(!f.Catalog.State.Busy && f.Model.Read()[0].PriceText == "23" && f.Shop.Read().All[0].StockCount == 0,
+        Check(!f.Catalog.State.Busy && f.Model.Read()[0].UnitPriceText == "23" && f.Shop.Read().All[0].StockCount == 0,
             "Closing the page cancelled an admitted save or failed to update the shared shop.");
     }
 
@@ -142,17 +145,30 @@ internal static class MultiplayerAdminShopTests
         var create = f.Model.PrepareEdit(); work = create.Submit(Command())!; call = await f.Catalog.Next();
         Check(call.Edit!.ListingId is null, "New editor adopted a supplied product ID."); call.Complete(new ModUpsertServerShopListingResponseDto()); await work;
     }
+    private static async Task RowUnitPrice(string kind)
+    {
+        using var f = new Fixture(); var listing = Listing("priced"); listing.ListingKind = kind;
+        listing.BasePriceSilver = 19; listing.Item!.StackCount = 3; await f.Catalog.Load(listing);
+        var row = f.Model.Read()[0];
+        Check(row.LotPrice == 19 && row.TryBuild(out var unchanged) && unchanged!.PriceSilver == 19,
+            "Opening a quick-edit row changed the existing lot price.");
+        row.UnitPriceText = 1.25m.ToString(CultureInfo.CurrentCulture);
+        Task work = f.Model.SaveAsync(row); var call = await f.Catalog.Next();
+        Check(row.LotPrice == 4 && call.Edit is { PriceSilver: 4, PriceIncreaseRatio: 1.25, Item.StackCount: 3 }
+            && call.Edit.ListingKind == kind, "Quick edit failed to convert a localized fractional unit price to the lot amount.");
+        call.Complete(new ModUpsertServerShopListingResponseDto()); await work;
+    }
 
     private static async Task Busy()
     {
         using var f = new Fixture(); await f.Catalog.Load(Listing("a"));
-        var row = f.Model.Read()[0]; row.PriceText = "19"; var editor = f.Model.PrepareEdit(row); var remove = f.Model.PrepareRemove(row);
+        var row = f.Model.Read()[0]; row.UnitPriceText = "19"; var editor = f.Model.PrepareEdit(row); var remove = f.Model.PrepareRemove(row);
         Task refresh = f.Model.RefreshAsync(1); var call = await f.Catalog.Next(); int calls = f.Catalog.Calls;
         await f.Model.SaveAsync(row); await remove(); await f.Model.RefreshAsync(2);
         Check(!f.Model.CanSave(row) && !f.Model.CanRefresh && !editor.CanSubmit && editor.Submit(Command()) is null
             && f.Catalog.Calls == calls, "Busy catalog allowed another write or refresh.");
         call.Complete(new ModListServerShopResponseDto { Listings = new() { Listing("a") } }); await refresh;
-        Check(f.Model.CanSave(row) && row.PriceText == "19" && editor.CanSubmit, "Temporary busy state consumed drafts or delayed intents.");
+        Check(f.Model.CanSave(row) && row.UnitPriceText == "19" && editor.CanSubmit, "Temporary busy state consumed drafts or delayed intents.");
         var ticket = f.Access.Begin(out _)!;
         Check(ticket is not null && f.Model.CanSave(row), "Shop writes incorrectly share administration/world-write admission.");
         Task save = editor.Submit(Command())!; call = await f.Catalog.Next(); call.Complete(new ModUpsertServerShopListingResponseDto()); await save;
@@ -187,11 +203,11 @@ internal static class MultiplayerAdminShopTests
     private static async Task LargeCatalog()
     {
         using var f = new Fixture(); await f.Catalog.Load(Enumerable.Range(0, 4000).Select(i => Listing(i.ToString(CultureInfo.InvariantCulture))).ToArray());
-        var rows = f.Model.Read(); Check(rows.Count == 4000, "Large admin catalog lost entries."); rows[3999].PriceText = "37";
+        var rows = f.Model.Read(); Check(rows.Count == 4000, "Large admin catalog lost entries."); rows[3999].UnitPriceText = "37";
         for (int i = 0; i < 20; i++) Check(ReferenceEquals(rows, f.Model.Read()), "Large catalog reconciled every frame.");
         var changed = Listing("0"); changed.StockCount = 10; f.Catalog.State.Upsert(changed);
         var next = f.Model.Read();
-        Check(!ReferenceEquals(rows[0], next[0]) && ReferenceEquals(rows[3999], next[3999]) && next[3999].PriceText == "37"
+        Check(!ReferenceEquals(rows[0], next[0]) && ReferenceEquals(rows[3999], next[3999]) && next[3999].UnitPriceText == "37"
             && ReferenceEquals(next[3999].Listing, f.Shop.Read().All[3999]), "One listing update recreated unrelated drafts or duplicated the catalog.");
         f.Catalog.State.Replace(Array.Empty<ModServerShopListingDto>()); Check(f.Model.Read().Count == 0, "Empty refresh kept removed drafts.");
     }
