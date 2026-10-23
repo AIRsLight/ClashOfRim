@@ -56,6 +56,7 @@ internal sealed class ClientWorldSetupLifecycle
         internal Visit(ClientWorldSetupLifecycle owner, ClientRequestTracker<IClientWorldCatalogSession>.Scope scope, IClientWorldSetupPage page)
         { this.owner = owner; this.scope = scope; this.page = page; }
         private bool Current() => !closed && page.IsOpen && owner.Owns(scope);
+        internal bool IsCurrent => Current();
         internal Task StartAsync(float now)
         {
             using var p = ClientSessionWork.EnterPublication();

@@ -615,6 +615,8 @@
   <ClashOfRim.ServerAddress>Адрес сервера</ClashOfRim.ServerAddress>
   <ClashOfRim.Start>Начать</ClashOfRim.Start>
   <ClashOfRim.StartingSiteBlockedByServerColony>Эта клетка соседствует с зарегистрированной на сервере колонией: {SITE}</ClashOfRim.StartingSiteBlockedByServerColony>
+  <ClashOfRim.StartingSite.OnlyPlayerColonies>Только колонии игроков</ClashOfRim.StartingSite.OnlyPlayerColonies>
+  <ClashOfRim.StartingSite.OnlyPlayerColoniesTip>Скрыть поселения NPC на этом экране выбора места. Меняется только отображение: ограничения на создание колонии в поселениях и на соседних клетках сохраняются.</ClashOfRim.StartingSite.OnlyPlayerColoniesTip>
   <ClashOfRim.WorldMap.StatusNotConfigured>Адрес сервера, учетная запись или колония не настроены, маркеры карты мира нельзя синхронизировать.</ClashOfRim.WorldMap.StatusNotConfigured>
   <ClashOfRim.WorldMap.StatusWorldObjectsMissing>Мировые объекты еще не инициализированы, маркеры карты мира нельзя синхронизировать.</ClashOfRim.WorldMap.StatusWorldObjectsMissing>
   <ClashOfRim.WorldMap.StatusSyncing>Синхронизация авторитетных серверных маркеров карты мира.</ClashOfRim.WorldMap.StatusSyncing>

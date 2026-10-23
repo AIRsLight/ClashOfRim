@@ -614,6 +614,8 @@
   <ClashOfRim.ServerAddress>服务器地址</ClashOfRim.ServerAddress>
   <ClashOfRim.Start>开始</ClashOfRim.Start>
   <ClashOfRim.StartingSiteBlockedByServerColony>该地块与服务器已登记殖民地相邻：{SITE}</ClashOfRim.StartingSiteBlockedByServerColony>
+  <ClashOfRim.StartingSite.OnlyPlayerColonies>仅显示玩家殖民地</ClashOfRim.StartingSite.OnlyPlayerColonies>
+  <ClashOfRim.StartingSite.OnlyPlayerColoniesTip>在当前选址页面隐藏 NPC 据点。仅影响显示，NPC 据点及其相邻地块仍受原有选址限制。</ClashOfRim.StartingSite.OnlyPlayerColoniesTip>
   <ClashOfRim.WorldMap.StatusNotConfigured>服务器地址、账户或殖民地未配置，不能同步大地图标记。</ClashOfRim.WorldMap.StatusNotConfigured>
   <ClashOfRim.WorldMap.StatusWorldObjectsMissing>当前世界对象尚未初始化，不能同步大地图标记。</ClashOfRim.WorldMap.StatusWorldObjectsMissing>
   <ClashOfRim.WorldMap.StatusSyncing>正在同步服务器权威大地图标记。</ClashOfRim.WorldMap.StatusSyncing>

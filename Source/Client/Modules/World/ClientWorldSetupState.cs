@@ -10,11 +10,14 @@ namespace AIRsLight.ClashOfRim.Modules.World;
 internal sealed class ClientWorldSetupState
 {
     private readonly ClientRequestTracker requests;
-    private bool initial, languageAccepted;
+    private bool initial, languageAccepted, colonyPrepared;
     private ModWorldConfigurationDto? configuration;
     private WorldSubstratePackage? substrate;
     internal ClientWorldSetupState(ClientSessionLifecycle session)
-        => requests = new(session, () => { initial = languageAccepted = false; configuration = null; substrate = null; });
+        => requests = new(session, () => { initial = languageAccepted = colonyPrepared = false; configuration = null; substrate = null; });
+    // Unlike Pending, this admission survives consuming the initial submission or
+    // generation plan, so the subsequent starting-site page can identify its flow.
+    internal bool ColonyPrepared => requests.Read(() => colonyPrepared);
     internal bool Pending => requests.Read(() => initial || configuration is not null);
     internal ClientRequestTracker.Scope CaptureScope() => requests.Capture();
     internal bool IsCurrent(ClientRequestTracker.Scope scope) => requests.TryApply(scope, static () => { });
@@ -30,6 +33,7 @@ internal sealed class ClientWorldSetupState
             requests.Reset();
             languageAccepted = acceptedLanguage;
             if (response.Result?.Accepted != true || response.HasExistingColony) return false;
+            colonyPrepared = true;
             initial = response.RequiresInitialWorldConfiguration;
             configuration = response.WorldConfigured && response.WorldConfiguration is not null ? ClientProtocolJson.Copy(response.WorldConfiguration) : null;
             return true;
@@ -66,7 +70,7 @@ internal sealed class ClientWorldSetupState
         configuration = null; substrate = null;
         // Retire pending download tickets as ownership moves into generation.
         bool keepInitial = initial, keepLanguage = languageAccepted;
-        requests.Reset(); initial = keepInitial; languageAccepted = keepLanguage;
+        requests.Reset(); initial = keepInitial; languageAccepted = keepLanguage; colonyPrepared = true;
         return new Generation(requests.Capture(), capturedConfiguration, capturedSubstrate);
     });
     internal bool IsCurrent(Generation generation) => requests.TryApply(generation.Scope, static () => { });

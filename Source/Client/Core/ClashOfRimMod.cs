@@ -390,7 +390,7 @@ public sealed class ClashOfRimMod : Mod
             observationMaps, new ClientWorldObjectCommandRuntime()));
         ClashOfRimEventChoiceLetter.Attach(eventApplications);
         ClientWorldSetupPages.Attach(new ClientWorldSetupPages(new ClientWorldSetupLifecycle(sessionLifecycle, new ClientWorldCatalogRuntime(),
-            sourceGame, initialWorldSetup, colonyAppearance, worldSynchronization, worldMarkers, initialWorldPresentation)));
+            sourceGame, initialWorldSetup, colonyAppearance, worldSynchronization, worldMarkers, initialWorldPresentation), worldSetup));
         ClientAutomaticSessionStartup.Attach(new(sessionStartup));
         ClientChatOverlay.Attach(new(new ClientChatOverlayModel(chat, sessionLifecycle, new ClientSnapshotGame(), () => sessionStartup.IsInActiveWorld)));
 

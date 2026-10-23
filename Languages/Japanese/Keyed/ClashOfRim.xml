@@ -615,6 +615,8 @@
   <ClashOfRim.ServerAddress>サーバーアドレス</ClashOfRim.ServerAddress>
   <ClashOfRim.Start>開始</ClashOfRim.Start>
   <ClashOfRim.StartingSiteBlockedByServerColony>このタイルはサーバー登録済みコロニーに隣接しています: {SITE}</ClashOfRim.StartingSiteBlockedByServerColony>
+  <ClashOfRim.StartingSite.OnlyPlayerColonies>プレイヤーのコロニーのみ表示</ClashOfRim.StartingSite.OnlyPlayerColonies>
+  <ClashOfRim.StartingSite.OnlyPlayerColoniesTip>この入植地点選択画面で NPC の拠点を非表示にします。表示のみが変わり、拠点と隣接タイルへの入植制限は維持されます。</ClashOfRim.StartingSite.OnlyPlayerColoniesTip>
   <ClashOfRim.WorldMap.StatusNotConfigured>サーバーアドレス、アカウント、またはコロニーが未設定のため、ワールドマップマーカーを同期できません。</ClashOfRim.WorldMap.StatusNotConfigured>
   <ClashOfRim.WorldMap.StatusWorldObjectsMissing>ワールドオブジェクトがまだ初期化されていないため、ワールドマップマーカーを同期できません。</ClashOfRim.WorldMap.StatusWorldObjectsMissing>
   <ClashOfRim.WorldMap.StatusSyncing>サーバー権威のワールドマップマーカーを同期しています。</ClashOfRim.WorldMap.StatusSyncing>

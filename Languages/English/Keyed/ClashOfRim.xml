@@ -614,6 +614,8 @@
   <ClashOfRim.ServerAddress>Server address</ClashOfRim.ServerAddress>
   <ClashOfRim.Start>Start</ClashOfRim.Start>
   <ClashOfRim.StartingSiteBlockedByServerColony>This tile is adjacent to a server-registered colony: {SITE}</ClashOfRim.StartingSiteBlockedByServerColony>
+  <ClashOfRim.StartingSite.OnlyPlayerColonies>Show only player colonies</ClashOfRim.StartingSite.OnlyPlayerColonies>
+  <ClashOfRim.StartingSite.OnlyPlayerColoniesTip>Hide NPC settlements on this starting-site page. This only changes their display; settlement and adjacent-tile placement restrictions still apply.</ClashOfRim.StartingSite.OnlyPlayerColoniesTip>
   <ClashOfRim.WorldMap.StatusNotConfigured>Server address, account, or colony is not configured, so world map markers cannot be synced.</ClashOfRim.WorldMap.StatusNotConfigured>
   <ClashOfRim.WorldMap.StatusWorldObjectsMissing>World objects are not initialized yet, so world map markers cannot be synced.</ClashOfRim.WorldMap.StatusWorldObjectsMissing>
   <ClashOfRim.WorldMap.StatusSyncing>Syncing authoritative server world map markers.</ClashOfRim.WorldMap.StatusSyncing>

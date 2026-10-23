@@ -37,6 +37,7 @@ public static class ClashOfRimStartingSiteExtraOnGuiPatch
     {
         ClashOfRimMainMenuPatches.RunQueuedMainThreadActions();
         _ = ClientWorldSetupPages.Current?.UpdatedAsync(__instance);
+        ClientWorldSetupPages.Current?.DrawSiteFilter(__instance);
     }
 }
 

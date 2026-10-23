@@ -19,6 +19,7 @@ internal static class ClientWorldSetupLifecycleTests
     internal static void Run()
     {
         try { RunAsync().GetAwaiter().GetResult(); }
+        catch (Exception ex) { Console.Error.WriteLine(ex); throw; }
         finally { ClientSessionWork.Reset(); }
     }
     private static async Task RunAsync()
@@ -32,6 +33,7 @@ internal static class ClientWorldSetupLifecycleTests
             await Callback(change, projection: true);
         }
         await EngineEntrypoints();
+        await StartingSiteColonyFilterTests.RunAsync();
     }
     private static async Task OpenAndInitialize()
     {
@@ -103,7 +105,7 @@ internal static class ClientWorldSetupLifecycleTests
         await f.Pump(visit.UpdateAsync(30)); Check(f.Reads == 1, "Closed page continued polling after submission completed.");
     }
     private sealed class Page : IClientWorldSetupPage { internal bool Open = true; public bool IsOpen => Open; }
-    private sealed class Fixture : IClientWorldCatalogRuntime, IClientWorldSynchronizationRuntime, IClientWorldMarkerTransport,
+    internal sealed class Fixture : IClientWorldCatalogRuntime, IClientWorldSynchronizationRuntime, IClientWorldMarkerTransport,
         IClientWorldSynchronizationPresentation, IClientWorldSourceGame
     {
         internal readonly ClientInitialWorldSetupTests.Fixture Core = new(playing: false);
@@ -173,7 +175,7 @@ internal static class ClientWorldSetupLifecycleTests
             ClashOfRimStartingSitePostOpenPatch.Postfix(page); ClashOfRimStartingSiteExtraOnGuiPatch.Postfix(page);
             ClashOfRimStartingSitePostClosePatch.Postfix(page); ClashOfRimWorldSetupPatches.Postfix(New<Game>());
             Check(observed.Count == 0 && drains == 1, "Unbound page changed vanilla flow or stopped the main-thread queue.");
-            var f = new Fixture(initial: true); var adapter = new ClientWorldSetupPages(f.Flow); ClientWorldSetupPages.Attach(adapter);
+            var f = new Fixture(initial: true); var adapter = new ClientWorldSetupPages(f.Flow, f.Core.Setup); ClientWorldSetupPages.Attach(adapter);
             var game = New<Game>(); f.Core.Ports.GameOwner = game;
             now = 10; ClashOfRimStartingSitePostOpenPatch.Postfix(page); ClashOfRimStartingSitePostOpenPatch.Postfix(page);
             ClashOfRimWorldSetupPatches.Postfix(game); await PumpObserved(f);
@@ -184,7 +186,7 @@ internal static class ClientWorldSetupLifecycleTests
             ClashOfRimStartingSitePostClosePatch.Postfix(page);
             now = 55; ClashOfRimStartingSiteExtraOnGuiPatch.Postfix(page); ClashOfRimStartingSiteExtraOnGuiPatch.Postfix(second); await PumpObserved(f);
             Check(f.Reads == 4, "Close patch failed to retire one visit independently.");
-            ClientWorldSetupPages.Attach(new(f.Flow));
+            ClientWorldSetupPages.Attach(new(f.Flow, f.Core.Setup));
             now = 90; int projections = f.Publication.MarkerApplications.Count;
             await f.Pump(adapter.UpdatedAsync(second)); await PumpObserved(f);
             Check(f.Reads == 4 && f.Publication.MarkerApplications.Count == projections, "Detached page adapter refreshed/projected markers.");

@@ -2,6 +2,10 @@
 
 ## Current development changes
 
+### 0.4.8 testing update
+
+- **Starting-site display:** multiplayer colony setup offers “Show only player colonies.” It hides NPC settlement icons for that page while preserving world objects, occupied tiles and adjacent-settlement restrictions. The preference defaults to off and is cleared when leaving the page. All five supported languages are included.
+
 ### 0.4.7 testing update
 
 - **Faction navigation:** click a player faction's name or icon in the vanilla Factions tab to locate its colony on the world map. The separate info button still opens its faction details; NPC faction clicks retain their usual behavior.

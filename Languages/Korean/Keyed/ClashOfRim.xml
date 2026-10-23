@@ -615,6 +615,8 @@
   <ClashOfRim.ServerAddress>서버 주소</ClashOfRim.ServerAddress>
   <ClashOfRim.Start>시작</ClashOfRim.Start>
   <ClashOfRim.StartingSiteBlockedByServerColony>이 타일은 서버에 등록된 정착지와 인접해 있습니다: {SITE}</ClashOfRim.StartingSiteBlockedByServerColony>
+  <ClashOfRim.StartingSite.OnlyPlayerColonies>플레이어 정착지만 표시</ClashOfRim.StartingSite.OnlyPlayerColonies>
+  <ClashOfRim.StartingSite.OnlyPlayerColoniesTip>현재 정착지 선택 화면에서 NPC 정착지를 숨깁니다. 표시만 변경되며, 정착지와 인접 타일의 정착 제한은 유지됩니다.</ClashOfRim.StartingSite.OnlyPlayerColoniesTip>
   <ClashOfRim.WorldMap.StatusNotConfigured>서버 주소, 계정 또는 정착지가 설정되지 않아 세계 지도 표식을 동기화할 수 없습니다.</ClashOfRim.WorldMap.StatusNotConfigured>
   <ClashOfRim.WorldMap.StatusWorldObjectsMissing>월드 오브젝트가 아직 초기화되지 않아 세계 지도 표식을 동기화할 수 없습니다.</ClashOfRim.WorldMap.StatusWorldObjectsMissing>
   <ClashOfRim.WorldMap.StatusSyncing>서버 권위 세계 지도 표식을 동기화하는 중입니다.</ClashOfRim.WorldMap.StatusSyncing>
