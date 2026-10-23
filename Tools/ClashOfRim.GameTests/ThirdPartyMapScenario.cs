@@ -50,7 +50,7 @@ internal sealed class ThirdPartyMapScenario(TestRun run, ColonyScenarioFixture c
         var storage = view.GetProperty("storage").EnumerateArray().Single();
         var contents = storage.GetProperty("contents").EnumerateArray().ToArray();
         Check(contents.Length == 4 && contents.Sum(t => t.Int("stackCount")) == 300 && contents.All(t => t.Bool("spawned") && t.Bool("atContainer") && t.Bool("forbidden")), "Remote adaptive storage lost, moved or exposed packed contents.");
-        Check(storage.Int("cellLimit") > source.GetProperty("storage")[0].Int("cellLimit"), "Remote adaptive storage cell-limit patch did not activate.");
+        Check(storage.Int("cellLimit") == source.GetProperty("storage")[0].Int("cellLimit"), "Remote adaptive storage retained an artificial cell limit after loading.");
     }
     private async Task<JsonElement> Read(string client, bool isRemote = false)
     {
