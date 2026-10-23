@@ -45,20 +45,18 @@ public sealed class ClashOfRimAccountRegistrationDialog : Window
         Rect passwordLabelRect = new(inRect.x, inRect.y + 78f, labelWidth, 28f);
         Widgets.Label(passwordLabelRect, ClashOfRimText.Key("ClashOfRim.Password"));
         GUI.SetNextControlName(PasswordInputControl);
-        form.Password = GUI.PasswordField(
+        form.Password = ClashPasswordField.Draw(
             new Rect(passwordLabelRect.xMax + 8f, passwordLabelRect.y, inRect.width - labelWidth - 8f, 28f),
-            form.Password,
-            '*');
+            form.Password);
 
         Rect confirmationLabelRect = new(inRect.x, inRect.y + 116f, labelWidth, 28f);
         Widgets.Label(
             confirmationLabelRect,
             ClashOfRimText.Key("ClashOfRim.ServerEntry.PasswordConfirmation"));
         GUI.SetNextControlName(PasswordConfirmationInputControl);
-        form.PasswordConfirmation = GUI.PasswordField(
+        form.PasswordConfirmation = ClashPasswordField.Draw(
             new Rect(confirmationLabelRect.xMax + 8f, confirmationLabelRect.y, inRect.width - labelWidth - 8f, 28f),
-            form.PasswordConfirmation,
-            '*');
+            form.PasswordConfirmation);
 
         HandleTabFocus();
 

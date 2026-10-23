@@ -30,7 +30,7 @@ internal sealed class AdminResetPasswordDialogWindow : Window
             "ClashOfRim.Admin.ResetPasswordTarget",
             draft.Target.UserId.Named("USER")));
         Widgets.Label(new Rect(inRect.x, inRect.y + 76f, 110f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.NewPassword"));
-        draft.Value = GUI.PasswordField(new Rect(inRect.x + 120f, inRect.y + 74f, inRect.width - 120f, 28f), draft.Value, '*');
+        draft.Value = ClashPasswordField.Draw(new Rect(inRect.x + 120f, inRect.y + 74f, inRect.width - 120f, 28f), draft.Value);
 
         if (Widgets.ButtonText(new Rect(inRect.xMax - 204f, inRect.yMax - 36f, 96f, 32f), ClashOfRimText.Key("ClashOfRim.Cancel")))
         {

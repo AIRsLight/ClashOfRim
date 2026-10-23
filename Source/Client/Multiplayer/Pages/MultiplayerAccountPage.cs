@@ -25,11 +25,11 @@ internal sealed class MultiplayerAccountPage
         y += 38f;
 
         Widgets.Label(new Rect(inner.x, y, 130f, 24f), ClashOfRimText.Key("ClashOfRim.Account.CurrentPassword"));
-        draft.CurrentPassword = GUI.PasswordField(new Rect(inner.x + 140f, y - 2f, 260f, 28f), draft.CurrentPassword, '*');
+        draft.CurrentPassword = ClashPasswordField.Draw(new Rect(inner.x + 140f, y - 2f, 260f, 28f), draft.CurrentPassword);
         y += 36f;
 
         Widgets.Label(new Rect(inner.x, y, 130f, 24f), ClashOfRimText.Key("ClashOfRim.Account.NewPassword"));
-        draft.NewPassword = GUI.PasswordField(new Rect(inner.x + 140f, y - 2f, 260f, 28f), draft.NewPassword, '*');
+        draft.NewPassword = ClashPasswordField.Draw(new Rect(inner.x + 140f, y - 2f, 260f, 28f), draft.NewPassword);
         y += 42f;
 
         if (Widgets.ButtonText(new Rect(inner.x + 140f, y, 160f, 30f), ClashOfRimText.Key("ClashOfRim.Account.ChangePassword"), active: !model.Busy))

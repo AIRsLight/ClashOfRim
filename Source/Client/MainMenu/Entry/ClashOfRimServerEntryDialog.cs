@@ -51,7 +51,7 @@ public sealed class ClashOfRimServerEntryDialog : Window
         Widgets.Label(passwordLabelRect, ClashOfRimText.Key("ClashOfRim.Password"));
         Rect passwordRect = new(inRect.x + InputOffset, passwordLabelRect.y, inRect.width - InputOffset, 30f);
         GUI.SetNextControlName(PasswordInputControl);
-        form.Password = GUI.PasswordField(passwordRect, form.Password, '*');
+        form.Password = ClashPasswordField.Draw(passwordRect, form.Password);
 
         HandleTabFocus();
 

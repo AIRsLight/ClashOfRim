@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RimWorldReferenceVersion>1.7.4977-alpha.1</RimWorldReferenceVersion>
+    <RimWorldReferenceVersion>1.7.4985-unstable</RimWorldReferenceVersion>
     <HarmonyVersion>3.0.0-rc.2</HarmonyVersion>
     <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == ''">$(RIMWORLD_ASSEMBLY_DIR)</RimWorldManagedDir>
     <RimWorldCopyLocal Condition="'$(RimWorldCopyLocal)' == ''">false</RimWorldCopyLocal>

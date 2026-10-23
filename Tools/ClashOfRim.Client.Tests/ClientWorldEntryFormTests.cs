@@ -15,6 +15,7 @@ internal static class ClientWorldEntryFormTests
     internal static void Run() => RunAsync().WaitAsync(TimeSpan.FromSeconds(60)).GetAwaiter().GetResult();
     private static async Task RunAsync()
     {
+        ClientPasswordFieldTests.Run();
         var culture = CultureInfo.CurrentCulture;
         try
         {
