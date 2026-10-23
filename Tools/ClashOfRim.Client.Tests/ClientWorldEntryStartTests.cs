@@ -9,6 +9,8 @@ using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Modules.World;
+using AIRsLight.ClashOfRim.Modules.Compatibility;
+using AIRsLight.ClashOfRim.Protocol;
 
 internal static class ClientWorldEntryStartTests
 {
@@ -33,10 +35,28 @@ internal static class ClientWorldEntryStartTests
                 foreach (string phase in new[] { "identity", "store", "progress", "hello", "discard" }) { await Failure(phase); count++; }
                 Barrier(); count++;
                 foreach (bool changedWorld in new[] { false, true }) { await DelayedWorldObservation(changedWorld); count++; }
+                foreach (string mode in new[] { "version", "http-protocol", "unavailable", "prepare-protocol" })
+                    foreach (bool stale in new[] { false, true }) { await ProtocolWarning(mode, stale); count++; }
             }
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
         Console.WriteLine($"PASS: client world entry start ({count} scenarios)");
+    }
+    private static async Task ProtocolWarning(string mode, bool stale)
+    {
+        var f = new Fixture { ProtocolMode = mode };
+        if (mode == "prepare-protocol") f.PrepareResponse = new()
+            { Result = new() { Accepted = false, ErrorCode = (int)ProtocolErrorCode.IncompatibleProtocolVersion, Message = "expected protocol differs" } };
+        Check(f.Start.TryStart("localhost", "alice", "password"), "Protocol mismatch did not start entry.");
+        var queued = await f.Ports.Next();
+        if (stale) f.Change("user");
+        queued(); await f.Idle();
+        bool show = !stale && mode != "unavailable";
+        Check((f.Warning is not null) == show && f.Scenarios == 0 && !f.State.Pending && f.Ports.Colony == ""
+            && f.Prepares == (mode == "prepare-protocol" ? 1 : 0), "Protocol rejection failed to open the manifest or continued world entry.");
+        if (show) Check(f.ProgressClosed && ClientCompatibilityWarning.ShouldShow(f.Warning, true)
+            && f.Warning!.Result!.ErrorCode == (int)ProtocolErrorCode.IncompatibleProtocolVersion,
+            "Protocol warning remained behind progress or was suppressed by language acceptance.");
     }
     private static void Invalid(string server, string? user)
     {
@@ -166,6 +186,9 @@ internal static class ClientWorldEntryStartTests
         internal Action<string>? On;
         internal Func<Task>? BeforePrepare;
         internal ModPrepareWorldSessionResponseDto? PrepareResponse;
+        internal string? ProtocolMode;
+        internal ModLoginResponseDto? Warning;
+        internal bool ProgressClosed;
         internal Action<string, Action>? ConfirmAccount;
         internal Action<string, string>? RegisterAccount;
         internal Fixture()
@@ -196,8 +219,12 @@ internal static class ClientWorldEntryStartTests
         public Task<ClashOfRimClientNetworkResult<ModServerHelloResponseDto>> HelloAsync(ClashOfRimClientNetworkContext context, CancellationToken token)
         {
             Hellos++; Captured = context; Visit("hello");
+            if (ProtocolMode is "http-protocol" or "unavailable")
+                return Task.FromResult(ClashOfRimClientNetworkResult<ModServerHelloResponseDto>.Failed(
+                    ProtocolMode == "http-protocol" ? nameof(ProtocolErrorCode.IncompatibleProtocolVersion) : "HttpError",
+                    "503 Service Unavailable", ProtocolMode == "http-protocol" ? "server-wire" : null));
             return Task.FromResult(ClashOfRimClientNetworkResult<ModServerHelloResponseDto>.Ok(new()
-            { Result = new() { Accepted = true }, ProtocolVersion = ClashOfRimVersion.ProtocolVersion,
+            { Result = new() { Accepted = true }, ProtocolVersion = ProtocolMode == "version" ? "server-wire" : ClashOfRimVersion.ProtocolVersion,
                 ProtocolMajor = ClashOfRimVersion.ProtocolMajor, MinimumSupportedProtocolMajor = ClashOfRimVersion.ProtocolMajor,
                 ProtocolMinor = ClashOfRimVersion.ProtocolMinor, MinimumSupportedProtocolMinor = ClashOfRimVersion.ProtocolMinor }));
         }
@@ -217,12 +244,13 @@ internal static class ClientWorldEntryStartTests
         public void Failure(string message) => Failures++;
         public void Progress(string message, float progress) => Visit("progress");
         public void Scenario(string? message) => Scenarios++;
-        public void CloseProgress() { }
+        public void CloseProgress() { ProgressClosed = true; }
         public void ConfirmRegistration(string account, Action accept)
         { if (ConfirmAccount is null) throw new NotSupportedException(); ConfirmAccount(account, accept); }
         public void Register(string server, string account)
         { if (RegisterAccount is null) throw new NotSupportedException(); RegisterAccount(server, account); }
-        public void Compatibility(ModLoginResponseDto response, string? language, bool languageAccepted, Func<bool> current, Action? accept = null, Action? cancel = null) { }
+        public void Compatibility(ModLoginResponseDto response, string? language, bool languageAccepted, Func<bool> current, Action? accept = null, Action? cancel = null)
+        { if (current() && ClientCompatibilityWarning.ShouldShow(response, languageAccepted)) Warning = response; }
         public void Enqueue(Action action, Action discard) => Ports.Enqueue(() => { if (ThrowAt == "discard") discard(); else action(); });
         private void Visit(string phase) { if (ThrowAt == phase) throw new InvalidOperationException(phase + " failed"); On?.Invoke(phase); }
         internal async Task Idle() { using var next = await Sync.AcquireManualAsync(default).WaitAsync(TimeSpan.FromSeconds(3)); }

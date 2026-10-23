@@ -23,6 +23,7 @@ internal static class ProtocolTransportModuleTests
             await DownloadBodyCancellation();
             await RequestsAndOwnership();
             await ErrorsAndExpiry();
+            await ProtocolRejections();
             await SessionCancellationAndDetachedCleanup();
             await MultipartDisposal();
         }
@@ -144,6 +145,41 @@ internal static class ProtocolTransportModuleTests
             using var http = new HttpClient(handler);
             var result = await JsonExchange(new(http, Context, new Environment()), "post");
             Require(!result.Success && result.ErrorCode == failure.GetType().Name && result.Message == failure.Message, "Transport exception mapping changed.");
+        }
+    }
+
+    private static async Task ProtocolRejections()
+    {
+        foreach (string kind in new[] { "get", "post", "multipart", "download" })
+        foreach (var status in new[] { HttpStatusCode.BadRequest, HttpStatusCode.Conflict, HttpStatusCode.ServiceUnavailable })
+        foreach (bool envelope in new[] { false, true })
+        {
+            const string detail = "Client protocol old; server protocol expected. Update the client.";
+            string rejection = JsonSerializer.Serialize(new { accepted = false, errorCode = (int)ProtocolErrorCode.IncompatibleProtocolVersion, message = detail });
+            string body = envelope ? "{\"serverProtocolVersion\":\"server-wire\",\"result\":" + rejection + "}"
+                : rejection.Insert(1, "\"protocolVersion\":\"server-wire\",");
+            var environment = new Environment();
+            using var handler = new Handler((_, _) => Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) }));
+            using var http = new HttpClient(handler);
+            var transport = new ClientProtocolTransport(http, Context, environment);
+            var result = kind == "download" ? await transport.PostForBytesAsync("/test", RequestData, default) : null;
+            var json = kind == "download" ? null : await JsonExchange(transport, kind);
+            string? code = result?.ErrorCode ?? json?.ErrorCode, message = result?.Message ?? json?.Message;
+            Require(code == nameof(ProtocolErrorCode.IncompatibleProtocolVersion) && message!.Contains(detail)
+                && (result?.ServerProtocolVersion ?? json?.ServerProtocolVersion) == "server-wire"
+                && !ClientNetworkFailurePolicy.CanRetry(code, message) && environment.Expired.Count == 0,
+                "HTTP protocol rejection lost its reason, became retryable or expired a valid session.");
+        }
+        foreach (string body in new[] { "<html>503 protocol mismatch</html>", "{", "null", "{}",
+            "{\"accepted\":true,\"errorCode\":2}", "{\"accepted\":false,\"errorCode\":\"2\"}",
+            "{\"accepted\":false,\"errorCode\":2,\"errorCode\":0}", "{\"accepted\":false,\"accepted\":true,\"errorCode\":2}" })
+        {
+            var environment = new Environment();
+            using var handler = new Handler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = new StringContent(body) }));
+            using var http = new HttpClient(handler);
+            var result = await JsonExchange(new(http, Context, environment), "post");
+            Require(result.ErrorCode == "HttpError" && ClientNetworkFailurePolicy.CanRetry(result.ErrorCode, result.Message)
+                && environment.Expired.Count == 0, "Ambiguous 503 was classified as a protocol/session failure.");
         }
     }
 

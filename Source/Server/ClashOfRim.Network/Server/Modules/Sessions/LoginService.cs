@@ -18,8 +18,8 @@ internal sealed class LoginService(AccountService accounts, EntryHandshakePolicy
 {
     internal LoginResponse Login(LoginRequest request)
     {
-        if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))
-            return RejectLogin(ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, ServerLocalization.Text("Protocol.IncompatibleVersion")));
+        if (ProtocolApiVersion.Validate(request.ProtocolVersion) is { } protocolFailure)
+            return RejectLogin(protocolFailure);
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
             return RejectLogin(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, ServerLocalization.Text("SessionStream.MissingIdentity")));
 

@@ -1941,4 +1941,8 @@
   <ClashOfRim.Diplomacy.CreationException>外交消息发生异常（{TYPE}）：{MESSAGE}</ClashOfRim.Diplomacy.CreationException>
   <ClashOfRim.Players.StatusIncomplete>玩家列表回执不完整，已保留之前的列表。</ClashOfRim.Players.StatusIncomplete>
   <ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>防守方尚未生成此子地图，远程会话暂不支持独立生成该类型。</ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>
+  <ClashOfRim.Compatibility.ProtocolUpdateRequired>协议不兼容，请安装与服务器匹配的 ClashOfRim 版本。套用模组配置或覆盖服务器基线不能解决协议差异。</ClashOfRim.Compatibility.ProtocolUpdateRequired>
+  <ClashOfRim.Compatibility.ManifestNotAvailable>尚未取得服务器模组清单，无法判断模组、文件及配置是否一致。</ClashOfRim.Compatibility.ManifestNotAvailable>
+  <ClashOfRim.Network.ProtocolRejected>服务器明确拒绝了当前协议。请求：{ROUTE}。客户端版本 / 协议：{CLIENT}。请安装匹配的客户端或请管理员更新服务端。</ClashOfRim.Network.ProtocolRejected>
+  <ClashOfRim.Network.ServiceUnavailable>服务器或网关暂不可用。请求：{ROUTE}。客户端版本 / 协议：{CLIENT}。仅凭 HTTP 状态码无法确认协议是否兼容，请管理员检查服务是否运行、代理转发及服务端日志。</ClashOfRim.Network.ServiceUnavailable>
 </LanguageData>

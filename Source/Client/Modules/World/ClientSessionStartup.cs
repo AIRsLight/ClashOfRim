@@ -6,6 +6,7 @@ using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Modules.Transport;
+using AIRsLight.ClashOfRim.Modules.Compatibility;
 
 namespace AIRsLight.ClashOfRim.Modules.World;
 
@@ -193,7 +194,12 @@ internal sealed class ClientSessionStartup
                 if (!Current(job)) return;
                 if (!result.Success || result.Response is null)
                 {
-                    await Publish(() => Notice(prefix + (map ? "StatusLoginFailed" : "StatusFailed"), args: new[] { ("CODE", (object?)(result.ErrorCode ?? "")), ("MESSAGE", (object?)(result.Message ?? "")) })); return;
+                    await Publish(() =>
+                    {
+                        Notice(prefix + (map ? "StatusLoginFailed" : "StatusFailed"), args: new[] { ("CODE", (object?)(result.ErrorCode ?? "")), ("MESSAGE", (object?)(result.Message ?? "")) });
+                        if (ClientCompatibilityWarning.FromFailure(result) is { } warning)
+                            Step(() => view.CompatibilityMismatch(warning));
+                    }); return;
                 }
                 if (job.Login.Credential is not { } credential)
                 {

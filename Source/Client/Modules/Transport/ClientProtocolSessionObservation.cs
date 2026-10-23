@@ -2,6 +2,7 @@ using System;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Protocol;
+using static AIRsLight.ClashOfRim.Modules.Transport.ClientProtocolRejection;
 
 namespace AIRsLight.ClashOfRim.Modules.Transport;
 
@@ -52,36 +53,12 @@ internal sealed class ClientProtocolSessionObservation
     internal void Observe(string? json, bool allowHeaderRejection)
     {
         if (json is null || (header is null && envelope is null)) return;
-        Action? invalidation;
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object) return;
-            if (root.TryGetProperty("result", out _))
-                invalidation = Property(root, "result", out var result) && Rejected(result) ? envelope : null;
-            else invalidation = allowHeaderRejection && Rejected(root) ? header : null;
-        }
-        catch (JsonException) { return; } // Error bodies may be HTML or otherwise non-protocol data.
-        invalidation?.Invoke();
+        Observe(Read(json), allowHeaderRejection);
     }
 
-    private static bool Rejected(JsonElement result) =>
-        Property(result, "accepted", out var accepted) && accepted.ValueKind == JsonValueKind.False
-        && Property(result, "errorCode", out var code) && code.ValueKind == JsonValueKind.Number
-        && code.TryGetInt32(out int value) && value == (int)ProtocolErrorCode.SessionUnavailable;
-
-    // Duplicate control fields must not disagree with the typed response decoder.
-    private static bool Property(JsonElement source, string name, out JsonElement value)
+    internal void Observe(ClientProtocolRejection? rejection, bool allowHeaderRejection)
     {
-        value = default; bool found = false;
-        if (source.ValueKind != JsonValueKind.Object) return false;
-        foreach (var property in source.EnumerateObject())
-        {
-            if (property.Name != name) continue;
-            if (found) { value = default; return false; }
-            found = true; value = property.Value;
-        }
-        return found;
+        if (rejection?.Code != ProtocolErrorCode.SessionUnavailable) return;
+        (rejection.IsEnvelope ? envelope : allowHeaderRejection ? header : null)?.Invoke();
     }
 }

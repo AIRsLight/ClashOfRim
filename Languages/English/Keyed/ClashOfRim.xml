@@ -1941,4 +1941,8 @@
   <ClashOfRim.Diplomacy.CreationException>Diplomacy message failed ({TYPE}): {MESSAGE}</ClashOfRim.Diplomacy.CreationException>
   <ClashOfRim.Players.StatusIncomplete>The player list response is incomplete. The previous list has been retained.</ClashOfRim.Players.StatusIncomplete>
   <ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>The defender has not generated this submap, and its independent generation is not supported during a remote session.</ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>
+  <ClashOfRim.Compatibility.ProtocolUpdateRequired>The protocols are incompatible. Install matching ClashOfRim client and server versions. Applying mod settings or replacing the server baseline cannot resolve a protocol mismatch.</ClashOfRim.Compatibility.ProtocolUpdateRequired>
+  <ClashOfRim.Compatibility.ManifestNotAvailable>The server mod manifest has not been obtained. Mod, file and configuration compatibility is unknown.</ClashOfRim.Compatibility.ManifestNotAvailable>
+  <ClashOfRim.Network.ProtocolRejected>The server explicitly rejected this protocol. Request: {ROUTE}. Client version / protocol: {CLIENT}. Install a matching client or ask the administrator to update the server.</ClashOfRim.Network.ProtocolRejected>
+  <ClashOfRim.Network.ServiceUnavailable>The server or gateway is temporarily unavailable. Request: {ROUTE}. Client version / protocol: {CLIENT}. The HTTP status alone does not establish protocol compatibility. Ask the administrator to check the server process, proxy forwarding and server logs.</ClashOfRim.Network.ServiceUnavailable>
 </LanguageData>

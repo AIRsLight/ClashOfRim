@@ -1932,4 +1932,8 @@
   <ClashOfRim.Diplomacy.CreationException>外交メッセージでエラーが発生しました（{TYPE}）：{MESSAGE}</ClashOfRim.Diplomacy.CreationException>
   <ClashOfRim.Players.StatusIncomplete>プレイヤー一覧の応答が不完全です。以前の一覧を保持しました。</ClashOfRim.Players.StatusIncomplete>
   <ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>防衛側がこのサブマップをまだ生成しておらず、遠隔セッションでの独立生成には対応していません。</ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>
+  <ClashOfRim.Compatibility.ProtocolUpdateRequired>プロトコルに互換性がありません。クライアントとサーバーの ClashOfRim を対応するバージョンに更新してください。MOD 設定の適用やサーバー基準の上書きでは解決できません。</ClashOfRim.Compatibility.ProtocolUpdateRequired>
+  <ClashOfRim.Compatibility.ManifestNotAvailable>サーバーの MOD 一覧を取得していないため、MOD・ファイル・設定の一致は未確認です。</ClashOfRim.Compatibility.ManifestNotAvailable>
+  <ClashOfRim.Network.ProtocolRejected>サーバーがこのプロトコルを拒否しました。リクエスト：{ROUTE}。クライアントのバージョン / プロトコル：{CLIENT}。対応するクライアントを導入するか、管理者にサーバーの更新を依頼してください。</ClashOfRim.Network.ProtocolRejected>
+  <ClashOfRim.Network.ServiceUnavailable>サーバーまたはゲートウェイが一時的に利用できません。リクエスト：{ROUTE}。クライアントのバージョン / プロトコル：{CLIENT}。HTTP ステータスだけでは互換性を判断できません。管理者にサーバーの稼働、プロキシ転送、ログの確認を依頼してください。</ClashOfRim.Network.ServiceUnavailable>
 </LanguageData>

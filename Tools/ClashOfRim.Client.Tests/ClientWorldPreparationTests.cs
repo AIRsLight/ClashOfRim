@@ -63,7 +63,14 @@ internal static class ClientWorldPreparationTests
         }
         var prepared = await f.Module.PrepareAsync(false);
         Check(prepared?.Failure is not null && prepared.Result is null && f.Calls.Count == 1, "Bad hello reached preparation: " + mode);
+        if (mode == "version")
+            Check(f.ProtocolVersions.Contains(ClashOfRimVersion.ProtocolVersion)
+                && f.ProtocolVersions.Contains(f.Hello.Response!.ProtocolVersion), "Version mismatch hid the actual wire protocol identifiers.");
         Check(f.Module.Complete(prepared!, _ => { }), "Current hello failure was lost.");
+        bool mismatch = mode is "major" or "minimum-major" or "minor" or "minimum-minor" or "version";
+        Check((prepared!.Compatibility is not null) == mismatch
+            && (!mismatch || prepared.Compatibility!.ServerProtocolVersion == f.Hello.Response!.ProtocolVersion),
+            "Handshake did not carry its authoritative protocol warning to the compatibility screen.");
     }
     private static async Task Preparation(bool existing, bool configured, bool included, bool create)
     {
@@ -277,7 +284,13 @@ internal static class ClientWorldPreparationTests
         { Create = createAccount; await Enter("prepare", context, token); return Prepare; }
         public async Task<ClashOfRimClientNetworkResult<ModGetWorldConfigurationResponseDto>> ReadAsync(ClashOfRimClientNetworkContext context, bool generation, CancellationToken token)
         { Generation = generation; await Enter("read", context, token); return Read; }
-        public string Text(string key, params (string Name, object? Value)[] arguments) { OnPresentation?.Invoke(); return key; }
+        internal string ProtocolVersions = "";
+        public string Text(string key, params (string Name, object? Value)[] arguments)
+        {
+            if (key == "ClashOfRim.ServerEntry.ProtocolMismatch")
+                ProtocolVersions = string.Join(" ", Array.ConvertAll(arguments, value => value.Value?.ToString()));
+            OnPresentation?.Invoke(); return key;
+        }
         public void Diagnose(string message) { Diagnostics++; OnPresentation?.Invoke(); }
         internal void Change(string change)
         {

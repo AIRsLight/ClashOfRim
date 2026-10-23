@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Modules.Compatibility;
+using AIRsLight.ClashOfRim.Protocol;
 using static AIRsLight.ClashOfRim.Modules.Compatibility.ClientCompatibilityReport;
 
 internal static class ClientCompatibilityMismatchTests
@@ -19,7 +20,7 @@ internal static class ClientCompatibilityMismatchTests
             foreach (string name in new[] { "en-US", "zh-CN", "tr-TR", "ar-SA" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
-                Report(); UpdatedFiles(); Fallback(); Malformed(); Continue(); Repairs(); Queued(); Exceptions();
+                Report(); UpdatedFiles(); ProtocolReport(); Fallback(); Malformed(); Continue(); Repairs(); Queued(); Exceptions();
                 foreach (string change in new[] { "close", "user", "server", "colony", "auth", "login", "game", "generation", "password", "steam", "unavailable", "caller" })
                     foreach (bool opened in new[] { false, true }) Stale(change, opened);
                 foreach (string phase in new[] { "capture", "text", "close", "repair", "order" }) Reentry(phase);
@@ -97,8 +98,8 @@ internal static class ClientCompatibilityMismatchTests
                 "File/version update offered an ineffective mod-list repair or lost administrator recovery: " + difference);
             changed = changed with { ConfigSha256 = "changed", DlcIds = new[] { "Ideology" } };
             report = new ClientCompatibilityReport(response, Json(changed), null, f);
-            Check(report.RequiresManualUpdate && report.CanApplyManifest && report.CanApplyConfig && report.CanOverride == administrator,
-                "Mixed differences hid an applicable repair or the remaining manual update: " + difference);
+            Check(report.RequiresManualUpdate && !report.CanApplyManifest && !report.CanApplyConfig && report.CanOverride == administrator,
+                "Mixed differences offered config repair before the required file update: " + difference);
         }
         foreach (string code in new[] { "RimWorldVersionMismatch", "SchemaVersionMismatch", "ProtocolVersionMismatch", "FutureCode" })
         {
@@ -114,6 +115,33 @@ internal static class ClientCompatibilityMismatchTests
             Check(report.CanApplyManifest, "Actionable mod selection no longer offers repair: " + code);
             response.ServerCompatibilityManifestJson = null;
             Check(!new ClientCompatibilityReport(response, Json(original), null, f).CanApplyManifest, "Repair offered without a server manifest.");
+        }
+    }
+    private static void ProtocolReport()
+    {
+        foreach (bool manifest in new[] { false, true })
+        foreach (string? server in new string?[] { null, "server-wire" })
+        {
+            var f = new Fixture();
+            var response = ClientCompatibilityWarning.ProtocolFailure("client-wire differs from server-wire", server);
+            response.CanOverrideCompatibilityBaseline = true;
+            if (manifest) response.ServerCompatibilityManifestJson = Json(Manifest());
+            Check(ClientCompatibilityWarning.ShouldShow(response, languageAccepted: true), "Protocol rejection was hidden by language acceptance.");
+            var report = new ClientCompatibilityReport(response, Json(Manifest()), null, f);
+            Check(report.ProtocolMismatch && report.RequiresManualUpdate && report.HasServerManifest == manifest
+                && !report.CanOverride && !report.CanApplyManifest && !report.CanApplyConfig && !report.LanguageOnly
+                && report.ProtocolMessage == response.Result!.Message, "Protocol rejection offered repair or lost its details.");
+            Check(report.ManifestEntries.Count == 0 && report.HashEntries.Count == 0 && report.ConfigEntries.Count == 0,
+                "Unavailable server manifest fabricated differences.");
+        }
+        foreach (string code in new[] { "FileHashMismatch", "FileMissing", "FileUnexpected", "FileSizeMismatch", "DefSummaryHashMismatch" })
+        {
+            var f = new Fixture();
+            f.Response.CompatibilityIssues = new() { Issue(code) };
+            var model = f.Create(); Check(model.Open(), "Mixed report did not open.");
+            foreach (ClientCompatibilityRepair kind in Enum.GetValues(typeof(ClientCompatibilityRepair)))
+                Check(!model.Apply(kind) && f.Repairs.Count == 0, "File mismatch allowed config/mod-list repair: " + code);
+            Check(model.CanOverride, "File mismatch removed administrator recovery.");
         }
     }
     private static void Fallback()

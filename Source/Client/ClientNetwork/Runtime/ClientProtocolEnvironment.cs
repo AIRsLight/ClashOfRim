@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using AIRsLight.ClashOfRim.Modules.Transport;
+using AIRsLight.ClashOfRim.Compatibility;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
@@ -11,6 +12,13 @@ internal sealed class ClientProtocolEnvironment : ClientProtocolMetadata, IClien
         ClashOfRimModNetworkClient.CaptureSessionUnavailable?.Invoke(context, sessionId);
     public void MultipartDisposalFailed(string message) =>
         Log.Warning("[ClashOfRim] Ignored HTTP multipart dispose NullReferenceException: " + message);
+    public string? HttpFailureHint(string route, int statusCode, bool incompatibleProtocol)
+    {
+        string? key = incompatibleProtocol ? "ClashOfRim.Network.ProtocolRejected"
+            : statusCode is 502 or 503 or 504 ? "ClashOfRim.Network.ServiceUnavailable" : null;
+        return key is null ? null : ClashOfRimText.Key(key, route.Named("ROUTE"),
+            ($"{ClashOfRimVersion.ProductVersion} / {ClashOfRimVersion.ProtocolDisplayVersion} [{ClashOfRimVersion.ProtocolVersion}]").Named("CLIENT"));
+    }
 }
 
 internal class ClientProtocolMetadata : IClientProtocolMetadata

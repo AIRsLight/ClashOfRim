@@ -1,4 +1,5 @@
 {
+  "Protocol.IncompatibleVersionDetails": "协议不兼容。客户端协议：{CLIENT}；服务器要求：{SERVER}（ClashOfRim {PRODUCT}）。请安装匹配的客户端或更新服务端。",
   "Events.SnapshotNotLatest": "事件请求的快照已不是当前权威快照，请刷新殖民地快照后重试。",
   "Events.ConfirmationAlreadyEnded": "该事件已经结束，不能再确认入档。",
   "Server.InternalError": "服务器内部错误，详情已写入服务端日志。",

@@ -6,6 +6,7 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.CompatibilityClient;
 using AIRsLight.ClashOfRim.Modules.Transport;
+using AIRsLight.ClashOfRim.Protocol;
 
 namespace AIRsLight.ClashOfRim.Modules.Compatibility;
 
@@ -32,6 +33,8 @@ internal sealed class ClientCompatibilityReport
     internal string LocalLanguage => localManifest?.GameLanguage ?? "";
     internal bool LanguageMismatch { get; }
     internal bool ProtocolMismatch { get; }
+    internal string ProtocolMessage { get; }
+    internal bool HasServerManifest => serverManifest is not null;
     internal bool LanguageOnly { get; }
     internal bool CanOverride { get; }
     internal bool RequiresManualUpdate { get; }
@@ -58,13 +61,15 @@ internal sealed class ClientCompatibilityReport
         ServerProtocol = serverManifest?.ProtocolVersion ?? owned.ServerProtocolVersion ?? "";
         ServerLanguage = CompatibilityLanguageMismatchPolicy.ResolveServerLanguage(language, serverManifest?.GameLanguage);
         LanguageMismatch = owned.CompatibilityIssues?.Any(issue => CompatibilityLanguageMismatchPolicy.IsLanguageMismatch(issue.Code)) == true;
-        ProtocolMismatch = owned.CompatibilityIssues?.Any(issue => issue.Code == nameof(CompatibilityIssueCode.ProtocolVersionMismatch)) == true
+        ProtocolMessage = owned.Result?.Message ?? "";
+        ProtocolMismatch = owned.Result?.ErrorCode == (int)ProtocolErrorCode.IncompatibleProtocolVersion
+            || owned.CompatibilityIssues?.Any(issue => issue.Code == nameof(CompatibilityIssueCode.ProtocolVersionMismatch)) == true
             || (!string.IsNullOrWhiteSpace(ServerProtocol) && ServerProtocol != LocalProtocol);
-        LanguageOnly = CompatibilityLanguageMismatchPolicy.CanContinue(owned);
-        CanOverride = owned.CanOverrideCompatibilityBaseline;
+        LanguageOnly = !ProtocolMismatch && CompatibilityLanguageMismatchPolicy.CanContinue(owned);
+        CanOverride = !ProtocolMismatch && owned.CanOverrideCompatibilityBaseline;
         RequiresManualUpdate = ProtocolMismatch || HashEntries.Count > 0 || ManifestEntries.Any(entry => entry.RequiresManualUpdate);
-        CanApplyManifest = serverManifest is not null && ManifestEntries.Any(entry => entry.ModSelectionChange);
-        CanApplyConfig = ConfigEntries.Count > 0 && serverManifest is not null;
+        CanApplyManifest = !RequiresManualUpdate && serverManifest is not null && ManifestEntries.Any(entry => entry.ModSelectionChange);
+        CanApplyConfig = !RequiresManualUpdate && ConfigEntries.Count > 0 && serverManifest is not null;
     }
     private UiManifest? Read(string? json)
     {

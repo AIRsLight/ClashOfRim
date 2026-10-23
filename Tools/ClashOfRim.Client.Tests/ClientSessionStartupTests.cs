@@ -11,6 +11,7 @@ using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Modules.World;
+using AIRsLight.ClashOfRim.Protocol;
 
 internal static class ClientSessionStartupTests
 {
@@ -28,6 +29,7 @@ internal static class ClientSessionStartupTests
                 foreach (var kind in Enum.GetValues<ClientSessionStartKind>())
                 {
                     foreach (bool presence in new[] { false, true }) { await Success(kind, presence); count++; }
+                    await ProtocolFailure(kind); count++;
                     foreach (string gate in new[] { "manual", "snapshot", "configuration", "pending", "no-snapshot", "no-map", "not-playing" })
                     { await Admission(kind, gate); count++; }
                     foreach (string phase in kind == ClientSessionStartKind.Map ? new[] { "login", "upload" } : new[] { "login" })
@@ -159,6 +161,15 @@ internal static class ClientSessionStartupTests
             || (gate is "no-map" or "not-playing") && kind == ClientSessionStartKind.Manual;
         Check(f.Calls.IsEmpty != allowed && (f.Effects.Count != 0) == allowed, "Wrong startup admission: " + kind + "/" + gate);
         Check(f.Sync.IsBusy == (lease is not null), "Denied startup consumed a foreign lease."); lease?.Dispose();
+    }
+    private static async Task ProtocolFailure(ClientSessionStartKind kind)
+    {
+        var f = new Fixture(kind) { FaultPhase = "login", Fault = "http-protocol" };
+        await f.Ports.PumpUntil(f.Start());
+        Check(f.Mismatches == 1 && f.Warning?.Result?.ErrorCode == (int)ProtocolErrorCode.IncompatibleProtocolVersion
+            && f.Warning.ServerProtocolVersion == "server-wire" && f.Warning.Result.Message == "expected protocol"
+            && f.Effects.Count == 0 && !f.Sync.IsBusy && f.Logouts.IsEmpty && f.Calls.SequenceEqual(new[] { "login" }),
+            "HTTP protocol rejection did not open compatibility or continued login.");
     }
     private static async Task Failure(ClientSessionStartKind kind, string phase, string fault)
     {
@@ -293,6 +304,7 @@ internal static class ClientSessionStartupTests
         public object Current => Ports.GameOwner;
         internal string? FaultPhase, Fault, UploadKind; internal int Queues, Messages, Mismatches, DiscardIndex, QueueIndex;
         internal ClashOfRimClientNetworkContext? RequestContext;
+        internal ModLoginResponseDto? Warning;
         internal Action<string>? Hook; internal Func<string, Task>? Before;
         internal Fixture(ClientSessionStartKind kind)
         {
@@ -341,7 +353,7 @@ internal static class ClientSessionStartupTests
             var response = new ModLoginResponseDto { Result = Protocol(fault), AuthenticatedUserId = "  Alice  ", AuthToken = fault == "no-token" ? " " : "accepted-auth",
                 SessionId = fault == "no-session" ? "" : "accepted-session", WorldMapMarkers = ClientWorldPublicationTests.Markers("login"),
                 EventQueue = new() { DirectlyProcessable = new() { new() { EventId = "event" } } } };
-            if (fault is not ("network" or "missing-response" or "exception" or "canceled")) captureReceipt(response);
+            if (fault is not ("network" or "http-protocol" or "missing-response" or "exception" or "canceled")) captureReceipt(response);
             Step("received");
             if (fault == "canceled-after-receipt") throw new TaskCanceledException("expected");
             if (MutateReceipt) { response.AuthToken = "mutated"; response.SessionId = "mutated"; response.WorldMapMarkers.Markers[0].Label = "mutated"; response.EventQueue.DirectlyProcessable.Clear(); }
@@ -359,6 +371,7 @@ internal static class ClientSessionStartupTests
         private static ModProtocolResponseDto? Protocol(string? fault) => fault == "missing-result" ? null : new() { Accepted = fault != "rejected", ErrorCode = 17, Message = "expected" };
         private static ClashOfRimClientNetworkResult<T> Result<T>(string? fault, T response) => fault switch
         { "network" => ClashOfRimClientNetworkResult<T>.Failed("network", "expected"), "missing-response" => ClashOfRimClientNetworkResult<T>.Ok(default!),
+            "http-protocol" => ClashOfRimClientNetworkResult<T>.Failed(nameof(ProtocolErrorCode.IncompatibleProtocolVersion), "expected protocol", "server-wire"),
             "exception" => throw new InvalidOperationException("expected"), "canceled" => throw new TaskCanceledException("expected"), _ => ClashOfRimClientNetworkResult<T>.Ok(response) };
         public bool IsPresenceRunning => Presence;
         public IClientSessionStartupSession Bind() => new Bound(this, Ports.GameOwner, World);
@@ -378,7 +391,7 @@ internal static class ClientSessionStartupTests
         public void LoginStatus(string text) => Statuses.Enqueue(text);
         public void SnapshotStatus(string text) => Statuses.Enqueue(text);
         public void Message(string text) => Messages++;
-        public void CompatibilityMismatch(ModLoginResponseDto response) => Mismatches++;
+        public void CompatibilityMismatch(ModLoginResponseDto response) { Mismatches++; Warning = response; }
         public void Diagnose(string text) => Diagnostics.Enqueue(text);
         private sealed record Bound(Fixture F, object Game, object World) : IClientSessionStartupSession
         {

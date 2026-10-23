@@ -15,7 +15,7 @@ internal sealed class CompatibilityMismatchWindow : Window
     private readonly ClientCompatibilityMismatch model;
     private ClientCompatibilityReport Report => model.Report!;
     private CompatibilityTab selectedTab = CompatibilityTab.Overview;
-    private Vector2 manifestScroll, hashScroll, configScroll, serverModScroll, localModScroll;
+    private Vector2 manifestScroll, hashScroll, configScroll, serverModScroll, localModScroll, protocolScroll;
     internal bool IsCurrent => model.IsCurrent;
     internal bool CanContinue => model.CanContinue;
     internal bool TryContinue() => model.Continue(() => Close());
@@ -170,6 +170,19 @@ internal sealed class CompatibilityMismatchWindow : Window
 
     private void DrawOverviewTab(Rect inRect, int manifestCount, int hashCount, int configCount)
     {
+        if (Report.ProtocolMismatch)
+        {
+            string details = T("ClashOfRim.Compatibility.ProtocolUpdateRequired") + "\n\n"
+                + T("ClashOfRim.Compatibility.ProtocolVersionLine", Display(Report.ServerProtocol).Named("SERVER"), Report.LocalProtocol.Named("LOCAL"))
+                + "\n\n" + Report.ProtocolMessage
+                + (Report.HasServerManifest ? "" : "\n\n" + T("ClashOfRim.Compatibility.ManifestNotAvailable"));
+            Rect area = inRect.ContractedBy(8f);
+            Rect content = new(0f, 0f, area.width - 16f, Mathf.Max(area.height, Text.CalcHeight(details, area.width - 16f)));
+            Widgets.BeginScrollView(area, ref protocolScroll, content);
+            Widgets.Label(content, details);
+            Widgets.EndScrollView();
+            return;
+        }
         Rect contentRect = inRect.ContractedBy(8f);
         float y = contentRect.y + 8f;
         Widgets.Label(
@@ -198,10 +211,6 @@ internal sealed class CompatibilityMismatchWindow : Window
             "ClashOfRim.Compatibility.ProtocolVersionLine",
             serverProtocol.Named("SERVER"),
             localProtocol.Named("LOCAL"));
-        if (Report.ProtocolMismatch)
-        {
-            protocolLine = "<color=#ff6b6b>" + protocolLine + "</color>";
-        }
         string languageLine = T(
             "ClashOfRim.Compatibility.GameLanguageLine",
             serverLanguage.Named("SERVER"),
@@ -232,6 +241,11 @@ internal sealed class CompatibilityMismatchWindow : Window
 
     private void DrawManifestTab(Rect inRect)
     {
+        if (!Report.HasServerManifest)
+        {
+            DrawEntryTab(inRect, Report.ManifestEntries, ref manifestScroll, T("ClashOfRim.Compatibility.ManifestNotAvailable"));
+            return;
+        }
         const float rowHeight = 22f;
         const float listHeight = 165f;
         const float gap = 16f;
@@ -298,7 +312,7 @@ internal sealed class CompatibilityMismatchWindow : Window
         Rect outRect = inRect.ContractedBy(8f);
         if (visibleEntries.Count == 0)
         {
-            Widgets.Label(outRect, emptyText);
+            Widgets.Label(outRect, Report.HasServerManifest ? emptyText : T("ClashOfRim.Compatibility.ManifestNotAvailable"));
             return;
         }
 

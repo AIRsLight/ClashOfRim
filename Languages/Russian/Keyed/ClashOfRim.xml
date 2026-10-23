@@ -1932,4 +1932,8 @@
   <ClashOfRim.Diplomacy.CreationException>Ошибка дипломатического сообщения ({TYPE}): {MESSAGE}</ClashOfRim.Diplomacy.CreationException>
   <ClashOfRim.Players.StatusIncomplete>Ответ со списком игроков неполон. Предыдущий список сохранён.</ClashOfRim.Players.StatusIncomplete>
   <ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>Защитник ещё не создал эту подкарту. Её независимое создание в удалённой сессии не поддерживается.</ClashOfRim.RemoteSessionMap.PocketMapNotGenerated>
+  <ClashOfRim.Compatibility.ProtocolUpdateRequired>Протоколы несовместимы. Установите совместимые версии клиента и сервера ClashOfRim. Применение настроек модов или замена эталона сервера не устраняет различия протоколов.</ClashOfRim.Compatibility.ProtocolUpdateRequired>
+  <ClashOfRim.Compatibility.ManifestNotAvailable>Список модов сервера ещё не получен. Совместимость модов, файлов и настроек неизвестна.</ClashOfRim.Compatibility.ManifestNotAvailable>
+  <ClashOfRim.Network.ProtocolRejected>Сервер явно отклонил этот протокол. Запрос: {ROUTE}. Версия клиента / протокол: {CLIENT}. Установите совместимый клиент или попросите администратора обновить сервер.</ClashOfRim.Network.ProtocolRejected>
+  <ClashOfRim.Network.ServiceUnavailable>Сервер или шлюз временно недоступен. Запрос: {ROUTE}. Версия клиента / протокол: {CLIENT}. Сам по себе код HTTP не подтверждает совместимость протоколов. Попросите администратора проверить работу сервера, перенаправление прокси и журналы сервера.</ClashOfRim.Network.ServiceUnavailable>
 </LanguageData>

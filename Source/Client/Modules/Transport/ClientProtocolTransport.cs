@@ -72,8 +72,14 @@ internal sealed class ClientProtocolTransport
             {
                 string body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
-                observation?.Observe(body, allowHeaderRejection: true);
-                return ClashOfRimClientNetworkResult<TResponse>.Failed("HttpError", $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+                var rejection = ClientProtocolRejection.Read(body);
+                observation?.Observe(rejection, allowHeaderRejection: true);
+                bool incompatible = rejection?.Code == ProtocolErrorCode.IncompatibleProtocolVersion;
+                string? hint = environment.HttpFailureHint(uri.AbsolutePath, (int)response.StatusCode, incompatible);
+                string detail = incompatible && !string.IsNullOrWhiteSpace(rejection!.Message) ? rejection.Message! : body;
+                return ClashOfRimClientNetworkResult<TResponse>.Failed(incompatible ? nameof(ProtocolErrorCode.IncompatibleProtocolVersion) : "HttpError",
+                    $"{(int)response.StatusCode} {response.ReasonPhrase}: " + (hint is null ? "" : hint + "\n") + detail,
+                    incompatible ? rejection!.ServerProtocolVersion : null);
             }
             // Login uses ResponseContentRead: a returned response is already fully buffered.
             // Capture a decoded credential for cleanup before rejecting a canceled completion.

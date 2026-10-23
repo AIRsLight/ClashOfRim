@@ -13,8 +13,8 @@ internal sealed class WorldSessionPreparation(AccountService accounts, EntryHand
 {
     internal PrepareWorldSessionResponse Prepare(PrepareWorldSessionRequest request)
     {
-        if (request.ProtocolVersion != ProtocolApiVersion.Current)
-            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, ServerLocalization.Text("Protocol.IncompatibleVersion")));
+        if (ProtocolApiVersion.Validate(request.ProtocolVersion) is { } protocolFailure)
+            return Reject(protocolFailure);
         if (string.IsNullOrWhiteSpace(request.UserId))
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, ServerLocalization.Text("WorldSession.MissingIdentity")));
         var credentials = accounts.PrepareCredentials(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow, request.CreateAccountIfMissing);

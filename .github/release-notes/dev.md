@@ -2,6 +2,11 @@
 
 ## Current development changes
 
+### 0.4.9 testing update
+
+- **Login diagnostics:** incompatible protocols open the compatibility screen with the client/server versions and rejection details, even before a server manifest is available. Structured protocol rejections retain their meaning on HTTP errors; generic gateway failures show connection diagnostics instead of inventing a version mismatch.
+- **Compatibility repairs:** file, game-version and protocol differences take priority over configuration changes. Configuration and mod-list application buttons are hidden until those differences are resolved; authorized administrators can still replace a file/configuration baseline, but cannot bypass protocol compatibility.
+
 ### 0.4.8 testing update
 
 - **Starting-site display:** multiplayer colony setup offers “Show only player colonies.” It hides NPC settlement icons for that page while preserving world objects, occupied tiles and adjacent-settlement restrictions. The preference defaults to off and is cleared when leaving the page. All five supported languages are included.

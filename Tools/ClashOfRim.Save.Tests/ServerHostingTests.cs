@@ -48,6 +48,19 @@ internal static class ServerHostingTests
                     && entries[i].GetProperty("fileName").GetString() == plugins.Plugins[i].FileName,
                     "Plugin listing lost Unicode identity or path.");
             }
+            foreach (var kind in new[] { ProtocolMessageKind.Login, ProtocolMessageKind.PrepareWorldSession })
+            {
+                const string clientProtocol = "obsolete-test-protocol";
+                using var response = f.Post(kind, new { protocolVersion = clientProtocol, userId = "unregistered", colonyId = "new",
+                    password = "unused", createAccountIfMissing = true });
+                Check(response.StatusCode == System.Net.HttpStatusCode.OK, "Protocol mismatch became an HTTP availability failure.");
+                var body = response.Content.ReadFromJsonAsync<JsonElement>().GetAwaiter().GetResult().GetProperty("result");
+                string reason = body.GetProperty("message").GetString()!;
+                Check(!body.GetProperty("accepted").GetBoolean()
+                    && body.GetProperty("errorCode").GetInt32() == (int)ProtocolErrorCode.IncompatibleProtocolVersion
+                    && reason.Contains(clientProtocol) && reason.Contains(ProtocolApiVersion.Current),
+                    "Entry protocol rejection omitted the expected/received wire versions.");
+            }
         }
         finally
         {

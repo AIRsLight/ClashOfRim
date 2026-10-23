@@ -14,4 +14,5 @@ internal interface IClientProtocolEnvironment : IClientProtocolMetadata
 {
     Action? CaptureSessionUnavailable(ClashOfRimClientNetworkContext context, string? sessionId);
     void MultipartDisposalFailed(string message);
+    string? HttpFailureHint(string route, int statusCode, bool incompatibleProtocol) => null;
 }

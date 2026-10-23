@@ -34,16 +34,17 @@ internal sealed class ClientWorldEntry
     }
     internal ClientWorldPublication.Observation Capture() => publication.Capture();
     internal Task Handle(ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>? result, string? failure,
-        ClientSynchronizationCoordinator.Lease operation, ClientWorldPublication.Observation observation)
+        ClientSynchronizationCoordinator.Lease operation, ClientWorldPublication.Observation observation, ModLoginResponseDto? compatibility = null)
     {
         using var p = ClientSessionWork.EnterPublication();
         if (!operation.IsCurrent || !publication.Owns(observation)) return Task.CompletedTask;
         requests.Reset();
         var request = requests.Begin()!;
-        if (failure is not null) { Fail(request, failure); return Task.CompletedTask; }
-        if (result?.Success != true || result.Response is null)
+        if (failure is not null || result?.Success != true || result.Response is null)
         {
-            Fail(request, view.Text("ClashOfRim.WorldSessionRequestFailed", ("CODE", result?.ErrorCode), ("MESSAGE", result?.Message)));
+            Fail(request, failure ?? view.Text("ClashOfRim.WorldSessionRequestFailed", ("CODE", result?.ErrorCode), ("MESSAGE", result?.Message)));
+            compatibility ??= ClientCompatibilityWarning.FromFailure(result);
+            if (compatibility is not null) ShowCompatibility(request.Scope, compatibility, null, false);
             return Task.CompletedTask;
         }
         return Decide(request, ClientProtocolJson.Copy(result.Response), operation, setup.LanguageAccepted, observation);
@@ -187,7 +188,11 @@ internal sealed class ClientWorldEntry
     private void ShowCompatibility(ClientGameRequestTracker.Scope scope, ModLoginResponseDto warning, string? language, bool accepted)
     {
         if (requests.TryApply(scope, static () => { }))
+        {
+            if (warning.Result?.ErrorCode == (int)ProtocolErrorCode.IncompatibleProtocolVersion) view.CloseProgress();
+            if (!requests.TryApply(scope, static () => { })) return;
             view.Compatibility(ClientProtocolJson.Copy(warning), language, accepted, () => requests.TryApply(scope, static () => { }));
+        }
     }
     private bool Current(ClientGameRequestTracker.Request request) => requests.TryApply(request, static () => { });
     private void Fail(ClientGameRequestTracker.Request request, string message)

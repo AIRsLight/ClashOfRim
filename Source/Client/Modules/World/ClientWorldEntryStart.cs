@@ -94,7 +94,7 @@ internal sealed class ClientWorldEntryStart
         if (prepared is null) return;
         if (!operation.IsCurrent) { preparation.Discard(prepared); return; }
         operation.QueueContinuation(view.Enqueue, next =>
-            preparation.Complete(prepared, outcome => { _ = entry.Handle(outcome.Result, outcome.Failure, next, observation); }),
+            preparation.Complete(prepared, outcome => { _ = entry.Handle(outcome.Result, outcome.Failure, next, observation, outcome.Compatibility); }),
             completed: () => preparation.Discard(prepared));
     }
 }

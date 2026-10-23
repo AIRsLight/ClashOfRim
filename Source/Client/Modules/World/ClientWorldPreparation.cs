@@ -3,6 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Compatibility;
+using AIRsLight.ClashOfRim.Modules.Compatibility;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Transport;
@@ -42,10 +44,10 @@ internal sealed class ClientWorldPreparation
             if (!Current()) return null;
             var hello = await transport.HelloAsync(request.Context, request.Scope.Owner.Token).ConfigureAwait(false);
             if (!Current()) return null;
-            string? helloFailure = ValidateHello(hello);
+            string? helloFailure = ValidateHello(hello, out var compatibility);
             if (helloFailure is not null)
             {
-                if (Current()) prepared = new(request, null, helloFailure);
+                if (Current()) prepared = new(request, null, helloFailure, compatibility);
                 return prepared;
             }
             if (!Current()) return null;
@@ -98,19 +100,29 @@ internal sealed class ClientWorldPreparation
     }
     internal void Discard(Prepared prepared) => Discard(prepared.Request);
     internal void Discard(ClientGameRequestTracker.Request request) => requests.End(request);
-    private string? ValidateHello(ClashOfRimClientNetworkResult<ModServerHelloResponseDto> result)
+    private string? ValidateHello(ClashOfRimClientNetworkResult<ModServerHelloResponseDto> result, out ModLoginResponseDto? compatibility)
     {
+        compatibility = ClientCompatibilityWarning.FromFailure(result);
         if (!result.Success || result.Response is null)
             return presentation.Text("ClashOfRim.ServerEntry.ServerHelloFailed", ("CODE", result.ErrorCode ?? "ServerHelloFailed"),
                 ("MESSAGE", result.Message ?? presentation.Text("ClashOfRim.UnknownReason")));
         var response = result.Response;
-        if (response.Result?.Accepted != true) return response.Result?.Message ?? presentation.Text("ClashOfRim.ServerEntry.ServerHelloRejected");
+        if (response.Result?.Accepted != true)
+        {
+            string reason = response.Result?.Message ?? presentation.Text("ClashOfRim.ServerEntry.ServerHelloRejected");
+            if (response.Result?.ErrorCode == (int)ProtocolErrorCode.IncompatibleProtocolVersion)
+                compatibility = ClientCompatibilityWarning.ProtocolFailure(reason, response.ProtocolVersion);
+            return reason;
+        }
         if (response.ProtocolMajor == ClashOfRimVersion.ProtocolMajor && response.MinimumSupportedProtocolMajor == ClashOfRimVersion.ProtocolMajor
             && ClashOfRimVersion.ProtocolMinor >= response.MinimumSupportedProtocolMinor && ClashOfRimVersion.ProtocolMinor <= response.ProtocolMinor
             && string.Equals(response.ProtocolVersion, ClashOfRimVersion.ProtocolVersion, StringComparison.Ordinal)) return null;
-        return presentation.Text("ClashOfRim.ServerEntry.ProtocolMismatch", ("CLIENT", $"{ClashOfRimVersion.ProductVersion} / {ClashOfRimVersion.ProtocolDisplayVersion}"),
-            ("SERVER", $"{response.ProductVersion} / {response.ProtocolMajor}.{response.ProtocolMinor}"));
+        string message = presentation.Text("ClashOfRim.ServerEntry.ProtocolMismatch",
+            ("CLIENT", $"{ClashOfRimVersion.ProductVersion} / {ClashOfRimVersion.ProtocolDisplayVersion} [{ClashOfRimVersion.ProtocolVersion}]"),
+            ("SERVER", $"{response.ProductVersion} / {response.ProtocolMajor}.{response.ProtocolMinor} [{response.ProtocolVersion}]"));
+        compatibility = ClientCompatibilityWarning.ProtocolFailure(message, response.ProtocolVersion);
+        return message;
     }
     internal sealed record Prepared(ClientGameRequestTracker.Request Request,
-        ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>? Result, string? Failure);
+        ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>? Result, string? Failure, ModLoginResponseDto? Compatibility = null);
 }
