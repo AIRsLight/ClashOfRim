@@ -32,8 +32,6 @@ internal static class CompatibilityBaselineApplicator
             return false;
         }
 
-        ApplyConfigOverlays(manifest, manifestJson);
-        CompatibilityConfigOverlayPath.Activate(manifestJson);
         ApplyModList(manifest);
         ModsConfig.Save();
         message = T("ClashOfRim.Compatibility.ApplyRestarting");

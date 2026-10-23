@@ -124,7 +124,7 @@
   <ClashOfRim.Compatibility.ServerManifestLine>서버 모드 목록: {ID}</ClashOfRim.Compatibility.ServerManifestLine>
   <ClashOfRim.Compatibility.LocalManifestLine>로컬 모드 목록: {ID}</ClashOfRim.Compatibility.LocalManifestLine>
   <ClashOfRim.Compatibility.FileMismatchCannotApply>설정을 적용해도 게임 버전이나 모드 파일은 바뀌지 않습니다. 서버 기준에 맞추거나 관리자가 업데이트를 확인한 후 기준을 덮어써야 합니다.</ClashOfRim.Compatibility.FileMismatchCannotApply>
-  <ClashOfRim.Compatibility.ManifestApplyAllowed>서버의 활성 모드, 로드 순서와 설정을 적용하고 재시작합니다. 게임이나 모드 파일을 다운로드하거나 교체하지 않습니다.</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>서버 모드 목록과 로드 순서를 적용하고 재시작합니다. 다음으로 파일 해시를 확인하고 마지막으로 설정 차이를 처리합니다. 게임이나 모드 파일을 다운로드하거나 교체하지 않습니다.</ClashOfRim.Compatibility.ManifestApplyAllowed>
   <ClashOfRim.Compatibility.ServerColumn>서버</ClashOfRim.Compatibility.ServerColumn>
   <ClashOfRim.Compatibility.LocalColumn>로컬</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>모드 목록 스키마 버전</ClashOfRim.Compatibility.SchemaVersion>

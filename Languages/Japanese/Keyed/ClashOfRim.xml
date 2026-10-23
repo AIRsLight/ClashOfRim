@@ -124,7 +124,7 @@
   <ClashOfRim.Compatibility.ServerManifestLine>サーバーMODリスト: {ID}</ClashOfRim.Compatibility.ServerManifestLine>
   <ClashOfRim.Compatibility.LocalManifestLine>ローカルMODリスト: {ID}</ClashOfRim.Compatibility.LocalManifestLine>
   <ClashOfRim.Compatibility.FileMismatchCannotApply>設定の適用ではゲームのバージョンやMODファイルは変わりません。サーバー基準に合わせるか、管理者が更新内容を確認して基準を上書きしてください。</ClashOfRim.Compatibility.FileMismatchCannotApply>
-  <ClashOfRim.Compatibility.ManifestApplyAllowed>サーバーの有効MOD、読み込み順、設定を適用して再起動します。ゲームやMODファイルのダウンロード・置換は行いません。</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>サーバーの MOD 一覧と読み込み順序を適用して再起動します。次にファイルのハッシュを確認し、最後に設定の差異を処理します。ゲームや MOD のファイルはダウンロード・置換されません。</ClashOfRim.Compatibility.ManifestApplyAllowed>
   <ClashOfRim.Compatibility.ServerColumn>サーバー</ClashOfRim.Compatibility.ServerColumn>
   <ClashOfRim.Compatibility.LocalColumn>ローカル</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>MODリストスキーマバージョン</ClashOfRim.Compatibility.SchemaVersion>

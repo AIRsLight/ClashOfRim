@@ -142,21 +142,19 @@ internal sealed class CompatibilityMismatchWindow : Window
             return summary;
         }
 
-        if (Report.RequiresManualUpdate)
+        if (model.CanApplyManifest)
+            summary += T("ClashOfRim.Compatibility.SummaryApplyServer");
+        else if (Report.RequiresManualUpdate)
             summary += T("ClashOfRim.Compatibility.SummaryFilesManual");
+        else if (model.CanApplyConfig)
+            summary += T("ClashOfRim.Compatibility.ConfigApplyAvailable");
 
         if (model.CanOverride)
         {
             return summary + T("ClashOfRim.Compatibility.SummaryAdminCanOverride");
         }
 
-        if (Report.RequiresManualUpdate) return summary;
-
-        return model.CanApplyManifest
-            ? summary + T("ClashOfRim.Compatibility.SummaryApplyServer")
-            : model.CanApplyConfig
-            ? summary + T("ClashOfRim.Compatibility.ConfigApplyAvailable")
-            : summary;
+        return summary;
     }
 
     private void DrawOverviewTab(Rect inRect, int manifestCount, int hashCount, int configCount)
@@ -221,10 +219,10 @@ internal sealed class CompatibilityMismatchWindow : Window
 
         Widgets.Label(
             new Rect(contentRect.x, y, contentRect.width, 80f),
-            Report.RequiresManualUpdate
-                ? T("ClashOfRim.Compatibility.FileMismatchCannotApply")
-                : model.CanApplyManifest
+            model.CanApplyManifest
                 ? T("ClashOfRim.Compatibility.ManifestApplyAllowed")
+                : Report.RequiresManualUpdate
+                ? T("ClashOfRim.Compatibility.FileMismatchCannotApply")
                 : model.CanApplyConfig
                 ? T("ClashOfRim.Compatibility.ConfigApplyAvailable")
                 : string.Empty);

@@ -68,8 +68,8 @@ internal sealed class ClientCompatibilityReport
         LanguageOnly = !ProtocolMismatch && CompatibilityLanguageMismatchPolicy.CanContinue(owned);
         CanOverride = !ProtocolMismatch && owned.CanOverrideCompatibilityBaseline;
         RequiresManualUpdate = ProtocolMismatch || HashEntries.Count > 0 || ManifestEntries.Any(entry => entry.RequiresManualUpdate);
-        CanApplyManifest = !RequiresManualUpdate && serverManifest is not null && ManifestEntries.Any(entry => entry.ModSelectionChange);
-        CanApplyConfig = !RequiresManualUpdate && ConfigEntries.Count > 0 && serverManifest is not null;
+        CanApplyManifest = !ProtocolMismatch && serverManifest is not null && ManifestEntries.Any(entry => entry.ModSelectionChange);
+        CanApplyConfig = !CanApplyManifest && !RequiresManualUpdate && ConfigEntries.Count > 0 && serverManifest is not null;
     }
     private UiManifest? Read(string? json)
     {
@@ -78,6 +78,7 @@ internal sealed class ClientCompatibilityReport
         {
             var manifest = ClientProtocolJson.Deserialize<UiManifest>(json!, static type => type);
             manifest.Mods ??= new(); manifest.DlcIds ??= new(); manifest.DefSummaries ??= new();
+            manifest.Mods = manifest.Mods.OrderBy(mod => mod.LoadOrder).ToList();
             // Validate identities once at the wire boundary; dictionaries below share
             // these exact keys. Ambiguous manifests fall back to server issue details.
             manifest.ModsById = manifest.Mods.ToDictionary(mod => NormalizeId(mod.PackageId));

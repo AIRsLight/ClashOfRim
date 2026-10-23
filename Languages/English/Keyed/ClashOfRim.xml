@@ -124,7 +124,7 @@
   <ClashOfRim.Compatibility.ServerManifestLine>Server mod list: {ID}</ClashOfRim.Compatibility.ServerManifestLine>
   <ClashOfRim.Compatibility.LocalManifestLine>Local mod list: {ID}</ClashOfRim.Compatibility.LocalManifestLine>
   <ClashOfRim.Compatibility.FileMismatchCannotApply>Applying settings cannot change game versions or mod files. Match the server baseline, or have an administrator confirm the update and replace it.</ClashOfRim.Compatibility.FileMismatchCannotApply>
-  <ClashOfRim.Compatibility.ManifestApplyAllowed>Apply the server’s enabled mods, load order and settings, then restart. This does not download or replace game or mod files.</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>Apply the server mod list and load order, then restart. File hashes are checked next; configuration is handled last. This does not download or replace game or mod files.</ClashOfRim.Compatibility.ManifestApplyAllowed>
   <ClashOfRim.Compatibility.ServerColumn>Server</ClashOfRim.Compatibility.ServerColumn>
   <ClashOfRim.Compatibility.LocalColumn>Local</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>Mod list schema version</ClashOfRim.Compatibility.SchemaVersion>

@@ -172,10 +172,16 @@ internal static class ClientSettingsAccessTests
         try
         {
             dataField.SetValue(null, Activator.CreateInstance(dataField.FieldType, true));
-            const string mods = "{\"mods\":[{\"packageId\":\"example.mod\",\"loadOrder\":2,\"configs\":[]},{\"packageId\":\"ludeon.rimworld\",\"loadOrder\":0,\"configs\":[]},{\"packageId\":\"example.local\",\"loadOrder\":1,\"configs\":[]}]}";
+            string mods = "{\"mods\":[{\"packageId\":\"example.mod\",\"loadOrder\":2,\"configs\":" + config + "},{\"packageId\":\"ludeon.rimworld\",\"loadOrder\":0,\"configs\":[]},{\"packageId\":\"example.local\",\"loadOrder\":1,\"configs\":[]}]}";
+            var configsBefore = Directory.GetFiles(native.Root, "*", SearchOption.AllDirectories)
+                .Where(p => Path.GetFileName(p) != "ModsConfig.xml").ToDictionary(p => p, File.ReadAllText);
+            restarts = native.Restarts;
             Check(CompatibilityBaselineApplicator.TryApplyServerManifest(mods, out _), "Valid server mod order rejected.");
             var savedMods = System.Xml.Linq.XDocument.Load(Path.Combine(native.Root, "ModsConfig.xml")).Descendants("activeMods").Single().Elements("li").Select(e => e.Value);
             Check(savedMods.SequenceEqual(new[] { "ludeon.rimworld", "example.local", "example.mod" + ModMetaData.SteamModPostfix }), "Mod order or local/Steam package resolution changed.");
+            Check(native.Restarts == restarts + 1 && !File.Exists(activePath)
+                && configsBefore.Count == Directory.GetFiles(native.Root, "*", SearchOption.AllDirectories).Count(p => Path.GetFileName(p) != "ModsConfig.xml")
+                && configsBefore.All(p => File.ReadAllText(p.Key) == p.Value), "Mod-list application changed configuration or activated its overlay before file validation.");
         }
         finally { dataField.SetValue(null, originalData); }
 

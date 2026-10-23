@@ -124,7 +124,7 @@
   <ClashOfRim.Compatibility.ServerManifestLine>服务器模组列表：{ID}</ClashOfRim.Compatibility.ServerManifestLine>
   <ClashOfRim.Compatibility.LocalManifestLine>本地模组列表：{ID}</ClashOfRim.Compatibility.LocalManifestLine>
   <ClashOfRim.Compatibility.FileMismatchCannotApply>套用配置不会更改游戏版本或模组文件。请匹配服务器要求的版本，或由管理员确认更新后覆盖基线。</ClashOfRim.Compatibility.FileMismatchCannotApply>
-  <ClashOfRim.Compatibility.ManifestApplyAllowed>套用服务器的模组启用状态、加载顺序和配置并重启；不会下载或替换游戏及模组文件。</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>套用服务器模组列表与加载顺序后重启，再校验文件哈希，最后处理配置差异。不会下载或替换游戏及模组文件。</ClashOfRim.Compatibility.ManifestApplyAllowed>
   <ClashOfRim.Compatibility.ServerColumn>服务器</ClashOfRim.Compatibility.ServerColumn>
   <ClashOfRim.Compatibility.LocalColumn>本地</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>模组列表版本</ClashOfRim.Compatibility.SchemaVersion>

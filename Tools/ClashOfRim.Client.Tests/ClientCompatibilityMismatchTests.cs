@@ -99,8 +99,8 @@ internal static class ClientCompatibilityMismatchTests
                 "File/version update offered an ineffective mod-list repair or lost administrator recovery: " + difference);
             changed = changed with { ConfigSha256 = "changed", DlcIds = new[] { "Ideology" } };
             report = new ClientCompatibilityReport(response, Json(changed), null, f);
-            Check(report.RequiresManualUpdate && !report.CanApplyManifest && !report.CanApplyConfig && report.CanOverride == administrator,
-                "Mixed differences offered config repair before the required file update: " + difference);
+            Check(report.RequiresManualUpdate && report.CanApplyManifest && !report.CanApplyConfig && report.CanOverride == administrator,
+                "Mixed differences did not prioritize mod selection before files and config: " + difference);
         }
         foreach (string code in new[] { "RimWorldVersionMismatch", "SchemaVersionMismatch", "ProtocolVersionMismatch", "FutureCode" })
         {
@@ -117,6 +117,11 @@ internal static class ClientCompatibilityMismatchTests
             response.ServerCompatibilityManifestJson = null;
             Check(!new ClientCompatibilityReport(response, Json(original), null, f).CanApplyManifest, "Repair offered without a server manifest.");
         }
+        var ordered = original with { Mods = new[] { original.Mods[0], new ModManifestEntry { PackageId = "second", LoadOrder = 1 } } };
+        var swapped = ordered with { Mods = new[] { ordered.Mods[0] with { LoadOrder = 1 }, ordered.Mods[1] with { LoadOrder = 0 } } };
+        var orderReport = new ClientCompatibilityReport(Response(ordered), Json(swapped), null, f);
+        Check(orderReport.CanApplyManifest && !orderReport.CanApplyConfig && orderReport.LocalMods[0].PackageId == "second",
+            "Report compared serialization order instead of the declared load order.");
     }
     private static void ProtocolReport()
     {
@@ -138,6 +143,7 @@ internal static class ClientCompatibilityMismatchTests
         foreach (string code in new[] { "FileHashMismatch", "FileMissing", "FileUnexpected", "FileSizeMismatch", "DefSummaryHashMismatch" })
         {
             var f = new Fixture();
+            f.Response.ServerCompatibilityManifestJson = Json(Manifest() with { ConfigSha256 = "different" });
             f.Response.CompatibilityIssues = new() { Issue(code) };
             var model = f.Create(); Check(model.Open(), "Mixed report did not open.");
             foreach (ClientCompatibilityRepair kind in Enum.GetValues(typeof(ClientCompatibilityRepair)))
@@ -208,9 +214,16 @@ internal static class ClientCompatibilityMismatchTests
     {
         foreach (ClientCompatibilityRepair kind in Enum.GetValues(typeof(ClientCompatibilityRepair)))
         {
-            var f = new Fixture(); var model = f.Create(); Check(model.Open(), "Repair report did not open.");
+            var f = new Fixture();
+            if (kind != ClientCompatibilityRepair.Manifest)
+                f.Response.ServerCompatibilityManifestJson = Json(Manifest() with { ConfigSha256 = "different" });
+            string expectedManifest = f.Response.ServerCompatibilityManifestJson!;
+            var model = f.Create(); Check(model.Open(), "Repair report did not open.");
+            if (kind == ClientCompatibilityRepair.Manifest)
+                Check(!model.Apply(ClientCompatibilityRepair.ConfigOverlay) && !model.Apply(ClientCompatibilityRepair.LocalConfigs)
+                    && f.Repairs.Count == 0, "Configuration application bypassed the pending mod-list stage.");
             f.Response.ServerCompatibilityManifestJson = "replacement";
-            Check(model.Apply(kind) && f.Repairs.Single() == (kind, f.OriginalServer) && model.Status == "applied", "Repair changed kind or borrowed a later manifest.");
+            Check(model.Apply(kind) && f.Repairs.Single() == (kind, expectedManifest) && model.Status == "applied", "Repair changed kind or borrowed a later manifest.");
             Check(!model.Apply((ClientCompatibilityRepair)999), "Unknown repair fell through to local overwrite.");
             model.Close(); Check(!model.Apply(kind) && f.Repairs.Count == 1, "Closed window repaired local configuration.");
         }

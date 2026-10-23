@@ -49,13 +49,50 @@ internal static class CompatibilitySummaryContractTests
             }
             if (failures.Count != 0) throw new InvalidOperationException("Compatibility summary diverged from full manifest: " + string.Join("; ", failures));
             foreach (string name in new[] { "en-US", "zh-CN", "tr-TR", "ar-SA" })
-            { CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name); Matrix(); }
+            { CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name); Matrix(); ValidationOrder(); }
             HashAndWire();
             RetryWire().GetAwaiter().GetResult();
         }
         finally { harmony.UnpatchAll(harmony.Id); current = new(); CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
     }
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };
+    private static void ValidationOrder()
+    {
+        var first = Manifest().Mods[0];
+        var server = Manifest() with { DefSummaries = new[] { new DefSummary { Name = "ThingDef", Count = 1, Hash = 1 } }, Mods = new[] { first,
+            first with { PackageId = "second", LoadOrder = 1 }, new ModManifestEntry { PackageId = "third", LoadOrder = 2 } } };
+        foreach (string phase in new[] { "missing", "extra", "order", "dlc", "files", "config", "complete" })
+        foreach (bool selected in new[] { false, true })
+        {
+            var client = server with { ManifestId = "client",
+                DefSummaries = phase is "config" or "complete" ? server.DefSummaries : new[] { server.DefSummaries[0] with { Hash = 2 } }, Mods = new[] {
+                first with { Configs = new[] { first.Configs[0] with { Sha256 = phase == "complete" ? first.Configs[0].Sha256 : "config-changed" } } },
+                server.Mods[1] with { Files = new[] { first.Files[0] with { Sha256 = phase is "complete" or "config" ? first.Files[0].Sha256 : "file-changed" } } },
+                server.Mods[2] } };
+            if (phase == "missing") client = client with { Mods = client.Mods.Take(2).ToArray() };
+            if (phase == "extra") client = client with { Mods = client.Mods.Append(new ModManifestEntry { PackageId = "extra", LoadOrder = 3,
+                Files = new[] { new ControlledFileEntry { RelativePath = "Defs/Extra.xml", Kind = ModFileKind.Def } } }).ToArray() };
+            if (phase == "order") client = client with { Mods = new[] { client.Mods[0] with { LoadOrder = 1 }, client.Mods[1] with { LoadOrder = 0 }, client.Mods[2] } };
+            if (phase == "dlc") client = client with { DlcIds = new[] { "different" } };
+            var expected = phase == "files" ? CompatibilityIssueCategory.Hash : phase == "config" ? CompatibilityIssueCategory.Config : CompatibilityIssueCategory.Manifest;
+            var full = CompatibilityManifestComparer.Compare(server, client);
+            Check(full.Accepted == (phase == "complete") && full.Issues.All(i => CompatibilityIssueClassifier.CategoryFor(i.Code) == expected),
+                "Full validation did not stop at the first failing stage: " + phase);
+            current = client;
+            var summary = CompatibilityManifestSummaryBuilder.Build(client) with { SupportsSelectedDetails = selected };
+            var brief = CompatibilityManifestSummaryComparer.Compare(server, summary, CompatibilityComparisonOptions.Default);
+            CompatibilityComparisonResult completed;
+            if (brief.RequiresFullManifest)
+            {
+                var details = JsonSerializer.Deserialize<CompatibilityManifest>(ClientCompatibilityManifestBuilder.BuildJsonForPackages(brief.RequestedPackageIds), Json)!;
+                completed = CompatibilityManifestDetailsComparer.Compare(server, details, summary, CompatibilityComparisonOptions.Default);
+                if (phase is "files" or "config") Check((details.Mods.Count < client.Mods.Count) == selected, "Priority test missed the requested detail shape.");
+            }
+            else completed = new(brief.Issues);
+            Check(completed.Accepted == full.Accepted && completed.Issues.Select(i => i.Code).SequenceEqual(full.Issues.Select(i => i.Code)),
+                "Summary/detail exchange changed stage priority: " + phase);
+        }
+    }
     private static void Matrix()
     {
         foreach (string mode in new[] { "same", "optional", "optional-subset", "translation", "translation-role", "translation-denied", "fake-translation", "order", "required",

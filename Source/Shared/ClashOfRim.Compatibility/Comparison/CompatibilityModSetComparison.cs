@@ -3,18 +3,19 @@ using static AIRsLight.ClashOfRim.Compatibility.CompatibilityManifestRules;
 namespace AIRsLight.ClashOfRim.Compatibility;
 
 // Presence and relative load order use one policy in full and summary comparisons.
-// The caller supplies evidence for allowed extras and the actual detail/hash comparison.
+// Collect matching pairs without inspecting details until list/order checks pass.
 internal static class CompatibilityModSetComparison
 {
-    internal static void Compare<TClient>(List<CompatibilityIssue> issues, IReadOnlyList<ModManifestEntry> server,
-        IReadOnlyList<TClient> client, Func<TClient, bool> allowExtra, Action<ModManifestEntry, TClient> match,
+    internal static IReadOnlyList<(ModManifestEntry Server, TClient Client)> Compare<TClient>(List<CompatibilityIssue> issues, IReadOnlyList<ModManifestEntry> server,
+        IReadOnlyList<TClient> client, Func<TClient, bool> allowExtra,
         Action<TClient> extra) where TClient : ICompatibilityModIdentity
     {
         var byServer = server.ToDictionary(mod => NormalizeId(mod.PackageId));
         var byClient = client.ToDictionary(mod => NormalizeId(mod.PackageId));
+        var matches = new List<(ModManifestEntry, TClient)>();
         foreach (var mod in server.OrderBy(mod => mod.LoadOrder))
         {
-            if (byClient.TryGetValue(NormalizeId(mod.PackageId), out var candidate)) { match(mod, candidate); continue; }
+            if (byClient.TryGetValue(NormalizeId(mod.PackageId), out var candidate)) { matches.Add((mod, candidate)); continue; }
             if (mod.Role is ModCompatibilityRole.Optional or ModCompatibilityRole.OptionalPureTranslation)
                 issues.Add(new(CompatibilityIssueSeverity.Info, CompatibilityIssueCode.MissingMod,
                     $"Optional mod not installed: {mod.PackageId}", mod.PackageId));
@@ -33,5 +34,6 @@ internal static class CompatibilityModSetComparison
         if (!serverOrder.SequenceEqual(clientOrder))
             issues.Add(Error(CompatibilityIssueCode.ModOrderMismatch,
                 "Mod load order mismatch, or an unapproved non-translation mod is present", "mods"));
+        return matches;
     }
 }

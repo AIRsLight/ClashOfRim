@@ -18,19 +18,12 @@ public static class CompatibilityManifestComparer
         options ??= CompatibilityComparisonOptions.Default;
 
         CompareHeader(issues, server, client);
-        CompareMods(issues, server.Mods, client.Mods, options);
-        CompareDefSummaries(issues, server.DefSummaries, client.DefSummaries);
-
-        return new CompatibilityComparisonResult(issues);
-    }
-
-    private static void CompareMods(List<CompatibilityIssue> issues, IReadOnlyList<ModManifestEntry> serverMods,
-        IReadOnlyList<ModManifestEntry> clientMods, CompatibilityComparisonOptions options)
-        => CompatibilityModSetComparison.Compare(issues, serverMods, clientMods,
+        var matches = CompatibilityModSetComparison.Compare(issues, server.Mods, client.Mods,
             mod => options.AllowExtraPureTranslationMods && ModFileClassifier.IsPureTranslationMod(mod),
-            (server, client) => { CompareModFiles(issues, server, client); CompareModConfigs(issues, server, client, options); },
             mod => issues.Add(new(CompatibilityIssueSeverity.Info, CompatibilityIssueCode.AllowedPureTranslationMod,
                 $"Allowed extra pure translation mod: {mod.PackageId}", mod.PackageId)));
+        return CompareDetails(issues, server, client, matches, options);
+    }
 
     // Compare only details requested by the summary exchange. The caller owns selection;
     // unknown packages remain rejected and common metadata is checked once per response.
@@ -40,15 +33,28 @@ public static class CompatibilityManifestComparer
         var issues = new List<CompatibilityIssue>();
         CompareHeader(issues, server, client);
         var byId = server.Mods.ToDictionary(mod => NormalizeId(mod.PackageId));
+        var matches = new List<(ModManifestEntry, ModManifestEntry)>();
         foreach (var mod in client.Mods)
         {
             if (!byId.TryGetValue(NormalizeId(mod.PackageId), out var baseline))
             { issues.Add(Error(CompatibilityIssueCode.UnexpectedMod, $"Unexpected unapproved mod: {mod.PackageId}", mod.PackageId)); continue; }
-            CompareModFiles(issues, baseline, mod);
-            CompareModConfigs(issues, baseline, mod, options);
+            matches.Add((baseline, mod));
         }
+        return CompareDetails(issues, server, client, matches, options);
+    }
+
+    private static CompatibilityComparisonResult CompareDetails(List<CompatibilityIssue> issues,
+        CompatibilityManifest server, CompatibilityManifest client,
+        IReadOnlyList<(ModManifestEntry Server, ModManifestEntry Client)> matches, CompatibilityComparisonOptions options)
+    {
+        var result = new CompatibilityComparisonResult(issues);
+        if (!result.Accepted) return result;
+        foreach (var pair in matches) CompareModFiles(issues, pair.Server, pair.Client);
         CompareDefSummaries(issues, server.DefSummaries, client.DefSummaries);
-        return new(issues);
+        // All mod files must pass before any mod's configuration is considered.
+        if (result.Accepted)
+            foreach (var pair in matches) CompareModConfigs(issues, pair.Server, pair.Client, options);
+        return result;
     }
 
     private static void CompareModFiles(List<CompatibilityIssue> issues, ModManifestEntry serverMod, ModManifestEntry clientMod)
