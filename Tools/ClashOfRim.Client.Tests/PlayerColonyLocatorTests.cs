@@ -3,15 +3,21 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.Multiplayer.Players;
 using HarmonyLib;
+using RimWorld;
 using RimWorld.Planet;
+using UnityEngine;
 using Verse;
 
 internal static class PlayerColonyLocatorTests
 {
     private static PlanetTile jumped;
     private static int notices;
+    private static bool clicked;
+    private static Rect buttonRect;
+    private static int closed;
     internal static void Run()
     {
         var game = Current.Game; var creating = Current.CreatingWorld;
@@ -61,6 +67,7 @@ internal static class PlayerColonyLocatorTests
             markers.Clear(); markers.Add(Marker(1, 99)); markers[0].Label = "A";
             markers.Add(Marker(1, 7)); markers[1].Label = "B"; locator.Reset();
             Check(locator.CanLocate(target, 2), "Invalid layer hid a later valid colony marker.");
+            FactionNavigation(harmony, locator, markers);
             Current.Game.World.grid = null; locator.Reset();
             Check(!locator.CanLocate(target, 2), "Missing geometry retained a location.");
         }
@@ -68,6 +75,60 @@ internal static class PlayerColonyLocatorTests
         {
             harmony.UnpatchAll(harmony.Id); Current.Game = game; Current.CreatingWorld = creating;
             notices = 0; jumped = PlanetTile.Invalid;
+        }
+    }
+
+    private static void FactionNavigation(Harmony harmony, PlayerColonyLocator locator, List<ModWorldMapMarkerDto> markers)
+    {
+        var previous = PlayerFactionColonyNavigation.Current;
+        var ownersField = AccessTools.Field(typeof(PlayerFactionProxyUtility), "ProxyOwnerUserIdsByLoadId");
+        var previousOwners = ownersField.GetValue(null);
+        try
+        {
+            // Install the actual transpiler against the current game assembly. Its
+            // native button call must bind; no copied faction-row geometry is used.
+            harmony.CreateClassProcessor(typeof(PlayerFactionRowNavigationPatch)).Patch();
+            harmony.Patch(AccessTools.Method(typeof(Widgets), nameof(Widgets.ButtonInvisible), new[] { typeof(Rect), typeof(bool) }),
+                prefix: Method(nameof(Button)));
+            harmony.Patch(AccessTools.PropertyGetter(typeof(Find), nameof(Find.MainTabsRoot)), prefix: Method(nameof(Tabs)));
+            harmony.Patch(AccessTools.Method(typeof(MainTabsRoot), nameof(MainTabsRoot.EscapeCurrentTab)), prefix: Method(nameof(CloseTab)));
+            ownersField.SetValue(null, new Dictionary<int, string> { [7201] = "bob", [7202] = "other" });
+            var faction = new Faction { loadID = 7201, Name = "同名阵营", def = new FactionDef { defName = PlayerFactionProxyUtility.ProxyFactionDefName } };
+            var other = new Faction { loadID = 7202, Name = faction.Name, def = faction.def };
+            var npc = new Faction { loadID = 7203, Name = faction.Name, def = new FactionDef { defName = "NPC" } };
+            var self = new Faction { loadID = 7204, def = new FactionDef { defName = "Player", isPlayer = true } };
+            bool active = true;
+            PlayerFactionColonyNavigation.Attach(new(() => active, locator));
+            var rect = new Rect(17, 230, 391, 81);
+            markers.Clear(); markers.Add(Marker(25, 7));
+            var second = Marker(4, 0); second.OwnerUserId = "other"; markers.Add(second);
+            clicked = false; jumped = PlanetTile.Invalid; closed = 0;
+            Check(!Click(faction) && !jumped.Valid, "Rendering a faction row caused navigation.");
+            clicked = true;
+            Check(!Click(faction) && jumped.tileId == 25 && jumped.Layer.LayerID == 7,
+                "Player faction click did not locate its layered colony or also opened its info card.");
+            Check(buttonRect == rect, "Navigation changed the native button hit area.");
+            Check(!Click(other) && jumped.tileId == 4, "Equal faction names confused account ownership.");
+            markers[0].Tile = 26;
+            Check(!Click(faction) && jumped.tileId == 26, "Faction click retained a colony location from before relocation.");
+            Check(closed == 3, "Successful navigation left the faction tab covering the target.");
+            jumped = PlanetTile.Invalid;
+            Check(Click(npc) && Click(self) && !jumped.Valid, "NPC or self faction clicks lost native info cards.");
+            active = false;
+            Check(Click(faction) && !jumped.Valid, "Disconnected faction click navigated stale multiplayer markers.");
+            active = true; markers.Clear(); int previousNotices = notices;
+            Check(!Click(faction) && !jumped.Valid && notices == previousNotices + 1,
+                "Missing colony did not use the locator's unavailable feedback.");
+            Check(closed == 3, "An unavailable or non-player target closed the faction tab.");
+            PlayerFactionColonyNavigation.Attach(null);
+            Check(Click(faction), "Unbound faction UI suppressed the native info card.");
+
+            bool Click(Faction value) => PlayerFactionRowNavigationPatch.FactionButton(rect, false, value);
+        }
+        finally
+        {
+            PlayerFactionColonyNavigation.Attach(previous); ownersField.SetValue(null, previousOwners);
+            clicked = false;
         }
     }
 
@@ -85,6 +146,10 @@ internal static class PlayerColonyLocatorTests
     private static bool TileCount(PlanetLayer __instance, ref int __result) { __result = __instance.Tiles.Count; return false; }
     private static bool Jump(PlanetTile __0) { jumped = __0; return false; }
     private static bool Notice() { notices++; return false; }
+    private static bool Button(Rect __0, bool __1, ref bool __result)
+    { buttonRect = __0; Check(!__1, "Navigation changed mouseover sound behavior."); __result = clicked; return false; }
+    private static bool Tabs(ref MainTabsRoot __result) { __result = New<MainTabsRoot>(); return false; }
+    private static bool CloseTab() { closed++; return false; }
     private static HarmonyMethod Method(string name) => new(typeof(PlayerColonyLocatorTests), name);
     private static T New<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }

@@ -29,7 +29,7 @@ internal sealed class PlayerColonyLocator
         return TryResolveCachedPlayerColonyTarget(player, playerVersion, out _, out _);
     }
 
-    internal void Locate(ModPlayerSummaryDto player, int playerVersion)
+    internal bool Locate(ModPlayerSummaryDto player, int playerVersion)
     {
         if (!TryResolveCachedPlayerColonyTarget(player, playerVersion, out WorldObject? worldObject, out PlanetTile tile))
         {
@@ -39,16 +39,17 @@ internal sealed class PlayerColonyLocator
                 historical: false);
             playerLocationCache.Remove(PlayerLocationCacheKey(player));
             requestRefresh(ClashOfRimText.Key("ClashOfRim.WorldMap.ReasonLocatePlayer"));
-            return;
+            return false;
         }
 
         if (worldObject is not null && worldObject.Spawned)
         {
             CameraJumper.TryJump(new GlobalTargetInfo(worldObject), CameraJumper.MovementMode.Pan);
-            return;
+            return true;
         }
 
         CameraJumper.TryJump(tile, CameraJumper.MovementMode.Pan);
+        return true;
     }
 
     private bool TryResolveCachedPlayerColonyTarget(

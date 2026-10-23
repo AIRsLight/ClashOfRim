@@ -398,6 +398,10 @@ public sealed class ClashOfRimMod : Mod
         BiotechCompatibilityPackage.Attach(sessionLifecycle);
         PawnExchangeScribeRestorer.Attach(sessionLifecycle);
         MainButtonWorker_ClashOfRimMultiplayer.Attach(sessionLifecycle);
+        PlayerFactionColonyNavigation.Attach(new(() => sessionLifecycle.HasConfiguredSession,
+            new PlayerColonyLocator(() => worldMarkers.Snapshot,
+                reason => _ = worldSynchronization.RequestAsync(ClientWorldSynchronizationKind.Markers, reason),
+                () => UnityEngine.Time.realtimeSinceStartup)));
         ClashOfRimMultiplayerWindow.Attach(multiplayerPages);
         var pawnPreviews = new ClientPawnPreviews(sessionLifecycle, new ClientSnapshotGame(),
             new ClientPawnPreviewTransport(new ClientProtocolEnvironment()), new ClientPawnPreviewRuntime());

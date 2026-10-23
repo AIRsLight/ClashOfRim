@@ -2,6 +2,10 @@
 
 ## Current development changes
 
+### 0.4.7 testing update
+
+- **Faction navigation:** click a player faction's name or icon in the vanilla Factions tab to locate its colony on the world map. The separate info button still opens its faction details; NPC faction clicks retain their usual behavior.
+
 ### 0.4.6 testing update
 
 - **Raid attribution:** defender settlement letters identify the attacker by account and colony identifier, including raids with no defender losses. All five supported languages are updated; network protocol requirements are unchanged.
