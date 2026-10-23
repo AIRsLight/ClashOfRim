@@ -1936,4 +1936,5 @@
   <ClashOfRim.Compatibility.ManifestNotAvailable>サーバーの MOD 一覧を取得していないため、MOD・ファイル・設定の一致は未確認です。</ClashOfRim.Compatibility.ManifestNotAvailable>
   <ClashOfRim.Network.ProtocolRejected>サーバーがこのプロトコルを拒否しました。リクエスト：{ROUTE}。クライアントのバージョン / プロトコル：{CLIENT}。対応するクライアントを導入するか、管理者にサーバーの更新を依頼してください。</ClashOfRim.Network.ProtocolRejected>
   <ClashOfRim.Network.ServiceUnavailable>サーバーまたはゲートウェイが一時的に利用できません。リクエスト：{ROUTE}。クライアントのバージョン / プロトコル：{CLIENT}。HTTP ステータスだけでは互換性を判断できません。管理者にサーバーの稼働、プロキシ転送、ログの確認を依頼してください。</ClashOfRim.Network.ServiceUnavailable>
+  <ClashOfRim.Compatibility.Override.Confirm>サーバーの互換性基準を上書きしますか？このクライアントのゲームバージョン、MOD ファイル、読み込み順序、設定が新しいサーバー要件となり、今後接続するすべてのプレイヤーに影響します。他のプレイヤーに更新や設定変更が必要になる場合があります。現在の環境が正しいことを確認してください。</ClashOfRim.Compatibility.Override.Confirm>
 </LanguageData>

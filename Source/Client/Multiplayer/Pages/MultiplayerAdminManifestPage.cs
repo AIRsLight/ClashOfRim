@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.CompatibilityClient;
 using AIRsLight.ClashOfRim.Modules.Multiplayer;
@@ -183,13 +182,6 @@ internal sealed class MultiplayerAdminManifestPage
     {
         var intent = model.PrepareOverride(draft);
         if (intent is null) return;
-        void Open()
-        {
-            if (intent.CanStart) Find.WindowStack.Add(new CompatibilityBaselineOverrideWindow(
-                (progress, completion) => intent.StartAsync(progress, completion) ?? Task.CompletedTask));
-        }
-        if (intent.RequiresWarning)
-            Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.ModListWarning"), Open));
-        else Open();
+        Find.WindowStack.Add(CompatibilityBaselineOverrideWindow.CreateConfirmation(intent));
     }
 }

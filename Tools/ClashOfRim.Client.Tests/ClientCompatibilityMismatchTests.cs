@@ -27,7 +27,8 @@ internal static class ClientCompatibilityMismatchTests
                 foreach (string fault in new[] { "network", "rejected", "exception" }) await Override(fault);
                 await Override(null); await OrderChange();
             }
-            Console.WriteLine("PASS: compatibility mismatch (four cultures; immutable reports, owned recovery, continuation and shared override)");
+            await CompatibilityOverrideConfirmationTests.RunAsync();
+            Console.WriteLine("PASS: compatibility mismatch (four cultures; immutable reports, owned recovery, continuation and shared override confirmation)");
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientSnapshots;
+using AIRsLight.ClashOfRim.Modules.Compatibility;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -28,6 +29,19 @@ internal sealed class CompatibilityBaselineOverrideWindow : Window
     }
 
     public override Vector2 InitialSize => new(560f, 260f);
+
+    internal static Dialog_MessageBox CreateConfirmation(ClientCompatibilityOverrideIntent intent, Action? onStarted = null)
+    {
+        string message = T("ClashOfRim.Compatibility.Override.Confirm");
+        if (intent.RequiresWarning) message += "\n\n" + T("ClashOfRim.Compatibility.Override.ModListWarning");
+        return Dialog_MessageBox.CreateConfirmation(message, () =>
+        {
+            if (!intent.CanStart) return;
+            Find.WindowStack.Add(new CompatibilityBaselineOverrideWindow(
+                (progress, completion) => intent.StartAsync(progress, completion) ?? Task.CompletedTask));
+            onStarted?.Invoke();
+        });
+    }
 
     public override void PreOpen()
     {

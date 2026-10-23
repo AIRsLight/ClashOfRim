@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.Modules.Compatibility;
 using static AIRsLight.ClashOfRim.Modules.Compatibility.ClientCompatibilityReport;
 using RimWorld;
@@ -132,15 +131,7 @@ internal sealed class CompatibilityMismatchWindow : Window
     {
         var intent = model.PrepareOverride();
         if (intent is null) return;
-        void Start()
-        {
-            if (!intent.CanStart) return;
-            Find.WindowStack.Add(new CompatibilityBaselineOverrideWindow((progress, completion) => intent.StartAsync(progress, completion) ?? Task.CompletedTask));
-            Close();
-        }
-        if (intent.RequiresWarning)
-            Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(T("ClashOfRim.Compatibility.Override.ModListWarning"), Start));
-        else Start();
+        Find.WindowStack.Add(CompatibilityBaselineOverrideWindow.CreateConfirmation(intent, () => Close()));
     }
 
     private string BuildIntro(int manifestCount, int hashCount, int configCount)

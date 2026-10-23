@@ -1936,4 +1936,5 @@
   <ClashOfRim.Compatibility.ManifestNotAvailable>Список модов сервера ещё не получен. Совместимость модов, файлов и настроек неизвестна.</ClashOfRim.Compatibility.ManifestNotAvailable>
   <ClashOfRim.Network.ProtocolRejected>Сервер явно отклонил этот протокол. Запрос: {ROUTE}. Версия клиента / протокол: {CLIENT}. Установите совместимый клиент или попросите администратора обновить сервер.</ClashOfRim.Network.ProtocolRejected>
   <ClashOfRim.Network.ServiceUnavailable>Сервер или шлюз временно недоступен. Запрос: {ROUTE}. Версия клиента / протокол: {CLIENT}. Сам по себе код HTTP не подтверждает совместимость протоколов. Попросите администратора проверить работу сервера, перенаправление прокси и журналы сервера.</ClashOfRim.Network.ServiceUnavailable>
+  <ClashOfRim.Compatibility.Override.Confirm>Заменить эталон совместимости сервера? Версия игры, файлы модов, порядок загрузки и настройки этого клиента станут новыми требованиями сервера для всех последующих подключений. Другим игрокам может потребоваться обновление или изменение настроек. Убедитесь, что этот клиент настроен правильно.</ClashOfRim.Compatibility.Override.Confirm>
 </LanguageData>

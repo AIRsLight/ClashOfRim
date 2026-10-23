@@ -1945,4 +1945,5 @@
   <ClashOfRim.Compatibility.ManifestNotAvailable>尚未取得服务器模组清单，无法判断模组、文件及配置是否一致。</ClashOfRim.Compatibility.ManifestNotAvailable>
   <ClashOfRim.Network.ProtocolRejected>服务器明确拒绝了当前协议。请求：{ROUTE}。客户端版本 / 协议：{CLIENT}。请安装匹配的客户端或请管理员更新服务端。</ClashOfRim.Network.ProtocolRejected>
   <ClashOfRim.Network.ServiceUnavailable>服务器或网关暂不可用。请求：{ROUTE}。客户端版本 / 协议：{CLIENT}。仅凭 HTTP 状态码无法确认协议是否兼容，请管理员检查服务是否运行、代理转发及服务端日志。</ClashOfRim.Network.ServiceUnavailable>
+  <ClashOfRim.Compatibility.Override.Confirm>确定覆盖服务器兼容性基线？当前客户端的游戏版本、模组文件、加载顺序和配置将成为服务器的新要求，影响所有玩家后续登录。其他玩家可能需要更新或调整配置。请确认当前客户端环境正确。</ClashOfRim.Compatibility.Override.Confirm>
 </LanguageData>
