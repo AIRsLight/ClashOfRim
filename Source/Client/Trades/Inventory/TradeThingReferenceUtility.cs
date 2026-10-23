@@ -226,7 +226,15 @@ internal static class TradeThingReferenceUtility
         }
 
         ThingDef? outerStuff = ResolveConcreteStuff(def, reference.StuffDefName);
-        if (!ClashOfRimCompatibilityApi.TryMakeThingReferenceThing(def, outerStuff, out thing))
+        if (def.IsCorpse)
+        {
+            if (stackCount != 1 || reference.StackCount != 1 || !CorpseTransferUtility.TryRestore(reference, def, out thing))
+            {
+                missingDefName = def.defName;
+                return false;
+            }
+        }
+        else if (!ClashOfRimCompatibilityApi.TryMakeThingReferenceThing(def, outerStuff, out thing))
         {
             thing = ThingMaker.MakeThing(def, outerStuff);
         }

@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
@@ -16,9 +14,6 @@ public static class GiftLandingApplicator
     private const string CaravanDeliveryPointDefName = "ClashOfRim_CaravanDeliveryPoint";
     private const int DropPodOpenDelayTicks = 110;
     private static Dictionary<ThingDef, PawnKindDef>? animalKindByRace;
-    private static readonly FieldInfo? CorpseVanishAfterTimestampField = typeof(Corpse).GetField(
-        "vanishAfterTimestamp",
-        BindingFlags.Instance | BindingFlags.NonPublic);
 
     public static GiftLandingApplicationResult ApplyToCurrentMap(GiftLandingPlan? plan)
     {
@@ -289,44 +284,14 @@ public static class GiftLandingApplicator
         int stackLimit = Math.Max(1, def.stackLimit);
         ClashLog.Message(
             $"[ClashOfRim][GiftLanding] ThingDef resolved event={eventId} def={def.defName} stackLimit={stackLimit} total={item.StackCount}.");
-        if (def.IsCorpse)
+        if (def.IsCorpse && item.PawnPackage is null)
         {
-            if (item.PawnPackage is null)
-            {
-                Log.Warning(
-                    $"[ClashOfRim][GiftLanding] corpse gift item has no inner pawn package event={eventId} def={def.defName} key={item.GlobalKey} pawnPackageId={item.PawnPackageId ?? "<null>"}.");
-                return GiftLandingApplicationResult.Failed(
-                    GiftLandingApplicationResultKind.PawnRestoreFailed,
-                    eventId,
-                    ClashOfRimText.Key(
-                        "ClashOfRim.GiftLanding.StatusCorpsePackageMissing",
-                        item.DefName.Named("THING")));
-            }
-
-            if (GiftPawnPackageUtility.TryRestoreCorpsePawn(item.PawnPackage, out Pawn? corpsePawn, out string corpseRestoreMessage)
-                && corpsePawn is not null)
-            {
-                Corpse? corpse = corpsePawn.MakeCorpse(null, inBed: false, bedRotation: 0f);
-                if (corpse is not null)
-                {
-                    ApplyCorpseMetadata(item, corpse);
-                    preparedThings.Add(corpse);
-                    ClashLog.Message($"[ClashOfRim][GiftLanding] restored corpse event={eventId} def={def.defName}: {corpseRestoreMessage}");
-                    return null;
-                }
-
-                corpseRestoreMessage = ClashOfRimText.Key(
-                    "ClashOfRim.GiftLanding.StatusCorpseCreationFailed",
-                    item.DefName.Named("THING"));
-            }
-
+            Log.Warning(
+                $"[ClashOfRim][GiftLanding] corpse gift item has no inner pawn package event={eventId} def={def.defName} key={item.GlobalKey} pawnPackageId={item.PawnPackageId ?? "<null>"}.");
             return GiftLandingApplicationResult.Failed(
                 GiftLandingApplicationResultKind.PawnRestoreFailed,
                 eventId,
-                ClashOfRimText.Key(
-                    "ClashOfRim.GiftLanding.StatusCorpseRestoreFailed",
-                    item.DefName.Named("THING"),
-                    corpseRestoreMessage.Named("MESSAGE")));
+                ClashOfRimText.Key("ClashOfRim.GiftLanding.StatusCorpsePackageMissing", item.DefName.Named("THING")));
         }
 
         if (def.category == ThingCategory.Pawn && item.PawnPackage is null)
@@ -494,6 +459,8 @@ public static class GiftLandingApplicator
             UniqueWeaponTraits = item.UniqueWeaponTraits.ToList(),
             ThingPackage = item.ThingPackage,
             ThingPackageId = item.ThingPackageId,
+            PawnPackage = item.PawnPackage,
+            PawnPackageId = item.PawnPackageId,
             Metadata = item.Metadata.ToDictionary(
                 pair => pair.Key,
                 pair => pair.Value,
@@ -501,28 +468,6 @@ public static class GiftLandingApplicator
         };
         ClashOfRimCompatibilityApi.NormalizeThingReferenceMetadata(reference);
         return reference;
-    }
-
-    private static void ApplyCorpseMetadata(GiftItemReference item, Corpse corpse)
-    {
-        if (item.Metadata.TryGetValue(GiftTransporterPayloadUtility.CorpseAgeMetadataKey, out string? ageText)
-            && int.TryParse(ageText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int age)
-            && age >= 0)
-        {
-            corpse.Age = age;
-        }
-
-        if (item.Metadata.TryGetValue(GiftTransporterPayloadUtility.CorpseVanishAfterTimestampMetadataKey, out string? vanishText)
-            && int.TryParse(vanishText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int vanishAfterTimestamp))
-        {
-            CorpseVanishAfterTimestampField?.SetValue(corpse, vanishAfterTimestamp);
-        }
-
-        if (item.Metadata.TryGetValue(GiftTransporterPayloadUtility.CorpseEverBuriedInSarcophagusMetadataKey, out string? everBuriedText)
-            && bool.TryParse(everBuriedText, out bool everBuriedInSarcophagus))
-        {
-            corpse.everBuriedInSarcophagus = everBuriedInSarcophagus;
-        }
     }
 
     private static void NormalizeGiftPawnForReceiver(Pawn pawn)

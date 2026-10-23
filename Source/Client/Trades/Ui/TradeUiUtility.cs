@@ -154,6 +154,7 @@ internal static class TradeUiUtility
         }
 
         ThingDef? def = TradeThingReferenceUtility.ResolveReferenceDef(thing);
+        if (def?.IsCorpse == true) return null; // Each corpse retains its own pawn identity and state.
         string? defName = thing.MinifiedInnerDefName ?? thing.DefName ?? def?.defName;
         if (string.IsNullOrWhiteSpace(defName))
         {
@@ -750,9 +751,7 @@ internal static class TradeUiUtility
             qualityRequirementMode,
             hitPointsRequirementMode,
             displayHitPointsLabel);
-        if (def?.category == ThingCategory.Pawn
-            || thing.PawnPackage is not null
-            || !string.IsNullOrWhiteSpace(thing.PawnPackageId))
+        if (TradePawnUtility.IsPawnReference(thing))
         {
             string pawnLabel = label + suffix;
             CacheThingLabel(cacheKey, pawnLabel);
@@ -1005,7 +1004,9 @@ internal static class TradeUiUtility
         }
 
         ThingDef? def = TradeThingReferenceUtility.ResolveReferenceDef(thing);
-        return TradeThingReferenceUtility.IsBookDef(def);
+        // Corpse callbacks require a real inner pawn; presentation must never
+        // manufacture an empty corpse or restore its pawn package for a label/icon.
+        return def?.IsCorpse == true || TradeThingReferenceUtility.IsBookDef(def);
     }
 
     private static string ConcreteThingLabelCacheKey(ModThingReferenceDto thing)
@@ -1123,7 +1124,7 @@ internal static class TradeUiUtility
             return true;
         }
 
-        if (thing.UniqueWeapon == true)
+        if (ShouldAvoidConcreteThingConstruction(thing))
         {
             if (thing.MarketValue.HasValue)
             {

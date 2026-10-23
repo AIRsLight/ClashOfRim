@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Pawns;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
@@ -14,13 +12,6 @@ namespace AIRsLight.ClashOfRim.Gifts;
 
 internal static class GiftTransporterPayloadUtility
 {
-    internal const string CorpseAgeMetadataKey = "ClashOfRim.CorpseAgeTicks";
-    internal const string CorpseVanishAfterTimestampMetadataKey = "ClashOfRim.CorpseVanishAfterTimestamp";
-    internal const string CorpseEverBuriedInSarcophagusMetadataKey = "ClashOfRim.CorpseEverBuriedInSarcophagus";
-    private static readonly FieldInfo? CorpseVanishAfterTimestampField = typeof(Corpse).GetField(
-        "vanishAfterTimestamp",
-        BindingFlags.Instance | BindingFlags.NonPublic);
-
     public static FloatMenuAcceptanceReport CanSend(
         IEnumerable<IThingHolder> pods,
         string surface = ThingReferenceSurfaces.Gift)
@@ -126,19 +117,7 @@ internal static class GiftTransporterPayloadUtility
                 thing.stackCount,
                 BuildBiocodedPawnGlobalId(userId, colonyId, snapshotId, thingBiocodable?.CodedPawn),
                 forcedDelivery ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift);
-            if (thing is Corpse { InnerPawn: not null } corpse)
-            {
-                reference.PawnPackage = GiftPawnPackageUtility.BuildPackage(
-                    corpse.InnerPawn,
-                    PawnGlobalIdUtility.Build(userId, corpse.InnerPawn),
-                    userId,
-                    colonyId,
-                    snapshotId,
-                    transporterKey);
-                reference.Metadata[CorpseAgeMetadataKey] = corpse.Age.ToString(CultureInfo.InvariantCulture);
-                reference.Metadata[CorpseVanishAfterTimestampMetadataKey] = ReadCorpseVanishAfterTimestamp(corpse).ToString(CultureInfo.InvariantCulture);
-                reference.Metadata[CorpseEverBuriedInSarcophagusMetadataKey] = corpse.everBuriedInSarcophagus.ToString();
-            }
+            CorpseTransferUtility.Append(thing, reference, userId, colonyId, snapshotId, transporterKey);
 
             return reference;
         }
@@ -180,11 +159,6 @@ internal static class GiftTransporterPayloadUtility
                     transporterKey)
                 : null
         };
-    }
-
-    private static int ReadCorpseVanishAfterTimestamp(Corpse corpse)
-    {
-        return CorpseVanishAfterTimestampField?.GetValue(corpse) is int value ? value : -1;
     }
 
     private static bool IsGiftablePawn(Pawn pawn)

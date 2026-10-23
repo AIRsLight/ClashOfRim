@@ -164,6 +164,7 @@ var tests = new (string Name, Action Run)[]
     ("mercenary protocol owns six contracts and captured snapshot credentials", ClientMercenaryProtocolTests.Run),
     ("mercenary quotes share execution and preserve session and game ownership", ClientMercenaryQuotesTests.Run),
     ("trade operations own reservation, fulfillment and snapshot retries", ClientTradeOperationsTests.Run),
+    ("corpse trade confirmation and delivery preserve pawn and item state", CorpseTradeTests.Run),
     ("package writes preserve contracts, previews and partial upload retries", PackageWriteModuleTests.Run),
     ("trade market owns paging, decisions and session state", ClientTradeMarketTests.Run),
     ("gift sends own capture, removal, retries and deferred arrival", ClientGiftModuleTests.Run),

@@ -4,6 +4,7 @@
 
 ### 0.4.9 testing update
 
+- **Corpse trading:** publishing corpse offers opens the confirmation correctly. Labels, icons and estimates avoid constructing empty corpses; trade and gift delivery share dead-pawn packaging and restore durability, rot and corpse-specific state without treating corpses as live pawns.
 - **Login diagnostics:** incompatible protocols open the compatibility screen with the client/server versions and rejection details, even before a server manifest is available. Structured protocol rejections retain their meaning on HTTP errors; generic gateway failures show connection diagnostics instead of inventing a version mismatch.
 - **Compatibility checks and repairs:** validate the mod list and load order first, file hashes next, and configuration files last. Applying the mod list only changes mod selection/order and restarts; configuration application is available after the first two stages pass. Authorized administrators can still replace a file/configuration baseline, but cannot bypass protocol compatibility.
 - **Administrator confirmation:** replacing the server baseline always asks for confirmation from either the compatibility screen or administrator page, explaining that the current client becomes the requirement for other players. Mod-list/order differences add a specific warning to the same dialog. All five supported languages are included.

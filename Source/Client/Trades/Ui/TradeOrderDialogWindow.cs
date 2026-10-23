@@ -922,13 +922,8 @@ public sealed class TradeOrderDialogWindow : Window
                 includePreview: true);
         }
 
-        CompBiocodable? biocodable = thing.TryGetComp<CompBiocodable>();
-        return TradeThingReferenceUtility.BuildThingReference(
-            thing,
-            $"owner:{actions.Context.UserId}/colony:{actions.Context.ColonyId}/snapshot:{actions.Context.CurrentSnapshotId}/map:Map_{map.uniqueID}/thing:{thing.ThingID}",
-            selection.Count,
-            BuildBiocodedPawnGlobalId(biocodable?.CodedPawn),
-            ThingReferenceSurfaces.TradeOffer);
+        return TradeMapFulfillmentUtility.BuildThingReference(thing, map, actions.Context.UserId,
+            actions.Context.ColonyId, actions.Context.CurrentSnapshotId ?? "", selection.Count, ThingReferenceSurfaces.TradeOffer);
     }
 
     private int CalculateFeeSilver()
@@ -1080,16 +1075,6 @@ public sealed class TradeOrderDialogWindow : Window
                 pair => pair.Value,
                 StringComparer.Ordinal) ?? new Dictionary<string, string?>()
         };
-    }
-
-    private string? BuildBiocodedPawnGlobalId(Pawn? pawn)
-    {
-        if (pawn is null || string.IsNullOrWhiteSpace(pawn.ThingID))
-        {
-            return null;
-        }
-
-        return PawnGlobalIdUtility.Build(actions.Context.UserId, pawn);
     }
 
     private sealed class ThingReferenceComparer : IEqualityComparer<Thing>

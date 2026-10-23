@@ -104,7 +104,8 @@ internal static class TradeMapFulfillmentUtility
         string userId,
         string colonyId,
         string snapshotId,
-        int count)
+        int count,
+        string surface = ThingReferenceSurfaces.TradeFulfillment)
     {
         return ToThingReference(
             thing,
@@ -112,7 +113,8 @@ internal static class TradeMapFulfillmentUtility
             map,
             userId,
             colonyId,
-            snapshotId);
+            snapshotId,
+            surface);
     }
 
     public static bool RemoveSelectedThings(
@@ -199,7 +201,8 @@ internal static class TradeMapFulfillmentUtility
         Map map,
         string userId,
         string colonyId,
-        string snapshotId)
+        string snapshotId,
+        string surface = ThingReferenceSurfaces.TradeFulfillment)
     {
         if (thing is Pawn pawn)
         {
@@ -214,12 +217,14 @@ internal static class TradeMapFulfillmentUtility
         }
 
         CompBiocodable? biocodable = thing.TryGetComp<CompBiocodable>();
-        return TradeThingReferenceUtility.BuildThingReference(
+        ModThingReferenceDto reference = TradeThingReferenceUtility.BuildThingReference(
             thing,
             $"owner:{userId}/colony:{colonyId}/snapshot:{snapshotId}/map:Map_{map.uniqueID}/thing:{thing.ThingID}",
             count,
             BuildBiocodedPawnGlobalId(userId, colonyId, snapshotId, biocodable?.CodedPawn),
-            ThingReferenceSurfaces.TradeFulfillment);
+            surface);
+        CorpseTransferUtility.Append(thing, reference, userId, colonyId, snapshotId, "trade-map:" + map.uniqueID);
+        return reference;
     }
 
     private static string? BuildBiocodedPawnGlobalId(string userId, string colonyId, string snapshotId, Pawn? pawn)

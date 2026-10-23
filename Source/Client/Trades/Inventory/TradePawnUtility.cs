@@ -42,9 +42,9 @@ internal static class TradePawnUtility
     public static bool IsPawnReference(ModThingReferenceDto reference)
     {
         ThingDef? def = TradeUiUtility.ResolveThingDef(reference.DefName);
-        return reference.PawnPackage is not null
+        return def?.IsCorpse != true && (reference.PawnPackage is not null
             || !string.IsNullOrWhiteSpace(reference.PawnPackageId)
-            || def?.category == ThingCategory.Pawn;
+            || def?.category == ThingCategory.Pawn);
     }
 
     public static string PawnTradeLabel(Pawn pawn)

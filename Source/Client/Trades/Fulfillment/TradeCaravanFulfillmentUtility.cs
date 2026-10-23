@@ -355,12 +355,14 @@ internal static class TradeCaravanFulfillmentUtility
         }
 
         CompBiocodable? biocodable = thing.TryGetComp<CompBiocodable>();
-        return TradeThingReferenceUtility.BuildThingReference(
+        ModThingReferenceDto reference = TradeThingReferenceUtility.BuildThingReference(
             thing,
             $"owner:{userId}/colony:{colonyId}/snapshot:{snapshotId}/caravan:{caravan.GetUniqueLoadID()}/thing:{thing.ThingID}",
             countOverride ?? thing.stackCount,
             BuildBiocodedPawnGlobalId(userId, colonyId, snapshotId, biocodable?.CodedPawn),
             surface);
+        CorpseTransferUtility.Append(thing, reference, userId, colonyId, snapshotId, "trade-caravan:" + caravan.GetUniqueLoadID());
+        return reference;
     }
 
     private static string? BuildBiocodedPawnGlobalId(string userId, string colonyId, string snapshotId, Pawn? pawn)
