@@ -160,6 +160,7 @@ internal static class EventCommandPresentationTests
                 TradePresentation();
                 ShopPresentation();
                 RaidSettlementPresentation();
+                RaidSettlementLetterPresentation();
                 RaidCommandPresentation();
                 SnapshotRestorePresentation();
                 SnapshotSavingPresentation();
@@ -216,6 +217,41 @@ internal static class EventCommandPresentationTests
             "StatusSettlementMissingSourceMap", "StatusSettlementXmlFailed", "StatusSettlementMissingParent", "StatusSettlementMissingMap", "StatusSettlementMissingLocalMapId" })
             RequireResolved(presentation.Text("ClashOfRim.Raid." + key, ("CODE", "code"), ("MESSAGE", "message"), ("REASON", "reason"),
                 ("TYPE", "exception"), ("VALIDATION", "validation"), ("SNAPSHOT", "snapshot"), ("COUNT", 3)));
+    }
+
+    private static void RaidSettlementLetterPresentation()
+    {
+        foreach (var actor in new ModProtocolIdentityDto?[]
+        {
+            new() { UserId = "袭击者-é", ColonyId = "colony-北" },
+            new() { UserId = "袭击者-é" },
+            new() { UserId = "袭击者-é", ColonyId = " " },
+            new() { UserId = " ", ColonyId = "colony-北" },
+            null
+        })
+        foreach (bool hasLoss in new[] { false, true })
+        {
+            var detail = new ModEventDetailDto
+            {
+                EventId = "settlement", EventType = ServerEventType.Raid, PayloadType = EventPayloadType.Raid,
+                Actor = actor, Target = new() { UserId = "defender-account", ColonyId = "defender-colony" },
+                PayloadSummary = hasLoss
+                    ? "{\"Settlement\":{\"Losses\":[{\"Def\":\"MissingModItem\",\"LossCount\":7}]}}"
+                    : "{\"Settlement\":{\"Losses\":[]}}"
+            };
+            var letter = ClientEventLetterRenderer.BuildEventLetterProjection(detail, "Unknown");
+            RequireResolved(letter.Text);
+            string expectedActor = string.IsNullOrWhiteSpace(actor?.UserId)
+                ? translations["ClashOfRim.UnknownOtherPlayer"]
+                : actor!.UserId + (string.IsNullOrWhiteSpace(actor.ColonyId) ? "" : "/" + actor.ColonyId);
+            if (!letter.Text.Contains(expectedActor, StringComparison.Ordinal)
+                || letter.Text.Contains("defender-account", StringComparison.Ordinal))
+                throw new Exception("Raid settlement omitted or reversed the attacking identity.");
+            if (letter.HasServerAction || letter.Label != translations["ClashOfRim.EventLetter.Label.RaidSettlement"]
+                || (hasLoss ? !letter.Text.Contains("MissingModItem x7", StringComparison.Ordinal)
+                    : !letter.Text.Contains(translations["ClashOfRim.EventLetter.RaidNoDefenderLoss"], StringComparison.Ordinal)))
+                throw new Exception("Attacker attribution changed settlement content or actions.");
+        }
     }
 
     private static void PasswordPresentation()

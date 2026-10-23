@@ -711,6 +711,7 @@
   <ClashOfRim.EventLetter.GiftReturnIntro>{SENDER}에게 거부된 선물이 반송되고 있습니다.</ClashOfRim.EventLetter.GiftReturnIntro>
   <ClashOfRim.EventLetter.RaidAction>적대 행위가 처리를 기다리고 있습니다. 세계 지도에서 관련 장소를 확인하거나 나중에 처리할 수 있습니다.</ClashOfRim.EventLetter.RaidAction>
   <ClashOfRim.EventLetter.RaidSettlementIntro>습격이 끝났고 방어 측 손실이 집계되었습니다.</ClashOfRim.EventLetter.RaidSettlementIntro>
+  <ClashOfRim.EventLetter.RaidAttackerLine>습격자: {ATTACKER}</ClashOfRim.EventLetter.RaidAttackerLine>
   <ClashOfRim.EventLetter.RaidDefenderLossHeading>이번 습격 손실:</ClashOfRim.EventLetter.RaidDefenderLossHeading>
   <ClashOfRim.EventLetter.RaidLossItemLine>{THING} x{COUNT}</ClashOfRim.EventLetter.RaidLossItemLine>
   <ClashOfRim.EventLetter.RaidLossBuildingLine>{THING} 완전 파괴 x{COUNT}</ClashOfRim.EventLetter.RaidLossBuildingLine>

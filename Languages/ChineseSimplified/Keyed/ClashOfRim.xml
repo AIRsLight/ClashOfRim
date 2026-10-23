@@ -710,6 +710,7 @@
   <ClashOfRim.EventLetter.GiftReturnIntro>被 {SENDER} 拒绝的礼物正在退回。</ClashOfRim.EventLetter.GiftReturnIntro>
   <ClashOfRim.EventLetter.RaidAction>一场敌对行动正在等待处理。可以在大地图上查看相关地点，或稍后再处理。</ClashOfRim.EventLetter.RaidAction>
   <ClashOfRim.EventLetter.RaidSettlementIntro>袭击已经结束，防守方损失已统计。</ClashOfRim.EventLetter.RaidSettlementIntro>
+  <ClashOfRim.EventLetter.RaidAttackerLine>袭击者：{ATTACKER}</ClashOfRim.EventLetter.RaidAttackerLine>
   <ClashOfRim.EventLetter.RaidDefenderLossHeading>本次袭击损失：</ClashOfRim.EventLetter.RaidDefenderLossHeading>
   <ClashOfRim.EventLetter.RaidLossItemLine>{THING} x{COUNT}</ClashOfRim.EventLetter.RaidLossItemLine>
   <ClashOfRim.EventLetter.RaidLossBuildingLine>{THING} 完全损毁 x{COUNT}</ClashOfRim.EventLetter.RaidLossBuildingLine>

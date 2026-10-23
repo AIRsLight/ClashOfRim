@@ -711,6 +711,7 @@
   <ClashOfRim.EventLetter.GiftReturnIntro>Подарок, отклоненный {SENDER}, возвращается.</ClashOfRim.EventLetter.GiftReturnIntro>
   <ClashOfRim.EventLetter.RaidAction>Враждебное действие ожидает вашего внимания. Можно осмотреть связанное место на мировой карте или обработать позже.</ClashOfRim.EventLetter.RaidAction>
   <ClashOfRim.EventLetter.RaidSettlementIntro>Рейд завершен, потери защитника подсчитаны.</ClashOfRim.EventLetter.RaidSettlementIntro>
+  <ClashOfRim.EventLetter.RaidAttackerLine>Нападающий: {ATTACKER}</ClashOfRim.EventLetter.RaidAttackerLine>
   <ClashOfRim.EventLetter.RaidDefenderLossHeading>Потери в этом рейде:</ClashOfRim.EventLetter.RaidDefenderLossHeading>
   <ClashOfRim.EventLetter.RaidLossItemLine>{THING} x{COUNT}</ClashOfRim.EventLetter.RaidLossItemLine>
   <ClashOfRim.EventLetter.RaidLossBuildingLine>{THING} полностью разрушено x{COUNT}</ClashOfRim.EventLetter.RaidLossBuildingLine>

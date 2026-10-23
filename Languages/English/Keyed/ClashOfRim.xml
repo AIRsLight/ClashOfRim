@@ -710,6 +710,7 @@
   <ClashOfRim.EventLetter.GiftReturnIntro>A gift rejected by {SENDER} is being returned.</ClashOfRim.EventLetter.GiftReturnIntro>
   <ClashOfRim.EventLetter.RaidAction>A hostile action is waiting for your attention. You can inspect the related site on the world map or handle it later.</ClashOfRim.EventLetter.RaidAction>
   <ClashOfRim.EventLetter.RaidSettlementIntro>The raid has ended and defender losses have been counted.</ClashOfRim.EventLetter.RaidSettlementIntro>
+  <ClashOfRim.EventLetter.RaidAttackerLine>Attacker: {ATTACKER}</ClashOfRim.EventLetter.RaidAttackerLine>
   <ClashOfRim.EventLetter.RaidDefenderLossHeading>Losses from this raid:</ClashOfRim.EventLetter.RaidDefenderLossHeading>
   <ClashOfRim.EventLetter.RaidLossItemLine>{THING} x{COUNT}</ClashOfRim.EventLetter.RaidLossItemLine>
   <ClashOfRim.EventLetter.RaidLossBuildingLine>{THING} fully destroyed x{COUNT}</ClashOfRim.EventLetter.RaidLossBuildingLine>

@@ -2,6 +2,10 @@
 
 ## Current development changes
 
+### 0.4.6 testing update
+
+- **Raid attribution:** defender settlement letters identify the attacker by account and colony identifier, including raids with no defender losses. All five supported languages are updated; network protocol requirements are unchanged.
+
 ### 0.4.5 testing update
 
 - **Password fields:** login, registration, password changes and administrator resets now mask their displayed text on RimWorld 1.7, including input-method composition. Native editing, selection and paste behavior is preserved.

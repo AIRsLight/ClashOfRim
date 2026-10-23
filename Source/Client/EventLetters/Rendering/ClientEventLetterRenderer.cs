@@ -256,17 +256,15 @@ internal static class ClientEventLetterRenderer
         }
 
         IReadOnlyList<string> lossLines = BuildRaidDefenderLossLines(payload.Settlement.Losses);
-        if (lossLines.Count == 0)
-        {
-            text = ClashOfRimText.Key("ClashOfRim.EventLetter.RaidNoDefenderLoss");
-            return true;
-        }
-
-        text = ClashOfRimText.Key("ClashOfRim.EventLetter.RaidSettlementIntro")
-            + "\n\n"
-            + ClashOfRimText.Key("ClashOfRim.EventLetter.RaidDefenderLossHeading")
-            + "\n"
-            + string.Join("\n", lossLines);
+        string outcome = lossLines.Count == 0
+            ? ClashOfRimText.Key("ClashOfRim.EventLetter.RaidNoDefenderLoss")
+            : ClashOfRimText.Key("ClashOfRim.EventLetter.RaidSettlementIntro")
+                + "\n\n"
+                + ClashOfRimText.Key("ClashOfRim.EventLetter.RaidDefenderLossHeading")
+                + "\n"
+                + string.Join("\n", lossLines);
+        text = ClashOfRimText.Key("ClashOfRim.EventLetter.RaidAttackerLine", FormatEventParty(detail.Actor).Named("ATTACKER"))
+            + "\n\n" + outcome;
         return true;
     }
 

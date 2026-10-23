@@ -711,6 +711,7 @@
   <ClashOfRim.EventLetter.GiftReturnIntro>{SENDER} に拒否された贈り物が返送されています。</ClashOfRim.EventLetter.GiftReturnIntro>
   <ClashOfRim.EventLetter.RaidAction>敵対行動があなたの対応を待っています。ワールドマップで関連地点を確認するか、後で処理できます。</ClashOfRim.EventLetter.RaidAction>
   <ClashOfRim.EventLetter.RaidSettlementIntro>襲撃は終了し、防衛側の損失が集計されました。</ClashOfRim.EventLetter.RaidSettlementIntro>
+  <ClashOfRim.EventLetter.RaidAttackerLine>襲撃者：{ATTACKER}</ClashOfRim.EventLetter.RaidAttackerLine>
   <ClashOfRim.EventLetter.RaidDefenderLossHeading>この襲撃での損失:</ClashOfRim.EventLetter.RaidDefenderLossHeading>
   <ClashOfRim.EventLetter.RaidLossItemLine>{THING} x{COUNT}</ClashOfRim.EventLetter.RaidLossItemLine>
   <ClashOfRim.EventLetter.RaidLossBuildingLine>{THING} 完全破壊 x{COUNT}</ClashOfRim.EventLetter.RaidLossBuildingLine>
