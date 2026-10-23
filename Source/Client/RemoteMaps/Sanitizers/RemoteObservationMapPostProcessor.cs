@@ -82,6 +82,8 @@ public static class RemoteObservationMapPostProcessor
             + constructionResult.RemovedPlaceholders
             + ", removedConstructionDesignations="
             + constructionResult.RemovedDesignations
+            + ", removedPlans="
+            + constructionResult.RemovedPlans
             + ", carriedThingsDropped="
             + pawnStateResult.DroppedThings
             + ", carriedThingJobsInterrupted="

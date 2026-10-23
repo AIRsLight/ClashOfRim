@@ -10,18 +10,19 @@ public static class RemoteSessionMapConstructionSanitizer
 {
     public static RemoteSessionMapConstructionSanitizerResult Apply(Map? map)
     {
-        if (map?.listerThings?.AllThings is null)
+        if (map is null)
         {
             return RemoteSessionMapConstructionSanitizerResult.Empty;
         }
 
-        List<Thing> constructionPlaceholders = map.listerThings.AllThings
+        List<Thing> constructionPlaceholders = (map.listerThings?.AllThings ?? Enumerable.Empty<Thing>())
             .Where(IsConstructionPlaceholder)
             .ToList();
         int removedDesignations = RemoveRelatedDesignations(map, constructionPlaceholders);
         int removedPlaceholders = RemoveConstructionPlaceholders(constructionPlaceholders);
+        int removedPlans = RemovePlans(map);
 
-        if (removedPlaceholders > 0 || removedDesignations > 0)
+        if (removedPlaceholders > 0 || removedDesignations > 0 || removedPlans > 0)
         {
             ClashLog.Message("[ClashOfRim][RemoteSession] Removed remote map construction placeholders: map="
                 + map.GetUniqueLoadID()
@@ -29,10 +30,35 @@ public static class RemoteSessionMapConstructionSanitizer
                 + removedPlaceholders
                 + ", designations="
                 + removedDesignations
+                + ", plans="
+                + removedPlans
                 + ".");
         }
 
-        return new RemoteSessionMapConstructionSanitizerResult(removedPlaceholders, removedDesignations);
+        return new RemoteSessionMapConstructionSanitizerResult(removedPlaceholders, removedDesignations, removedPlans);
+    }
+
+    private static int RemovePlans(Map map)
+    {
+        if (map.planManager is null) return 0;
+
+        int removed = 0;
+        foreach (Plan plan in map.planManager.AllPlans.ToList())
+        {
+            try
+            {
+                // Plans are separate from designations in 1.7. Native deletion also
+                // clears the cell grid, render meshes and current selection.
+                plan.Delete(playSound: false);
+                removed++;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[ClashOfRim][RemoteSession] Failed to remove remote map plan: " + ex);
+            }
+        }
+
+        return removed;
     }
 
     private static int RemoveRelatedDesignations(Map map, IReadOnlyCollection<Thing> constructionPlaceholders)
@@ -148,12 +174,18 @@ public readonly struct RemoteSessionMapConstructionSanitizerResult
     public static readonly RemoteSessionMapConstructionSanitizerResult Empty = new(0, 0);
 
     public RemoteSessionMapConstructionSanitizerResult(int removedPlaceholders, int removedDesignations)
+        : this(removedPlaceholders, removedDesignations, 0) { }
+
+    public RemoteSessionMapConstructionSanitizerResult(int removedPlaceholders, int removedDesignations, int removedPlans)
     {
         RemovedPlaceholders = removedPlaceholders;
         RemovedDesignations = removedDesignations;
+        RemovedPlans = removedPlans;
     }
 
     public int RemovedPlaceholders { get; }
 
     public int RemovedDesignations { get; }
+
+    public int RemovedPlans { get; }
 }

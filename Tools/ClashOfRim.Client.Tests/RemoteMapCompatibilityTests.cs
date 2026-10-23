@@ -17,6 +17,7 @@ internal static class RemoteMapCompatibilityTests
 {
     internal static void Run()
     {
+        RemoteMapPlanTests.Run();
         CultureInfo previous = CultureInfo.CurrentCulture;
         try
         {
