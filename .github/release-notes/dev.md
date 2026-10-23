@@ -2,6 +2,14 @@
 
 ## Current development changes
 
+### 0.4.5 testing update
+
+- **Password fields:** login, registration, password changes and administrator resets now mask their displayed text on RimWorld 1.7, including input-method composition. Native editing, selection and paste behavior is preserved.
+- **Remote plans:** remote map preparation removes native plan markings, including hidden plans and selection/grid state. Observation, raid preparation and loaded pocket maps share the cleanup.
+- **Storage restoration:** remote snapshots preserve item stacks while shelves are still loading. Vanilla and modded storage use the same restoration path; normal capacity limits remain in effect after loading. The compatibility package no longer retains an artificial cell limit for Adaptive Storage.
+- **Update together:** use the matching main mod and third-party compatibility package. Active client builds target RimWorld 1.7.4985; network protocol requirements are unchanged and RimWorld 1.6 remains frozen at 0.3.4.
+- **Validation:** eight targeted client unit-test groups and package/build checks passed. This update has not had a new full in-game regression.
+
 ### 0.4.4 testing update
 
 - **Shop pricing:** sale and buy-order editors now accept the price of one item, including decimals, and calculate/display the total for each lot as its quantity changes. The quick-edit list uses the same conversion. Existing listings retain their total price when opened and saved without changes.
