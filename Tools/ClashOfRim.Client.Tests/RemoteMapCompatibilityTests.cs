@@ -19,6 +19,7 @@ internal static class RemoteMapCompatibilityTests
     {
         RemoteMapPlanTests.Run();
         RemoteMapDesignationTests.Run();
+        RemoteMechClusterTests.Run();
         RemoteMapLoadedItemTests.Run();
         CultureInfo previous = CultureInfo.CurrentCulture;
         try

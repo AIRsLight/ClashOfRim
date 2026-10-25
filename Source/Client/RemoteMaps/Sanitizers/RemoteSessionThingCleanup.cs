@@ -60,6 +60,8 @@ public static class RemoteSessionThingCleanup
             return 0;
         }
 
+        // Despawning the last member can destroy a lord before map disposal starts.
+        using var suppression = RemoteSessionGlobalStateGuard.BeginSuppressRemoteMapRemovalGlobalEffects();
         string tag = CleanupTag(parent.SessionId);
         int discarded = 0;
         int exempt = 0;
@@ -156,6 +158,7 @@ public static class RemoteSessionThingCleanup
             return 0;
         }
 
+        using var suppression = RemoteSessionGlobalStateGuard.BeginSuppressRemoteMapRemovalGlobalEffects();
         string tag = CleanupTag(parent.SessionId);
         int discarded = 0;
         foreach (Pawn pawn in Find.WorldPawns.AllPawnsAliveOrDead

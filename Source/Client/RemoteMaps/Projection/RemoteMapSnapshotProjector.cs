@@ -887,7 +887,8 @@ public static class RemoteMapSnapshotProjector
             DefSpot = lordJob.Element("defSpot")?.Value?.Trim() ?? string.Empty,
             DefendRadius = ReadFloat(lordJob, "defendRadius", 0f),
             CanAssaultColony = ReadBool(lordJob, "canAssaultColony", false),
-            IsMechCluster = ReadBool(lordJob, "isMechCluster", false)
+            IsMechCluster = ReadBool(lordJob, "isMechCluster", false),
+            MechClusterDefeated = ReadBool(lordJob, "mechClusterDefeated", false)
         };
     }
 

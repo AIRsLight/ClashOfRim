@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
@@ -25,6 +26,9 @@ internal readonly struct RemoteNpcLordRestoreResult
 
 internal static class RemoteNpcLordRestorer
 {
+    private static readonly AccessTools.FieldRef<LordJob_MechanoidDefendBase, bool> MechClusterDefeated =
+        AccessTools.FieldRefAccess<LordJob_MechanoidDefendBase, bool>("mechClusterDefeated");
+
     public static RemoteNpcLordRestoreResult Apply(Map map, RemoteSessionMapParent carrier)
     {
         IReadOnlyList<RemoteNpcLordSnapshot> snapshots = carrier.RemoteNpcLordSnapshots;
@@ -195,7 +199,7 @@ internal static class RemoteNpcLordRestorer
                     return null;
                 }
 
-                return AddDefeatNotifications(
+                return RestoreMechClusterState(
                     new LordJob_MechanoidsDefend(
                         things,
                         faction,
@@ -211,7 +215,7 @@ internal static class RemoteNpcLordRestorer
                     return null;
                 }
 
-                return AddDefeatNotifications(
+                return RestoreMechClusterState(
                     new LordJob_SleepThenMechanoidsDefend(
                         things,
                         faction,
@@ -229,11 +233,14 @@ internal static class RemoteNpcLordRestorer
         }
     }
 
-    private static LordJob AddDefeatNotifications(
+    private static LordJob RestoreMechClusterState(
         LordJob_MechanoidDefendBase job,
         RemoteNpcLordSnapshot snapshot,
         IReadOnlyDictionary<string, Thing> thingsByLoadId)
     {
+        // Native constructors reset completion. Preserve it through projection
+        // and deferred pocket loading so an old victory cannot fire again.
+        MechClusterDefeated(job) = snapshot.MechClusterDefeated;
         foreach (Thing thing in ResolveThings(snapshot.ThingsToNotifyOnDefeatLoadIds, thingsByLoadId))
         {
             job.AddThingToNotifyOnDefeat(thing);

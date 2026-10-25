@@ -43,6 +43,7 @@ internal sealed class RemoteNpcLordSnapshot
     public string DefSpot = string.Empty;
     public bool CanAssaultColony;
     public bool IsMechCluster;
+    public bool MechClusterDefeated;
     public int DelayBeforeAssault = 25000;
     public bool AttackWhenPlayerBecameEnemy;
 
@@ -74,6 +75,7 @@ internal sealed class RemoteNpcLordSnapshot
             DefSpot = DefSpot,
             CanAssaultColony = CanAssaultColony,
             IsMechCluster = IsMechCluster,
+            MechClusterDefeated = MechClusterDefeated,
             DelayBeforeAssault = DelayBeforeAssault,
             AttackWhenPlayerBecameEnemy = AttackWhenPlayerBecameEnemy
         };

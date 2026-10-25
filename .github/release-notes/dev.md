@@ -5,6 +5,7 @@
 ### 0.4.10 testing update
 
 - **Remote orders:** remote map preparation clears all inherited designations, including mining, hunting and modded orders. Observation, raids and imported pocket maps share native index/cache cleanup; source-colony maps are unaffected.
+- **Scouting isolation:** viewing a remote mech cluster no longer runs its victory callbacks, quest signals, mood rewards or victory notifications. Projection preserves completed clusters, and closing remote maps suppresses completion during both pawn cleanup and map disposal. Ordinary local and active raid victories retain their native behavior.
 
 ### 0.4.9 testing update
 
