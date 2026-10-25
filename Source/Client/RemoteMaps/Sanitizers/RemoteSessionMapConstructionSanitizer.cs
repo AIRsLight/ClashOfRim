@@ -18,13 +18,13 @@ public static class RemoteSessionMapConstructionSanitizer
         List<Thing> constructionPlaceholders = (map.listerThings?.AllThings ?? Enumerable.Empty<Thing>())
             .Where(IsConstructionPlaceholder)
             .ToList();
-        int removedDesignations = RemoveRelatedDesignations(map, constructionPlaceholders);
+        int removedDesignations = RemoveDesignations(map);
         int removedPlaceholders = RemoveConstructionPlaceholders(constructionPlaceholders);
         int removedPlans = RemovePlans(map);
 
         if (removedPlaceholders > 0 || removedDesignations > 0 || removedPlans > 0)
         {
-            ClashLog.Message("[ClashOfRim][RemoteSession] Removed remote map construction placeholders: map="
+            ClashLog.Message("[ClashOfRim][RemoteSession] Removed remote map orders and construction placeholders: map="
                 + map.GetUniqueLoadID()
                 + ", placeholders="
                 + removedPlaceholders
@@ -61,30 +61,26 @@ public static class RemoteSessionMapConstructionSanitizer
         return removed;
     }
 
-    private static int RemoveRelatedDesignations(Map map, IReadOnlyCollection<Thing> constructionPlaceholders)
+    private static int RemoveDesignations(Map map)
     {
         if (map.designationManager?.AllDesignations is null)
         {
             return 0;
         }
 
-        var targets = new HashSet<Thing>(constructionPlaceholders);
         int removed = 0;
         foreach (Designation designation in map.designationManager.AllDesignations.ToList())
         {
-            if (!ShouldRemoveDesignation(designation, targets))
-            {
-                continue;
-            }
-
             try
             {
+                // Source-colony orders never apply to the remote copy, including
+                // modded orders and designations the UI does not allow cancelling.
                 map.designationManager.RemoveDesignation(designation);
                 removed++;
             }
             catch (Exception ex)
             {
-                Log.Warning("[ClashOfRim][RemoteSession] Failed to remove remote map construction designation "
+                Log.Warning("[ClashOfRim][RemoteSession] Failed to remove remote map designation "
                     + DescribeDesignation(designation)
                     + ": "
                     + ex);
@@ -92,32 +88,6 @@ public static class RemoteSessionMapConstructionSanitizer
         }
 
         return removed;
-    }
-
-    private static bool ShouldRemoveDesignation(Designation designation, HashSet<Thing> constructionPlaceholders)
-    {
-        if (designation is null)
-        {
-            return false;
-        }
-
-        if (designation.target.HasThing && designation.target.Thing is Thing thing)
-        {
-            return constructionPlaceholders.Contains(thing)
-                || IsConstructionPlaceholder(thing)
-                || IsConstructionDesignation(designation.def);
-        }
-
-        return IsConstructionDesignation(designation.def);
-    }
-
-    private static bool IsConstructionDesignation(DesignationDef? def)
-    {
-        string? defName = def?.defName;
-        return string.Equals(defName, "Build", StringComparison.Ordinal)
-            || string.Equals(defName, "Repair", StringComparison.Ordinal)
-            || string.Equals(defName, "Deconstruct", StringComparison.Ordinal)
-            || string.Equals(defName, "Uninstall", StringComparison.Ordinal);
     }
 
     private static int RemoveConstructionPlaceholders(IEnumerable<Thing> constructionPlaceholders)

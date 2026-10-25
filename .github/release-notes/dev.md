@@ -2,6 +2,10 @@
 
 ## Current development changes
 
+### 0.4.10 testing update
+
+- **Remote orders:** remote map preparation clears all inherited designations, including mining, hunting and modded orders. Observation, raids and imported pocket maps share native index/cache cleanup; source-colony maps are unaffected.
+
 ### 0.4.9 testing update
 
 - **Corpse trading:** publishing corpse offers opens the confirmation correctly. Labels, icons and estimates avoid constructing empty corpses; trade and gift delivery share dead-pawn packaging and restore durability, rot and corpse-specific state without treating corpses as live pawns.
