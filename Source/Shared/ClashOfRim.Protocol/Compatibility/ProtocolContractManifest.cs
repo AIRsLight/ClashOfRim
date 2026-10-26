@@ -315,6 +315,15 @@ public static class ProtocolContractManifest
                 serverMustValidateSnapshot: true,
                 ProtocolDeliverySemantics.OnlineImmediate),
             new ProtocolEndpointDescriptor(
+                ProtocolMessageKind.ClaimTradeOrder,
+                "/events/trades/claim",
+                requiresIdempotencyKey: true,
+                requiresUserId: true,
+                requiresColonyId: true,
+                requiresSnapshotId: true,
+                serverMustValidateSnapshot: false,
+                ProtocolDeliverySemantics.OnlineImmediate),
+            new ProtocolEndpointDescriptor(
                 ProtocolMessageKind.CompleteTradeOrder,
                 "/events/trades/complete",
                 requiresIdempotencyKey: true,

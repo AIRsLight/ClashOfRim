@@ -112,13 +112,14 @@ internal sealed class EconomicModuleTestContext
         var compatibility = new CompatibilityBaselineRegistry();
         TradeDelivery = new TradeDelivery(Snapshots, Presence, Ledger, plugins, compatibility, World,
             new StraightLineWorldTileDistanceCalculator(), () => Configuration);
-        TradeLifecycle = new TradeLifecycle(Ledger, Snapshots, mutations, Gate, TradeDelivery, Baseline,
+        var collection = new TradeCollection(Ledger, Presence, Notifications, () => Configuration);
+        TradeLifecycle = new TradeLifecycle(Ledger, Snapshots, mutations, Gate, TradeDelivery, collection, Baseline,
             Presence, Notifications, NullLogger.Instance, () => Configuration);
         var tradeCommits = new TradeSnapshotCommitter(commits, Snapshots, Loans, Ledger, mercenaries, Notifications, Recovery, Recovery);
         Trades = new TradeService(Ledger, requests, colonies, mutations, transactions, pending, Packages,
-            tradeCommits, TradeLifecycle, TradeDelivery, Baseline, plugins, compatibility, Presence,
+            tradeCommits, TradeLifecycle, TradeDelivery, collection, Baseline, plugins, compatibility, Presence,
             Notifications, NullLogger.Instance, () => Configuration);
-        Market = new TradeMarket(Ledger, requests, TradeLifecycle, TradeDelivery, () => Configuration);
+        Market = new TradeMarket(Ledger, requests, TradeLifecycle, TradeDelivery, collection, () => Configuration);
         Shop = new ShopService(ShopRegistry, requests, new AdministratorAuthorization(principals, World), mutations, transactions, pending,
             new ShopSnapshotCommitter(commits, Snapshots, Loans, ShopRegistry, mercenaries, Recovery), Baseline, plugins, compatibility,
             NullLogger.Instance, () => Configuration);

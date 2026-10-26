@@ -78,7 +78,8 @@ internal sealed class EventDeliveryService(
         foreach (string eventId in eventIds)
         {
             AuthoritativeEvent? ledgerEvent = ledger.Find(eventId);
-            if (ledgerEvent is null || !EventVisibility.IsVisibleTo(ledgerEvent, request.UserId, request.ColonyId))
+            if (ledgerEvent is null || ledgerEvent.Status == ServerEventStatus.AwaitingCollection
+                || !EventVisibility.IsVisibleTo(ledgerEvent, request.UserId, request.ColonyId))
             {
                 return new PullEventDetailsResponse(
                     ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, ServerLocalization.Text("Events.NotFoundOrInvisible")),

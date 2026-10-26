@@ -1,4 +1,9 @@
 {
+  "Trade.CollectionReadyTitle": "Trade successful — collection available",
+  "Trade.CollectionReadyMessage": "Trade {EVENT} has been fulfilled. Collect the items from My orders in the marketplace. Unclaimed items will be delivered automatically at {DEADLINE}. This order counts toward your listing limit until receipt is confirmed in a save.",
+  "Trade.CollectionReadyNoDeadlineMessage": "Trade {EVENT} has been fulfilled. Collect the items from My orders in the marketplace. Automatic delivery has no deadline configured. The order counts toward your listing limit until receipt is confirmed in a save.",
+  "Trade.CollectionUnavailable": "This order has no completed trade items available for collection.",
+  "Trade.CollectionReleased": "Trade items are queued for delivery. The order completes once receipt is confirmed in a save.",
   "Protocol.IncompatibleVersionDetails": "Incompatible protocol. Client protocol: {CLIENT}; server requires: {SERVER} (ClashOfRim {PRODUCT}). Install a matching client or update the server.",
   "Events.SnapshotNotLatest": "The event snapshot is no longer current. Refresh the colony snapshot and retry.",
   "Events.ConfirmationAlreadyEnded": "This event has already ended and cannot be confirmed.",

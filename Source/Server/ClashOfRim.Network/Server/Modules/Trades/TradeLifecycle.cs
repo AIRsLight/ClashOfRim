@@ -9,7 +9,7 @@ using static AIRsLight.ClashOfRim.Network.ServerText;
 namespace AIRsLight.ClashOfRim.Network.Modules.Trades;
 
 internal sealed class TradeLifecycle(IAuthoritativeEventLedger ledger, IColonySnapshotIndexStore snapshots,
-    SnapshotMutationCoordinator mutations, object gate, TradeDelivery delivery, AdminBaselineRegistry baseline,
+    SnapshotMutationCoordinator mutations, object gate, TradeDelivery delivery, TradeCollection collection, AdminBaselineRegistry baseline,
     OnlinePresenceRegistry presence, EventNotificationHub notifications, ILogger logger,
     Func<ClashOfRimServerConfiguration> configuration)
 {
@@ -90,6 +90,7 @@ internal sealed class TradeLifecycle(IAuthoritativeEventLedger ledger, IColonySn
     {
         if (!Monitor.IsEntered(gate))
             throw new InvalidOperationException("Trade expiration requires the recovered mutation scope.");
+        collection.ReleaseExpired(nowUtc);
         TimeSpan expiration = configuration().TradeOrderExpiration;
         if (expiration <= TimeSpan.Zero) return;
         var expiredOrders = ledger.ListByType(ServerEventType.Trade)

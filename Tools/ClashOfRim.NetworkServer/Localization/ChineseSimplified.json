@@ -1,4 +1,9 @@
 {
+  "Trade.CollectionReadyTitle": "交易成功，等待领取",
+  "Trade.CollectionReadyMessage": "交易单 {EVENT} 已交易。请在交易所的“我的发布”中领取物品；未领取的物品将在 {DEADLINE} 自动投递。在物品确认入档前，此交易单仍占用发布名额。",
+  "Trade.CollectionReadyNoDeadlineMessage": "交易单 {EVENT} 已交易。请在交易所的“我的发布”中领取物品。服务器未设置自动投递期限；领取并确认入档前仍占用发布名额。",
+  "Trade.CollectionUnavailable": "此交易单没有可领取的成交物品。",
+  "Trade.CollectionReleased": "成交物品已进入投递流程，确认入档后交易单完成。",
   "Protocol.IncompatibleVersionDetails": "协议不兼容。客户端协议：{CLIENT}；服务器要求：{SERVER}（ClashOfRim {PRODUCT}）。请安装匹配的客户端或更新服务端。",
   "Events.SnapshotNotLatest": "事件请求的快照已不是当前权威快照，请刷新殖民地快照后重试。",
   "Events.ConfirmationAlreadyEnded": "该事件已经结束，不能再确认入档。",

@@ -7,7 +7,8 @@ public sealed record ItemDeliveryEventPayload(
     string? Message,
     string? DeliveryKind = null,
     ItemDeliveryPurpose Purpose = ItemDeliveryPurpose.Gift,
-    string? CreationRequestHash = null) : LedgerEventPayload
+    string? CreationRequestHash = null,
+    TradeCollectionInfo? TradeCollection = null) : LedgerEventPayload
 {
     public const string ForcedDeliveryKind = "Forced";
 
@@ -25,3 +26,7 @@ public sealed record ItemDeliveryEventPayload(
             or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn
             or ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn;
 }
+
+// A completed trade's owner proceeds remain in escrow until claimed or due.
+// Persist the deadline at fulfillment so retries/configuration changes cannot reset it.
+public sealed record TradeCollectionInfo(string TradeOrderId, DateTimeOffset? ExpiresAtUtc);

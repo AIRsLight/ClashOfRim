@@ -83,5 +83,6 @@ public enum ProtocolMessageKind
     AdminUpdateConfiguration,
     AdminAction,
     ServerNotification,
-    ServerHello
+    ServerHello,
+    ClaimTradeOrder
 }

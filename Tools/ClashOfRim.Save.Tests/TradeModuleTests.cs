@@ -30,6 +30,7 @@ internal static class TradeModuleTests
         var retiredFulfill = (FulfillTradeOrderResponse)((IValueHttpResult)TradeEndpoints.FulfillTradeOrder()).Value!;
         Check(!retiredOrder.Result.Accepted && !retiredFulfill.Result.Accepted, "Retired requests mutated the trade contract.");
         ConfigurationChangesDuringPreparation(factory);
+        TradeCollectionTests.Run(factory);
     }
 
     private static EconomicModuleTestContext Fixture(Func<string, SaveSnapshotPackage> factory) => new(factory)

@@ -106,7 +106,8 @@ internal static class TradeRules
         string viewerUserId,
         string scope,
         bool viewerHasAccepted,
-        bool viewerWasInvolved)
+        bool viewerWasInvolved,
+        bool awaitingCollection = false)
     {
         if (ledgerEvent.Type != ServerEventType.Trade
             || ledgerEvent.Payload is not TradeEventPayload payload
@@ -120,9 +121,9 @@ internal static class TradeRules
         return scope.Equals("AcceptedByMe", StringComparison.OrdinalIgnoreCase)
             ? viewerHasAccepted && isOpen
             : scope.Equals("Mine", StringComparison.OrdinalIgnoreCase)
-                ? isOwner && isOpen
+                ? isOwner && (isOpen || awaitingCollection)
                 : scope.Equals("History", StringComparison.OrdinalIgnoreCase)
-                    ? !isOpen && (viewerWasInvolved || isOwner)
+                    ? !isOpen && (!isOwner || !awaitingCollection) && (viewerWasInvolved || isOwner)
                     : IsOpenMarketTradeOrder(ledgerEvent, viewerUserId);
     }
 

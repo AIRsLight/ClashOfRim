@@ -123,6 +123,8 @@ internal sealed class EventFailureReports(
 
     private ProtocolResponse? Validate(AuthoritativeEvent root, string? sourceId)
     {
+        if (root.Status == ServerEventStatus.AwaitingCollection)
+            return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, ServerText.Format("Trade.CollectionUnavailable"));
         bool supported = root.Type switch
         {
             ServerEventType.ItemDelivery => root.Payload is ItemDeliveryEventPayload,

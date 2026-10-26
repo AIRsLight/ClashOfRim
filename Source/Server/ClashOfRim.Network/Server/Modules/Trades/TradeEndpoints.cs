@@ -28,6 +28,8 @@ internal static class TradeEndpoints
             (CloseTradeOrderRequest request) => Results.Ok(trades.CancelTradeOrder(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
         endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CompleteTradeOrder).Route,
             (CloseTradeOrderRequest request) => Results.Ok(trades.CompleteTradeOrder(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
+        endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ClaimTradeOrder).Route,
+            (CloseTradeOrderRequest request) => Results.Ok(trades.ClaimTradeOrder(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
     }
 
     internal static async Task<IResult> CreateTradeOrderWithSnapshot(HttpRequest http, TradeService trades)

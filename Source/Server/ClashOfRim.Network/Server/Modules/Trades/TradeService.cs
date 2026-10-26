@@ -20,7 +20,7 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Trades;
 internal sealed class TradeService(
     IAuthoritativeEventLedger ledger, SnapshotRequestAuthorization requests, ColonyAccessAuthorization colonies,
     SnapshotMutationCoordinator mutations, SnapshotTransactions transactions, PendingConfirmationReconciler pending,
-    ItemTransferPackages packages, TradeSnapshotCommitter snapshotCommits, TradeLifecycle lifecycle, TradeDelivery delivery,
+    ItemTransferPackages packages, TradeSnapshotCommitter snapshotCommits, TradeLifecycle lifecycle, TradeDelivery delivery, TradeCollection collection,
     AdminBaselineRegistry baseline, ServerPluginRegistry plugins, CompatibilityBaselineRegistry compatibility,
     OnlinePresenceRegistry presence, EventNotificationHub notifications, ILogger logger,
     Func<ClashOfRimServerConfiguration> configuration)
@@ -100,7 +100,12 @@ internal sealed class TradeService(
     }
 
     private int CountOpenMarketTradeOrdersForOwner(ProtocolIdentity owner)
-        => ledger.ListByTypeForActor(ServerEventType.Trade, owner.UserId, owner.ColonyId).Count(IsOpenMarketTradeOrderForOwner);
+    {
+        var collections = collection.ReadByOrder();
+        return ledger.ListByTypeForActor(ServerEventType.Trade, owner.UserId, owner.ColonyId)
+            .Count(item => IsOpenMarketTradeOrderForOwner(item) || item.Payload is TradeEventPayload { Stage: TradeStage.MarketOrder }
+                && TradeCollection.IsOutstanding(item, collections.GetValueOrDefault(item.EventId)));
+    }
 
     internal EventCreationResponse CreateTradeOrderWithSnapshot(CreateTradeOrderWithSnapshotRequest transaction, byte[] payload, string? principalToken)
     {
@@ -515,7 +520,9 @@ internal sealed class TradeService(
             AuthoritativeEvent ownerDelivery = delivery.CreateTradeItemDeliveryEvent($"trade-completed-owner-delivery:{tradeOrder.EventId}:{fulfillmentKey}", acceptorParty, tradeOrder.Actor,
                 deliveredThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
                 ItemDeliveryPurpose.TradeCompletedOwnerDelivery, ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode), nowUtc);
-            var events = new List<AuthoritativeEvent> { exchangeEvent, ownerDelivery };
+            var held = collection.Prepare(ownerDelivery, tradeOrder, nowUtc);
+            ownerDelivery = held.Delivery;
+            var events = new List<AuthoritativeEvent> { exchangeEvent, ownerDelivery, held.Notice };
             AuthoritativeEvent? acceptorDelivery = null;
             if (fulfillmentMode == TradeFulfillmentMode.ServerDropPod)
             {
@@ -532,7 +539,7 @@ internal sealed class TradeService(
             return new FulfillTradeOrderResponse(
                 ProtocolResponse.Ok(Format("Trade.FulfillmentTransactionCreated")), tradeOrder.EventId, acceptedMemo?.EventId,
                 exchangeEvent.EventId, true, orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(), Array.Empty<string>(),
-                ServerEventStatus.AppliedToSnapshot.ToString(), acceptorDelivery?.EventId, ownerDelivery.EventId,
+                "Traded", acceptorDelivery?.EventId, ownerDelivery.EventId,
                 acceptedSnapshotId, upload.AcceptedSnapshot.Envelope.NextLineageToken);
         }
 
@@ -827,6 +834,23 @@ internal sealed class TradeService(
 
     }
 
+    internal CloseTradeOrderResponse ClaimTradeOrder(CloseTradeOrderRequest request)
+    {
+        CloseTradeOrderResponse Reject(ProtocolResponse error) => new(error, request.TradeEventId, string.Empty, 0);
+        if (ValidateTradeCloseRequest(request) is { } invalid) return Reject(invalid);
+        using var mutation = requests.EnterColony(request.AuthToken, request.Owner.UserId, request.Owner.ColonyId!);
+        if (mutation.Rejection is { } denied) return Reject(denied);
+        var order = ledger.Find(request.TradeEventId);
+        if (order?.Payload is not TradeEventPayload { Stage: TradeStage.MarketOrder }
+            || !EventVisibility.MatchesParty(order.Actor, request.Owner.UserId, request.Owner.ColonyId!))
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, Format("Trade.CloseNotOwner")));
+        var held = collection.ReadByOrder().GetValueOrDefault(order.EventId);
+        if (held is null || !collection.TryRelease(order, held))
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, Format("Trade.CollectionUnavailable")));
+        return new CloseTradeOrderResponse(ProtocolResponse.Ok(Format("Trade.CollectionReleased")), order.EventId,
+            TradeCollection.Status(order, ledger.Find(held.EventId)), 0);
+    }
+
     private EventCreationResponse TradeOrderReplayResponse(CreateTradeOrderRequest request,
         string snapshotId, AuthoritativeEvent existing, string binding)
     {
@@ -854,13 +878,15 @@ internal sealed class TradeService(
             return TradeFulfillmentFailure(request, ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
                 "Trade idempotency key belongs to another operation."));
         string fulfillmentKey = payload.AcceptedMemoEventId ?? request.Acceptor.UserId + ":" + request.Acceptor.ColonyId;
+        var order = ledger.Find(payload.TradeId);
+        var ownerDelivery = ledger.FindByIdempotencyKey($"trade-completed-owner-delivery:{payload.TradeId}:{fulfillmentKey}");
         return new FulfillTradeOrderResponse(
             new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, Format("Trade.FulfillmentTransactionDuplicate")),
             payload.TradeId, payload.AcceptedMemoEventId, existing.EventId, false,
             payload.OfferedItems.Select(ToThingReferenceDto).ToList(), Array.Empty<string>(),
-            ledger.Find(payload.TradeId)?.Status.ToString() ?? existing.Status.ToString(),
+            order is null ? existing.Status.ToString() : TradeCollection.Status(order, ownerDelivery),
             ledger.FindByIdempotencyKey($"trade-completed-acceptor-delivery:{payload.TradeId}:{fulfillmentKey}")?.EventId,
-            ledger.FindByIdempotencyKey($"trade-completed-owner-delivery:{payload.TradeId}:{fulfillmentKey}")?.EventId,
+            ownerDelivery?.EventId,
             snapshotId, transactions.FindSnapshotNextLineageToken(request.Acceptor.UserId, request.Acceptor.ColonyId!, snapshotId));
     }
 }

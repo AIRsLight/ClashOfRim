@@ -1,4 +1,9 @@
 {
+  "Trade.CollectionReadyTitle": "取引成立・受取待ち",
+  "Trade.CollectionReadyMessage": "取引 {EVENT} が成立しました。取引所の自分の出品からアイテムを受け取ってください。未受取の場合は {DEADLINE} に自動配送されます。受取がセーブに反映されるまで出品枠を使用します。",
+  "Trade.CollectionReadyNoDeadlineMessage": "取引 {EVENT} が成立しました。取引所の自分の出品から受け取ってください。自動配送期限は設定されていません。受取がセーブに反映されるまで出品枠を使用します。",
+  "Trade.CollectionUnavailable": "この取引には受け取れる成立済みアイテムがありません。",
+  "Trade.CollectionReleased": "取引アイテムの配送を開始しました。受取がセーブに反映されると取引完了になります。",
   "Protocol.IncompatibleVersionDetails": "プロトコルに互換性がありません。クライアント：{CLIENT}、サーバーの要求：{SERVER}（ClashOfRim {PRODUCT}）。対応するクライアントを導入するか、サーバーを更新してください。",
   "Events.SnapshotNotLatest": "イベントのスナップショットは最新ではありません。コロニーを更新して再試行してください。",
   "Events.ConfirmationAlreadyEnded": "このイベントはすでに終了しているため、適用を確認できません。",

@@ -57,6 +57,12 @@ public sealed class ItemDeliveryApplicationConfirmationConsumer
                 FailureReason: null);
         }
 
+        if (ledgerEvent.Status == ServerEventStatus.AwaitingCollection)
+        {
+            return Rejected(ItemDeliveryApplicationConfirmationResultKind.NotDelivered,
+                ledgerEvent, ServerLocalization.Text("Gift.ConfirmationNotDelivered"));
+        }
+
         if (ledgerEvent.Status == ServerEventStatus.RejectedByTarget)
         {
             return Rejected(

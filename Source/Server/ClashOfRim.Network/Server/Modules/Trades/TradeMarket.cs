@@ -9,7 +9,7 @@ using static AIRsLight.ClashOfRim.Network.ServerText;
 namespace AIRsLight.ClashOfRim.Network.Modules.Trades;
 
 internal sealed class TradeMarket(IAuthoritativeEventLedger ledger, SnapshotRequestAuthorization requests,
-    TradeLifecycle lifecycle, TradeDelivery delivery, Func<ClashOfRimServerConfiguration> configuration)
+    TradeLifecycle lifecycle, TradeDelivery delivery, TradeCollection collection, Func<ClashOfRimServerConfiguration> configuration)
 {
     internal ListTradeOrdersResponse ListTradeOrders(ListTradeOrdersRequest request)
     {
@@ -34,6 +34,7 @@ internal sealed class TradeMarket(IAuthoritativeEventLedger ledger, SnapshotRequ
     private ListTradeOrdersResponse BuildTradeOrdersResponse(ListTradeOrdersRequest request)
     {
         IReadOnlyList<AuthoritativeEvent> events = ledger.ListByType(ServerEventType.Trade);
+        var collections = collection.ReadByOrder();
         IReadOnlyDictionary<string, AuthoritativeEvent> viewerMemoByTradeId = BuildLatestActiveViewerTradeMemoByTradeId(
             events,
             request.UserId);
@@ -50,7 +51,8 @@ internal sealed class TradeMarket(IAuthoritativeEventLedger ledger, SnapshotRequ
                 request.UserId,
                 scope,
                 viewerMemoByTradeId.ContainsKey(ledgerEvent.EventId),
-                viewerInvolvedTradeIds.Contains(ledgerEvent.EventId)))
+                viewerInvolvedTradeIds.Contains(ledgerEvent.EventId),
+                TradeCollection.IsOutstanding(ledgerEvent, collections.GetValueOrDefault(ledgerEvent.EventId))))
             .OrderByDescending(ledgerEvent => ledgerEvent.CreatedAtUtc)
             .ThenBy(ledgerEvent => ledgerEvent.EventId, StringComparer.Ordinal)
             .ToList();
@@ -76,7 +78,8 @@ internal sealed class TradeMarket(IAuthoritativeEventLedger ledger, SnapshotRequ
                     : null,
                 counterpartyByTradeId.TryGetValue(ledgerEvent.EventId, out ProtocolIdentity? counterparty)
                     ? counterparty
-                    : null))
+                    : null,
+                collections.GetValueOrDefault(ledgerEvent.EventId)))
             .ToList();
 
         return new ListTradeOrdersResponse(
@@ -183,7 +186,8 @@ internal sealed class TradeMarket(IAuthoritativeEventLedger ledger, SnapshotRequ
         string viewerColonyId,
         string viewerSnapshotId,
         AuthoritativeEvent? viewerMemo = null,
-        ProtocolIdentity? counterparty = null)
+        ProtocolIdentity? counterparty = null,
+        AuthoritativeEvent? collectionDelivery = null)
     {
         TradeEventPayload payload = (TradeEventPayload)ledgerEvent.Payload;
         return new TradeOrderSummaryDto(
@@ -199,12 +203,14 @@ internal sealed class TradeMarket(IAuthoritativeEventLedger ledger, SnapshotRequ
             payload.FulfillmentMode is TradeFulfillmentMode.ServerDropPod or TradeFulfillmentMode.Unspecified,
             acceptedMemoCount,
             ledgerEvent.CreatedAtUtc,
-            ledgerEvent.Status.ToString(),
+            TradeCollection.Status(ledgerEvent, collectionDelivery),
             viewerMemo is not null,
             viewerMemo?.EventId,
             delivery.BuildTradePostageQuote(ledgerEvent, viewerUserId, viewerColonyId, viewerSnapshotId),
             ToEventTargetContextDto(ledgerEvent.TargetContext),
-            ledgerEvent.CreatedAtUtc + configuration().TradeOrderExpiration,
+            collectionDelivery?.Payload is ItemDeliveryEventPayload { TradeCollection: { } info }
+                ? info.ExpiresAtUtc
+                : configuration().TradeOrderExpiration > TimeSpan.Zero ? ledgerEvent.CreatedAtUtc + configuration().TradeOrderExpiration : null,
             counterparty);
     }
 

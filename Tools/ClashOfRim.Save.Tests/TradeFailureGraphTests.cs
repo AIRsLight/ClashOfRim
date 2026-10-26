@@ -134,6 +134,13 @@ internal static class TradeFailureGraphTests
                 [new("paid", "Silver", 20)], mode == "SelfDelivery" ? mode : "ServerDropPod"), ProtocolDtoMapper.ToMetadataDto(package));
             var response = await SnapshotEndpointTestClient.Invoke<FulfillTradeOrderResponse>("FulfillTradeOrderWithSnapshot", state, request, package.Payload, buyer);
             Require(response.Result.Accepted, "actual fulfillment failed: " + response.Result.Message);
+            if (mode == "SelfDelivery")
+            {
+                string ownerToken = TradeCommandAuthTests.Token(state, order.Actor.UserId);
+                Require(state.Trades.ClaimTradeOrder(new("claim-before-landing", order.EventId,
+                    new(order.Actor.UserId, order.Actor.ColonyId, "owner-base"), null, ownerToken)).Result.Accepted,
+                    "Owner proceeds were not released before the landing attempt.");
+            }
             var failed = state.Ledger.Find(mode == "SelfDelivery" ? response.OwnerDeliveryEventId! : response.AcceptorDeliveryEventId!)!;
             Require(Report(state, failed).Result.Accepted && state.Ledger.Find(order.EventId)!.Status == (mode == "SelfDelivery" ? ServerEventStatus.Conflict : ServerEventStatus.Cancelled),
                 "actual snapshot fulfillment could not report landing failure: " + mode);

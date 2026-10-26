@@ -10,5 +10,6 @@ public enum ServerEventStatus
     RejectedByTarget,
     Conflict,
     Cancelled,
-    Failed
+    Failed,
+    AwaitingCollection
 }

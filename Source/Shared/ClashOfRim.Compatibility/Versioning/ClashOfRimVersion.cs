@@ -25,7 +25,7 @@ public static class ClashOfRimVersion
     public const string ProductVersion = "0.4.10";
     public const string ProtocolVersion = "2026-07-25.1";
     public const int ProtocolMajor = 4;
-    public const int ProtocolMinor = 2;
+    public const int ProtocolMinor = 3;
     public const int MinimumSupportedProtocolMajor = 4;
     public const int MinimumSupportedProtocolMinor = 0;
     public const string CompatibilityApiVersion = "1.0";

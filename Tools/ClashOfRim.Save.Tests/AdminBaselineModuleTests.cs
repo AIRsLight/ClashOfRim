@@ -216,7 +216,8 @@ internal static class AdminBaselineModuleTests
             World.Prepare("user"); Token = Context.Issue().Token;
             var delivery = new TradeDelivery(Context.Snapshots, Context.Presence, Context.Ledger, plugins, Compatibility,
                 World, new StraightLineWorldTileDistanceCalculator(), () => Context.Configuration);
-            var trades = new TradeLifecycle(Context.Ledger, Context.Snapshots, Context.Mutations, Context.Gate, delivery, Baseline,
+            var collection = new TradeCollection(Context.Ledger, Context.Presence, Context.Events, () => Context.Configuration);
+            var trades = new TradeLifecycle(Context.Ledger, Context.Snapshots, Context.Mutations, Context.Gate, delivery, collection, Baseline,
                 Context.Presence, Context.Events, NullLogger.Instance, () => Context.Configuration);
             Context.Recovery.OnPrerequisites = trades.RecoverAdminBaselineTradeInvalidations;
             Module = new(new AdministratorAuthorization(new SessionPrincipalAuthorization(Context.Tokens, Context.Sessions), World), World, Compatibility, plugins,
