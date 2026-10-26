@@ -86,6 +86,14 @@ player's current server state before marking the event complete. If the client
 cannot produce a valid confirmation snapshot, the event remains unresolved or is
 failed through an explicit recovery path instead of being silently consumed.
 
+After an exchange, the listing owner receives a notification and the order stays
+traded, awaiting collection. This notification does not deliver items or trigger
+a save. Owners can collect from My listings. The configured trade timeout starts
+again at fulfillment; after it expires, the server releases the items for
+automatic delivery (on reconnection if offline). Disabling trade expiration
+leaves manual collection available. Unclaimed and in-flight orders still occupy
+a listing slot until the server confirms the save containing the received items.
+
 Raids use the same snapshot-first philosophy, but settlement is intentionally
 server-edited. An attacker fights on a temporary remote map built from the
 defender's save. The attacker's battle snapshot is treated as settlement

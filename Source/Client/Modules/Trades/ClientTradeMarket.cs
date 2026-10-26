@@ -144,6 +144,27 @@ internal sealed class ClientTradeMarket
         });
     }
 
+    internal Task ClaimAsync(ModTradeOrderSummaryDto order)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        if (!ValidId(order)) return Task.CompletedTask;
+        if (!ClientTradeRules.CanClaim(order, session.ReadContext()))
+        { state.Message = presentation.Text("StatusClaimNotAllowed"); return Task.CompletedTask; }
+        var attempt = Begin();
+        if (attempt is null) return Task.CompletedTask;
+        var owner = state.Capture();
+        string eventId = order.EventId;
+        string key = FormattableString.Invariant($"trade-claim:{attempt.Context.UserId}:{eventId}:{DateTime.UtcNow.Ticks}");
+        state.Message = presentation.Text("StatusClaiming");
+        return ClientSessionWork.Run(() => ExecuteAsync(attempt, owner,
+            () => transport.ClaimAsync(attempt.Context, key, eventId, attempt.Owner.Token), r => r.Result,
+            "StatusClaim", response =>
+            {
+                state.Claimed(eventId, response.TerminalStatus ?? "Collecting");
+                state.Message = presentation.Text("StatusClaimSucceeded");
+            }));
+    }
+
     private ClientSnapshotTransaction.Attempt? Begin()
     {
         state.Capture();
@@ -159,7 +180,7 @@ internal sealed class ClientTradeMarket
         state.Message = presentation.Text("StatusMissingOrderEventId"); return false;
     }
 
-    // Accept and both cancellation intents share one lifecycle. Their effects only
+    // Market commands share one lifecycle. Their effects only
     // update managed market state, so no game-thread queue or snapshot publication is needed.
     private async Task<bool> ExecuteAsync<T>(ClientSnapshotTransaction.Attempt attempt, ClientTradeState.Scope owner,
         Func<Task<ClashOfRimClientNetworkResult<T>>> send, Func<T, ModProtocolResponseDto?> resultOf,

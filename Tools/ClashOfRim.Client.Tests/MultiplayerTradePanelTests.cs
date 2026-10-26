@@ -111,6 +111,11 @@ internal static class MultiplayerTradePanelTests
         Check(!panel.ActionsFor(own).Accept && !panel.ActionsFor(own).CancelOrder && !panel.ActionsFor(own).ShowDropPod, "Own Open order gained foreign or Mine actions.");
         await Reply(f, panel.SelectScopeAsync("Mine", 1), own);
         Check(panel.ActionsFor(own).CancelOrder, "Own Mine order cannot be cancelled.");
+        own.Status = "Traded";
+        Check(panel.ActionsFor(own) == new TradePanelActions(false, false, false, false, false, true), "Traded owner order did not expose only collection.");
+        own.Status = "Collecting";
+        Check(!panel.ActionsFor(own).Claim, "Delivery in flight remained claimable.");
+        own.Status = "Traded";
         own.Owner.ColonyId = "other";
         Check(panel.ActionsFor(own) == new TradePanelActions(false, false, false, false, false), "Another colony of same user gained actions.");
         await Reply(f, panel.SelectScopeAsync("History", 2), foreign);
@@ -123,10 +128,11 @@ internal static class MultiplayerTradePanelTests
     private static async Task Commands()
     {
         using var f = new ClientTradeMarketTests.Fixture(); var interaction = new Interaction(); var panel = Panel(f, interaction);
-        foreach (var command in new[] { TradePanelCommand.Accept, TradePanelCommand.CancelOrder, TradePanelCommand.CancelMemo, TradePanelCommand.DropPod })
+        foreach (var command in new[] { TradePanelCommand.Accept, TradePanelCommand.CancelOrder, TradePanelCommand.CancelMemo, TradePanelCommand.DropPod, TradePanelCommand.Claim })
         {
             var order = Order("captured");
             if (command == TradePanelCommand.CancelOrder) order.Owner!.UserId = "alice";
+            if (command == TradePanelCommand.Claim) { order.Owner!.UserId = "alice"; order.Status = "Traded"; }
             if (command == TradePanelCommand.CancelMemo) { order.ViewerHasAccepted = true; order.ViewerAcceptedMemoEventId = "memo"; }
             Action apply = panel.Prepare(command, order);
             order.EventId = "mutated"; order.Owner!.UserId = "changed";
@@ -155,7 +161,8 @@ internal static class MultiplayerTradePanelTests
             }
             else
             {
-                Check(sent.Kind == "cancel" && sent.Reason == (command == TradePanelCommand.CancelMemo ? "AcceptorCancelledMemo" : "OwnerCancelled"), "Cancellation intent changed.");
+                Check(command == TradePanelCommand.Claim ? sent.Kind == "claim" && sent.Reason is null
+                    : sent.Kind == "cancel" && sent.Reason == (command == TradePanelCommand.CancelMemo ? "AcceptorCancelledMemo" : "OwnerCancelled"), "Order command intent changed.");
                 sent.Complete(ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>.Failed("test", "rejected"));
             }
             // The UI intentionally exposes an Action; the existing market owns completion.
@@ -172,6 +179,8 @@ internal static class MultiplayerTradePanelTests
         var memo = Order("memo"); memo.ViewerHasAccepted = true; memo.ViewerAcceptedMemoEventId = "accepted";
         Action cancel = panel.Prepare(TradePanelCommand.CancelMemo, memo);
         Action accept = panel.Prepare(TradePanelCommand.Accept, Order("old"));
+        var traded = Order("traded"); traded.Owner!.UserId = "alice"; traded.Status = "Traded";
+        Action claim = panel.Prepare(TradePanelCommand.Claim, traded);
         Action? pendingDrop = null, pendingAccept = null;
         if (afterGoodsConfirmation)
         {
@@ -189,6 +198,7 @@ internal static class MultiplayerTradePanelTests
         if (afterGoodsConfirmation) { pendingDrop!(); pendingAccept!(); }
         else { drop(); accept(); }
         cancel();
+        claim();
         Check(f.Calls == calls && interaction.Fulfilled == 0 && interaction.Confirmations == confirmations,
             $"Old command crossed {change} ({(afterGoodsConfirmation ? "deferred" : "outer")} confirmation).");
     }

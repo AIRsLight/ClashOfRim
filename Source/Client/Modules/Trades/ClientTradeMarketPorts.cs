@@ -12,6 +12,7 @@ internal interface IClientTradeMarketTransport
     Task<ClashOfRimClientNetworkResult<ModListTradeOrdersResponseDto>> ListAsync(ClashOfRimClientNetworkContext context, string scope, int offset, int limit, CancellationToken token);
     Task<ClashOfRimClientNetworkResult<ModAcceptTradeOrderResponseDto>> AcceptAsync(ClashOfRimClientNetworkContext context, string key, string eventId, bool postage, CancellationToken token);
     Task<ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>> CancelAsync(ClashOfRimClientNetworkContext context, string key, string eventId, string reason, CancellationToken token);
+    Task<ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>> ClaimAsync(ClashOfRimClientNetworkContext context, string key, string eventId, CancellationToken token);
 }
 
 internal interface IClientTradeMarketPresentation

@@ -9,16 +9,18 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Protocol;
+using HarmonyLib;
 
 internal static class TradeCommandTransportTests
 {
     private static readonly ProtocolMessageKind[] Routes = {
         ProtocolMessageKind.QuoteTradeOrderFee, ProtocolMessageKind.CreateTradeOrderWithSnapshot,
         ProtocolMessageKind.ListTradeOrders, ProtocolMessageKind.AcceptTradeOrder,
-        ProtocolMessageKind.FulfillTradeOrderWithSnapshot, ProtocolMessageKind.CancelTradeOrder };
+        ProtocolMessageKind.FulfillTradeOrderWithSnapshot, ProtocolMessageKind.CancelTradeOrder, ProtocolMessageKind.ClaimTradeOrder };
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly byte[] Payload = { 0, 127, 128, 255 };
     private static readonly ClashOfRimClientNetworkContext Owner = new("http://owner/base", "交易者", "colony", "base", null, null, "trade-token");
@@ -28,6 +30,10 @@ internal static class TradeCommandTransportTests
     private static async Task RunAsync()
     {
         var culture = CultureInfo.CurrentCulture;
+        // HTTP error hints use host localization; no game language database is loaded here.
+        var harmony = new Harmony("ClashOfRim.Tests.TradeCommandTransport");
+        foreach (var method in AccessTools.GetDeclaredMethods(typeof(ClashOfRimText)).Where(m => m.Name == nameof(ClashOfRimText.Key)))
+            harmony.Patch(method, prefix: new HarmonyMethod(typeof(TradeCommandTransportTests), nameof(Text)));
         try
         {
             ClientSessionWork.Reset();
@@ -99,8 +105,10 @@ internal static class TradeCommandTransportTests
                 Require(fixture.Calls == 0 && fixture.Snapshot.SnapshotUploadKind == "original", "Unconfigured trade sent HTTP or changed metadata.");
             }
         }
-        finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
+        finally { CultureInfo.CurrentCulture = culture; harmony.UnpatchAll(harmony.Id); ClientSessionWork.Reset(); }
     }
+
+    private static bool Text(string key, ref string __result) { __result = key; return false; }
 
     private static ModProtocolResponseDto? Result(object? response) => response switch
     {
@@ -120,7 +128,7 @@ internal static class TradeCommandTransportTests
             ModListTradeOrdersResponseDto r => !r.TradeMarketplaceEnabled && r.HasMore && r.TotalCount == 40 && r.Offset == 4 && r.Limit == 17
                 && r.Orders.Single().ViewerAcceptedMemoEventId == "memo" && r.Orders.Single().ServerDropPodPostage?.PostageSilver == 25,
             ModAcceptTradeOrderResponseDto r => r.TradeEventId == "order" && r.MemoEventId == "memo" && !r.MemoCreated,
-            ModCloseTradeOrderResponseDto r => r.TradeEventId == "order" && r.TerminalStatus == "Cancelled" && r.NotifiedAcceptorCount == 3,
+            ModCloseTradeOrderResponseDto r => r.TradeEventId == "order" && r.TerminalStatus == (route == ProtocolMessageKind.ClaimTradeOrder ? "Collecting" : "Cancelled") && r.NotifiedAcceptorCount == 3,
             ModFulfillTradeOrderResponseDto r => r.TradeEventId == "order" && r.AcceptedMemoEventId == "memo" && r.ExchangeEventId == "exchange"
                 && r.ExchangeCreated && r.TradeStatus == "Completed" && r.OwnerDeliveryEventId == "owner-delivery" && r.AcceptorDeliveryEventId == "acceptor-delivery"
                 && r.AppliedSnapshotId == "confirmed" && r.NextLineageToken == "next" && r.ReceivedThings.Single().DisplayLabel == "复杂物品 à"
@@ -179,6 +187,8 @@ internal static class TradeCommandTransportTests
                 : protocol.FulfillTradeOrderWithSnapshotAsync(context, "key", "order", "memo", offered, Enabled ? "ServerDropPod" : "SelfDelivery", Snapshot, Payload, token)),
             ProtocolMessageKind.CancelTradeOrder => Read(facade ? client.CancelTradeOrderAsync("key", "order", Reason, token)
                 : protocol.CancelTradeOrderAsync(context, "key", "order", Reason, token)),
+            ProtocolMessageKind.ClaimTradeOrder => Read(facade ? client.ClaimTradeOrderAsync("key", "order", token)
+                : protocol.ClaimTradeOrderAsync(context, "key", "order", token)),
             _ => throw new InvalidOperationException("Unsupported test route.")
         };
 
@@ -210,6 +220,7 @@ internal static class TradeCommandTransportTests
                 ProtocolMessageKind.ListTradeOrders => "\"tradeMarketplaceEnabled\":false,\"hasMore\":true,\"totalCount\":40,\"offset\":4,\"limit\":17,\"orders\":[{\"eventId\":\"order\",\"viewerAcceptedMemoEventId\":\"memo\",\"serverDropPodPostage\":{\"postageSilver\":25}}]",
                 ProtocolMessageKind.AcceptTradeOrder => "\"tradeEventId\":\"order\",\"memoEventId\":\"memo\",\"memoCreated\":false",
                 ProtocolMessageKind.CancelTradeOrder => "\"tradeEventId\":\"order\",\"terminalStatus\":\"Cancelled\",\"notifiedAcceptorCount\":3",
+                ProtocolMessageKind.ClaimTradeOrder => "\"tradeEventId\":\"order\",\"terminalStatus\":\"Collecting\",\"notifiedAcceptorCount\":3",
                 _ => "\"tradeEventId\":\"order\",\"acceptedMemoEventId\":\"memo\",\"exchangeEventId\":\"exchange\",\"exchangeCreated\":true,\"tradeStatus\":\"Completed\",\"ownerDeliveryEventId\":\"owner-delivery\",\"acceptorDeliveryEventId\":\"acceptor-delivery\",\"appliedSnapshotId\":\"confirmed\",\"nextLineageToken\":\"next\",\"receivedThings\":[{\"displayLabel\":\"复杂物品 à\"}],\"missingRequirements\":[\"Steel\"]"
             };
             return new(HttpStatusCode.OK) { Content = new StringContent("{\"result\":{" + result + "}," + fields + "}", Encoding.UTF8, "application/json") };
@@ -240,8 +251,10 @@ internal static class TradeCommandTransportTests
                         && command.FulfillmentMode == (Enabled ? "ServerDropPod" : "SelfDelivery"), "Fulfillment identity, memo or mode changed.");
                     SnapshotMetadata(fulfill.ConfirmedSnapshot, ModSnapshotUploadKinds.TradeFulfillmentConfirmation); break;
                 case ProtocolMessageKind.CancelTradeOrder:
+                case ProtocolMessageKind.ClaimTradeOrder:
                     var cancel = Decode<CloseTradeOrderRequest>(json); Identity(cancel.Owner);
-                    Require(cancel.AuthToken == Owner.AuthToken && cancel.IdempotencyKey == "key" && cancel.TradeEventId == "order" && cancel.Reason == Reason, "Cancellation authorization or intent changed."); break;
+                    Require(cancel.AuthToken == Owner.AuthToken && cancel.IdempotencyKey == "key" && cancel.TradeEventId == "order"
+                        && cancel.Reason == (Route == ProtocolMessageKind.ClaimTradeOrder ? null : Reason), "Order command authorization or intent changed."); break;
             }
         }
         protected override void Dispose(bool disposing) { if (disposing) http.Dispose(); base.Dispose(disposing); }

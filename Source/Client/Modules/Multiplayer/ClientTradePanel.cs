@@ -11,8 +11,8 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.Modules.Multiplayer;
 
-internal enum TradePanelCommand { Accept, CancelOrder, CancelMemo, DropPod }
-internal sealed record TradePanelActions(bool Accept, bool CancelOrder, bool CancelMemo, bool ShowDropPod, bool DropPod);
+internal enum TradePanelCommand { Accept, CancelOrder, CancelMemo, DropPod, Claim }
+internal sealed record TradePanelActions(bool Accept, bool CancelOrder, bool CancelMemo, bool ShowDropPod, bool DropPod, bool Claim = false);
 
 internal sealed class ClientTradePanel
 {
@@ -85,7 +85,8 @@ internal sealed class ClientTradePanel
         bool dropPod = act && order.AllowServerDropPod;
         return new TradePanelActions(act && !order.ViewerHasAccepted && scope == "Open",
             scope == "Mine" && ClientTradeRules.IsOwnOpen(order, context), ClientTradeRules.CanCancelMemo(order, context),
-            dropPod, dropPod && order.ServerDropPodPostage?.Reachable == true && order.ServerDropPodPostage.PostageSilver.HasValue);
+            dropPod, dropPod && order.ServerDropPodPostage?.Reachable == true && order.ServerDropPodPostage.PostageSilver.HasValue,
+            scope == "Mine" && ClientTradeRules.CanClaim(order, context));
     });
 
     internal void OpenCreate() => interaction.OpenCreate();
@@ -108,6 +109,7 @@ internal sealed class ClientTradePanel
                 case TradePanelCommand.CancelOrder: _ = market.CancelAsync(captured, acceptedMemo: false); break;
                 case TradePanelCommand.CancelMemo: _ = market.CancelAsync(captured, acceptedMemo: true); break;
                 case TradePanelCommand.DropPod: interaction.FulfillByDropPod(captured); break;
+                case TradePanelCommand.Claim: _ = market.ClaimAsync(captured); break;
             }
         });
         return command is TradePanelCommand.Accept or TradePanelCommand.DropPod

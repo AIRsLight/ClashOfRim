@@ -1946,4 +1946,16 @@
   <ClashOfRim.Network.ProtocolRejected>服务器明确拒绝了当前协议。请求：{ROUTE}。客户端版本 / 协议：{CLIENT}。请安装匹配的客户端或请管理员更新服务端。</ClashOfRim.Network.ProtocolRejected>
   <ClashOfRim.Network.ServiceUnavailable>服务器或网关暂不可用。请求：{ROUTE}。客户端版本 / 协议：{CLIENT}。仅凭 HTTP 状态码无法确认协议是否兼容，请管理员检查服务是否运行、代理转发及服务端日志。</ClashOfRim.Network.ServiceUnavailable>
   <ClashOfRim.Compatibility.Override.Confirm>确定覆盖服务器兼容性基线？当前客户端的游戏版本、模组文件、加载顺序和配置将成为服务器的新要求，影响所有玩家后续登录。其他玩家可能需要更新或调整配置。请确认当前客户端环境正确。</ClashOfRim.Compatibility.Override.Confirm>
+  <ClashOfRim.Trade.ClaimItems>领取物品</ClashOfRim.Trade.ClaimItems>
+  <ClashOfRim.Trade.ClaimDescription>领取后将接收物品并保存殖民地；确认入档前继续占用发布名额。</ClashOfRim.Trade.ClaimDescription>
+  <ClashOfRim.Trade.StatusTraded>已交易，待领取</ClashOfRim.Trade.StatusTraded>
+  <ClashOfRim.Trade.StatusCollecting>已交易，投递中</ClashOfRim.Trade.StatusCollecting>
+  <ClashOfRim.Trade.CollectionDeadline>自动投递时间：{TIME}</ClashOfRim.Trade.CollectionDeadline>
+  <ClashOfRim.Trade.CollectionNoDeadline>无自动投递期限，请手动领取。</ClashOfRim.Trade.CollectionNoDeadline>
+  <ClashOfRim.Trade.StatusClaimNotAllowed>只能领取当前殖民地已成交且待领取的交易单。</ClashOfRim.Trade.StatusClaimNotAllowed>
+  <ClashOfRim.Trade.StatusClaiming>正在请求领取交易物品……</ClashOfRim.Trade.StatusClaiming>
+  <ClashOfRim.Trade.StatusClaimFailed>领取请求失败：{CODE} {MESSAGE}</ClashOfRim.Trade.StatusClaimFailed>
+  <ClashOfRim.Trade.StatusClaimRejected>领取被拒绝：{MESSAGE}</ClashOfRim.Trade.StatusClaimRejected>
+  <ClashOfRim.Trade.StatusClaimException>领取异常：{TYPE} {MESSAGE}</ClashOfRim.Trade.StatusClaimException>
+  <ClashOfRim.Trade.StatusClaimSucceeded>已请求投递，物品入档后释放发布名额。</ClashOfRim.Trade.StatusClaimSucceeded>
 </LanguageData>

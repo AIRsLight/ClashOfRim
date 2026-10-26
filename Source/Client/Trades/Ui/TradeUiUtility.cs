@@ -1350,6 +1350,8 @@ internal static class TradeUiUtility
             "PendingOfflineDelivery" => ClashOfRimText.Key("ClashOfRim.Trade.StatusOpen"),
             "ReadyForImmediateDelivery" => ClashOfRimText.Key("ClashOfRim.Trade.StatusOpen"),
             "Recorded" => ClashOfRimText.Key("ClashOfRim.Trade.StatusOpen"),
+            "Traded" => ClashOfRimText.Key("ClashOfRim.Trade.StatusTraded"),
+            "Collecting" => ClashOfRimText.Key("ClashOfRim.Trade.StatusCollecting"),
             "AppliedToSnapshot" => ClashOfRimText.Key("ClashOfRim.Trade.StatusCompleted"),
             "Cancelled" => ClashOfRimText.Key("ClashOfRim.Trade.StatusCancelled"),
             "Failed" => ClashOfRimText.Key("ClashOfRim.Trade.StatusFailed"),
@@ -1395,6 +1397,11 @@ internal static class TradeUiUtility
             "ClashOfRim.Trade.ExpiresIn",
             FormatRealTimeRemaining(remaining).Named("TIME"));
     }
+
+    public static string FormatCollectionDeadline(ModTradeOrderSummaryDto order) =>
+        DateTimeOffset.TryParse(order.ExpiresAtUtc, CultureInfo.InvariantCulture, DateTimeStyles.None, out var deadline)
+            ? ClashOfRimText.Key("ClashOfRim.Trade.CollectionDeadline", deadline.ToLocalTime().ToString("g").Named("TIME"))
+            : ClashOfRimText.Key("ClashOfRim.Trade.CollectionNoDeadline");
 
     public static string FormatRealTimeRemaining(TimeSpan remaining)
     {

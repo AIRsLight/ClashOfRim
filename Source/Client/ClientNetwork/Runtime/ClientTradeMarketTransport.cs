@@ -14,6 +14,8 @@ internal sealed class ClientTradeMarketTransport : IClientTradeMarketTransport
     { using var http = new HttpClient(); return await Create(http, context).AcceptTradeOrderAsync(context, key, eventId, postage, token); }
     public async Task<ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>> CancelAsync(ClashOfRimClientNetworkContext context, string key, string eventId, string reason, CancellationToken token)
     { using var http = new HttpClient(); return await Create(http, context).CancelTradeOrderAsync(context, key, eventId, reason, token); }
+    public async Task<ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>> ClaimAsync(ClashOfRimClientNetworkContext context, string key, string eventId, CancellationToken token)
+    { using var http = new HttpClient(); return await Create(http, context).ClaimTradeOrderAsync(context, key, eventId, token); }
     private static ClientTradeProtocol Create(HttpClient http, ClashOfRimClientNetworkContext context) => new(
         new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()),
         () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));

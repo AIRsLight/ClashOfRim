@@ -20,6 +20,7 @@ internal static class ClientTradeMarketTests
         var original = CultureInfo.CurrentCulture;
         try
         {
+            await ClientTradeCollectionTests.RunAsync();
             foreach (string culture in new[] { "en-US", "zh-CN", "tr-TR", "fr-FR" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
@@ -267,6 +268,7 @@ internal static class ClientTradeMarketTests
         public Task<ClashOfRimClientNetworkResult<ModListTradeOrdersResponseDto>> ListAsync(ClashOfRimClientNetworkContext c, string s, int offset, int limit, CancellationToken t) => Send<ModListTradeOrdersResponseDto>(new("read", c, t, s, offset, limit));
         public Task<ClashOfRimClientNetworkResult<ModAcceptTradeOrderResponseDto>> AcceptAsync(ClashOfRimClientNetworkContext c, string key, string id, bool postage, CancellationToken t) => Send<ModAcceptTradeOrderResponseDto>(new("accept", c, t, Key: key, EventId: id, Postage: postage));
         public Task<ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>> CancelAsync(ClashOfRimClientNetworkContext c, string key, string id, string reason, CancellationToken t) => Send<ModCloseTradeOrderResponseDto>(new("cancel", c, t, Key: key, EventId: id, Reason: reason));
+        public Task<ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>> ClaimAsync(ClashOfRimClientNetworkContext c, string key, string id, CancellationToken t) => Send<ModCloseTradeOrderResponseDto>(new("claim", c, t, Key: key, EventId: id));
         internal void Change(string change)
         {
             switch (change)

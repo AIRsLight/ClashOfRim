@@ -184,6 +184,15 @@ internal sealed class ClientTradeProtocol
         string tradeEventId,
         string? reason = null,
         CancellationToken cancellationToken = default)
+        => SendOrderCommandAsync(context, ProtocolMessageKind.CancelTradeOrder, idempotencyKey, tradeEventId, reason, cancellationToken);
+
+    internal Task<ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>> ClaimTradeOrderAsync(
+        ClashOfRimClientNetworkContext context, string idempotencyKey, string tradeEventId, CancellationToken cancellationToken = default)
+        => SendOrderCommandAsync(context, ProtocolMessageKind.ClaimTradeOrder, idempotencyKey, tradeEventId, null, cancellationToken);
+
+    private Task<ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>> SendOrderCommandAsync(
+        ClashOfRimClientNetworkContext context, ProtocolMessageKind kind, string idempotencyKey,
+        string tradeEventId, string? reason, CancellationToken cancellationToken)
     {
         if (!context.IsConfigured)
         {
@@ -200,7 +209,7 @@ internal sealed class ClientTradeProtocol
         };
 
         return transport.ForContext(context).PostAsync<ModCloseTradeOrderRequestDto, ModCloseTradeOrderResponseDto>(
-            ProtocolContractManifest.Find(ProtocolMessageKind.CancelTradeOrder).Route,
+            ProtocolContractManifest.Find(kind).Route,
             request,
             cancellationToken);
     }

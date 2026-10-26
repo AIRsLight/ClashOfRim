@@ -1937,4 +1937,16 @@
   <ClashOfRim.Network.ProtocolRejected>Сервер явно отклонил этот протокол. Запрос: {ROUTE}. Версия клиента / протокол: {CLIENT}. Установите совместимый клиент или попросите администратора обновить сервер.</ClashOfRim.Network.ProtocolRejected>
   <ClashOfRim.Network.ServiceUnavailable>Сервер или шлюз временно недоступен. Запрос: {ROUTE}. Версия клиента / протокол: {CLIENT}. Сам по себе код HTTP не подтверждает совместимость протоколов. Попросите администратора проверить работу сервера, перенаправление прокси и журналы сервера.</ClashOfRim.Network.ServiceUnavailable>
   <ClashOfRim.Compatibility.Override.Confirm>Заменить эталон совместимости сервера? Версия игры, файлы модов, порядок загрузки и настройки этого клиента станут новыми требованиями сервера для всех последующих подключений. Другим игрокам может потребоваться обновление или изменение настроек. Убедитесь, что этот клиент настроен правильно.</ClashOfRim.Compatibility.Override.Confirm>
+  <ClashOfRim.Trade.ClaimItems>Получить</ClashOfRim.Trade.ClaimItems>
+  <ClashOfRim.Trade.ClaimDescription>Получение доставит предметы и сохранит колонию. Место для заказа освободится после подтверждения сохранения.</ClashOfRim.Trade.ClaimDescription>
+  <ClashOfRim.Trade.StatusTraded>Сделка, ждёт получения</ClashOfRim.Trade.StatusTraded>
+  <ClashOfRim.Trade.StatusCollecting>Сделка, доставка</ClashOfRim.Trade.StatusCollecting>
+  <ClashOfRim.Trade.CollectionDeadline>Автодоставка: {TIME}</ClashOfRim.Trade.CollectionDeadline>
+  <ClashOfRim.Trade.CollectionNoDeadline>Срока автодоставки нет. Получите предметы вручную.</ClashOfRim.Trade.CollectionNoDeadline>
+  <ClashOfRim.Trade.StatusClaimNotAllowed>Можно получить только ожидающие выдачи предметы по сделкам этой колонии.</ClashOfRim.Trade.StatusClaimNotAllowed>
+  <ClashOfRim.Trade.StatusClaiming>Запрашивается доставка предметов…</ClashOfRim.Trade.StatusClaiming>
+  <ClashOfRim.Trade.StatusClaimFailed>Ошибка запроса: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusClaimFailed>
+  <ClashOfRim.Trade.StatusClaimRejected>Получение отклонено: {MESSAGE}</ClashOfRim.Trade.StatusClaimRejected>
+  <ClashOfRim.Trade.StatusClaimException>Ошибка получения: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusClaimException>
+  <ClashOfRim.Trade.StatusClaimSucceeded>Доставка запрошена. Место для заказа освободится после сохранения полученных предметов.</ClashOfRim.Trade.StatusClaimSucceeded>
 </LanguageData>

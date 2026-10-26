@@ -487,6 +487,10 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         CancellationToken cancellationToken = default)
         => trades.CancelTradeOrderAsync(context, idempotencyKey, tradeEventId, reason, cancellationToken);
 
+    public Task<ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto>> ClaimTradeOrderAsync(
+        string idempotencyKey, string tradeEventId, CancellationToken cancellationToken = default)
+        => trades.ClaimTradeOrderAsync(context, idempotencyKey, tradeEventId, cancellationToken);
+
     public Task<ClashOfRimClientNetworkResult<ModListServerShopResponseDto>> ListServerShopAsync(
         CancellationToken cancellationToken = default)
         => shopProtocol.ListServerShopAsync(cancellationToken);

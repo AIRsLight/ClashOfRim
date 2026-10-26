@@ -203,8 +203,11 @@ internal sealed class MultiplayerTradePage
             order.FeeSilver.Named("FEE"),
             order.AcceptedMemoCount.Named("COUNT")));
         headerY += 24f;
-        Widgets.Label(new Rect(inner.x, headerY, inner.width, 24f), ClashOfRimText.Key("ClashOfRim.Trade.DropPodPostageLine", TradeUiUtility.FormatPostage(order.ServerDropPodPostage).Named("POSTAGE")));
-        headerY += 30f;
+        string deliveryLine = order.Status is "Traded" or "Collecting" ? TradeUiUtility.FormatCollectionDeadline(order)
+            : ClashOfRimText.Key("ClashOfRim.Trade.DropPodPostageLine", TradeUiUtility.FormatPostage(order.ServerDropPodPostage).Named("POSTAGE"));
+        float deliveryHeight = Math.Max(24f, Text.CalcHeight(deliveryLine, inner.width));
+        Widgets.Label(new Rect(inner.x, headerY, inner.width, deliveryHeight), deliveryLine);
+        headerY += deliveryHeight + 6f;
 
         Rect contentRect = new(inner.x, headerY, inner.width, inner.yMax - headerY - 54f);
         Rect viewRect = new(0f, 0f, contentRect.width - 16f, Math.Max(contentRect.height, TradeDetailHeight(order)));
@@ -244,7 +247,13 @@ internal sealed class MultiplayerTradePage
             }
         }
 
-        if (canAccept && Widgets.ButtonText(acceptRect, ClashOfRimText.Key("ClashOfRim.Trade.AddToAcceptedList")))
+        if (available.Claim)
+        {
+            TooltipHandler.TipRegion(acceptRect, ClashOfRimText.Key("ClashOfRim.Trade.ClaimDescription"));
+            if (Widgets.ButtonText(acceptRect, ClashOfRimText.Key("ClashOfRim.Trade.ClaimItems")))
+                panel.Prepare(TradePanelCommand.Claim, order)();
+        }
+        else if (canAccept && Widgets.ButtonText(acceptRect, ClashOfRimText.Key("ClashOfRim.Trade.AddToAcceptedList")))
         {
             panel.Prepare(TradePanelCommand.Accept, order)();
         }

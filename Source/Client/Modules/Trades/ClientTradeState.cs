@@ -96,8 +96,9 @@ internal sealed class ClientTradeState
     internal void PublishPage(Page request, ModListTradeOrdersResponseDto response)
     {
         enabled = response.TradeMarketplaceEnabled;
-        var incoming = enabled ? Copy(response.Orders ?? new()) : new List<ModTradeOrderSummaryDto>();
-        if (!enabled) orders.Clear();
+        bool showOrders = enabled || request.Filter == "Mine";
+        var incoming = showOrders ? Copy(response.Orders ?? new()) : new List<ModTradeOrderSummaryDto>();
+        if (!showOrders) orders.Clear();
         foreach (var order in incoming)
         {
             int index = orders.FindIndex(old => old.EventId == order.EventId);
@@ -105,7 +106,7 @@ internal sealed class ClientTradeState
         }
         // Advance by rows consumed, not distinct IDs displayed: adjacent pages can overlap.
         nextOffset = request.Offset + incoming.Count;
-        hasMore = enabled && response.HasMore && incoming.Count > 0;
+        hasMore = showOrders && response.HasMore && incoming.Count > 0;
         total = Math.Max(0, response.TotalCount);
         version++;
         message = !enabled ? presentation.Text("Disabled") : orders.Count == 0 ? presentation.Text("NoAcceptableOrders")
@@ -119,6 +120,7 @@ internal sealed class ClientTradeState
         if (!string.IsNullOrWhiteSpace(memoId)) order.ViewerAcceptedMemoEventId = memoId;
     });
     internal void Fulfilled(string eventId) => ChangeOrder(eventId, order => order.Status = "AppliedToSnapshot");
+    internal void Claimed(string eventId, string status) => ChangeOrder(eventId, order => order.Status = status);
     internal void Cancelled(string eventId, bool acceptedMemo) => Read(() =>
     {
         page = null;
