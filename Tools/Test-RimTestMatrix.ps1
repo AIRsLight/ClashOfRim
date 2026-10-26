@@ -5,10 +5,14 @@ param(
     [string]$RunsDirectory,
     [string]$CatalogPath = (Join-Path $PSScriptRoot 'RimTestScenarios.json'),
     [string[]]$Scenario = @(),
+    [switch]$FullMatrix,
     [switch]$Headless,
     [switch]$SkipBuild
 )
 $ErrorActionPreference = 'Stop'
+if ((!$Scenario.Count -and !$FullMatrix) -or ($Scenario.Count -and $FullMatrix)) {
+    throw 'Select targeted scenarios with -Scenario, or explicitly request every scenario with -FullMatrix.'
+}
 $root = Split-Path $PSScriptRoot -Parent
 $catalog = @(Get-Content -LiteralPath $CatalogPath -Raw | ConvertFrom-Json)
 if (@($catalog.id | Select-Object -Unique).Count -ne $catalog.Count) { throw 'Duplicate scenario IDs.' }
