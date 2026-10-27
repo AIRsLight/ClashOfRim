@@ -50,6 +50,12 @@ at Verse.ModAssemblyHandler.AssemblyIsUsable(Assembly asm)
 
 本轮仅复现、定位和记录，没有修改产品代码、发布构建或上传工坊。冻结 1.6 不受影响。
 
+## 后续修复（0.4.10）
+
+密码遮罩后端已将新增的 `GuiToDevicePoint` 转发给原生后端，主包和兼容包的共享编译引用升级为 `1.7.4990-unstable`。保持现有密码遮罩和原生编辑行为。
+
+使用实际 1.7.4990 程序集编译后，`world entry forms` 客户端测试组通过（四种文化）。密码框测试覆盖遮罩、输入、删除、选择、粘贴、IME 和异常后后端恢复；新增非恒等缩放及偏移断言，确认 IME 候选位置使用设备坐标。此处记录的是单元验证，最终发布包的启动验证另行记录。
+
 ## 证据
 
 本机证据根目录：`G:/RimTestRuns/update-startup-2026-10-27/`，汇总为 `startup-summary.json`。

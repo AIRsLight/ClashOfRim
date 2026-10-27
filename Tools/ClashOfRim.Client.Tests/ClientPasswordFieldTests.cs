@@ -8,6 +8,8 @@ using UnityStubs.Gui;
 
 internal static class ClientPasswordFieldTests
 {
+    private static Vector2 candidatePosition;
+    private static int candidatePositionUpdates;
     internal static void Run()
     {
         var previous = GuiBackend.Current; var previousEvent = Event.current;
@@ -18,6 +20,7 @@ internal static class ClientPasswordFieldTests
         {
             GuiBackend.Current = backend;
             harmony.Patch(AccessTools.PropertyGetter(typeof(GUIUtility), "systemCopyBuffer"), prefix: new HarmonyMethod(typeof(ClientPasswordFieldTests), nameof(Clipboard)));
+            harmony.Patch(AccessTools.Method(ime, "SetCandidatePos"), prefix: new HarmonyMethod(typeof(ClientPasswordFieldTests), nameof(CandidatePosition)));
             string value = "Secret-密<color=red>码</color>";
             GUI.FocusControl("password-test");
             Check(Draw(value, new Event { type = EventType.Repaint }) == value, "Password drawing changed the credential.");
@@ -31,9 +34,15 @@ internal static class ClientPasswordFieldTests
             value = Draw(value, Key(KeyCode.V, control: true));
             Check(value == "pasted-密🔑", "Native selection/paste changed the credential.");
             ime.GetMethod("Set")!.Invoke(null, new object[] { "输入中", 3 });
+            candidatePositionUpdates = 0;
+            backend.DevicePointUpdates = 0;
             Check(Draw(value, new Event { type = EventType.Repaint }) == value, "Uncommitted IME text changed the password.");
             Check(backend.Drawn.Last().Length > value.Length, "IME composition was not exercised.");
             Check(backend.Text.All(t => t.All(c => c == '*')) && !backend.RichText, "Password/IME leaked to drawing or cursor measurement.");
+            Check(candidatePositionUpdates > 0 && backend.DevicePointUpdates > 0,
+                "IME candidate positioning did not use the native device-coordinate conversion.");
+            Check(candidatePosition == backend.LastDevicePoint && candidatePosition != backend.LastGuiPoint,
+                "The masking backend lost the device scale/offset used for IME candidates.");
             ime.GetMethod("Set")!.Invoke(null, new object[] { "", 0 });
             backend.Throw = true;
             try { Draw(value, new Event { type = EventType.Repaint }); throw new InvalidOperationException("Expected draw fault."); }
@@ -60,12 +69,15 @@ internal static class ClientPasswordFieldTests
     private static Event Key(KeyCode key, bool control = false, char character = '\0') => new()
     { type = EventType.KeyDown, keyCode = key, character = character, modifiers = control ? EventModifiers.Control : EventModifiers.None };
     private static bool Clipboard(ref string __result) { __result = "pasted-密🔑"; return false; }
+    private static bool CandidatePosition(Vector2 __0) { candidatePosition = __0; candidatePositionUpdates++; return false; }
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 
     private sealed class Backend : IGuiBackend
     {
         internal readonly List<string> Text = new(), Drawn = new();
         internal bool Throw, RichText;
+        internal int DevicePointUpdates;
+        internal Vector2 LastGuiPoint, LastDevicePoint;
         private void Read(string text, bool rich) { Text.Add(text); RichText |= rich; }
         public Vector2 MeasureText(int font, float size, FontStyle style, string text, float width, bool rich) { Read(text, rich); return new(text.Length * 6, 20); }
         public int TextIndexAt(int font, float size, FontStyle style, string text, float width, Vector2 point, bool rich) { Read(text, rich); return Math.Clamp((int)(point.x / 6), 0, text.Length); }
@@ -99,5 +111,12 @@ internal static class ClientPasswordFieldTests
         public void SetTextLanguage(string language) { }
         public Vector2 ScreenToGuiPoint(Vector2 point) => point;
         public Vector2 GuiToScreenPoint(Vector2 point) => point;
+        public Vector2 GuiToDevicePoint(Vector2 point)
+        {
+            DevicePointUpdates++;
+            LastGuiPoint = point;
+            LastDevicePoint = new Vector2(point.x * 1.5f + 37, point.y * 1.5f + 61);
+            return LastDevicePoint;
+        }
     }
 }

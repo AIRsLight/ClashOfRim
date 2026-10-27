@@ -57,5 +57,6 @@ internal static class ClashPasswordField
         public void SetTextLanguage(string language) => inner.SetTextLanguage(language);
         public Vector2 ScreenToGuiPoint(Vector2 point) => inner.ScreenToGuiPoint(point);
         public Vector2 GuiToScreenPoint(Vector2 point) => inner.GuiToScreenPoint(point);
+        public Vector2 GuiToDevicePoint(Vector2 point) => inner.GuiToDevicePoint(point);
     }
 }
