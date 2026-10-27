@@ -3267,14 +3267,39 @@ try
     var committedCompletion = await client.CompleteTradeOrderAsync(directCompletion);
     Require(committedCompletion.Result.Accepted && committedCompletion.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest
         && ledgerBeforeDirectCompletion == JsonSerializer.Serialize(state.Ledger.ListAll()), "已提交快照履约的完成查询应确认既有结果并保持账本不变");
-    ListTradeOrdersResponse ownerTradeHistory = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
+    ListTradeOrdersResponse ownerCompletedTrades = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-a",
         "colony-a",
         "attacker-snapshot-after",
-        scope: "History", authToken: userAAuthToken));
-    TradeOrderSummaryDto completedHistoryOrder = ownerTradeHistory.Orders.Single(order => order.EventId == tradeToComplete.EventId);
-    Equal("user-b", completedHistoryOrder.Counterparty?.UserId, "交易历史应显示实际完成交易的接单方");
-    Equal("colony-b", completedHistoryOrder.Counterparty?.ColonyId, "交易历史应显示实际完成交易方殖民地");
+        scope: "Mine", authToken: userAAuthToken));
+    TradeOrderSummaryDto completedOrder = ownerCompletedTrades.Orders.Single(order => order.EventId == tradeToComplete.EventId);
+    Equal("Traded", completedOrder.Status, "成交但未领取的交易应保留在我的发布中");
+    Equal("user-b", completedOrder.Counterparty?.UserId, "已交易订单应显示实际完成交易的接单方");
+    Equal("colony-b", completedOrder.Counterparty?.ColonyId, "已交易订单应显示实际完成交易方殖民地");
+    Equal(ServerEventStatus.AwaitingCollection, state.Ledger.Find(fulfilledTrade.OwnerDeliveryEventId!)!.Status,
+        "成交不应立即释放发布者收货事件");
+    string ownerSnapshotBeforeClaim = state.SnapshotStore.GetLatest("user-a", "colony-a")!.Identity.SnapshotId!;
+    var claimRequest = new CloseTradeOrderRequest("trade:user-a:claim-completed", tradeToComplete.EventId!,
+        new ProtocolIdentity("user-a", "colony-a", ownerSnapshotBeforeClaim), null, userAAuthToken);
+    int eventCountBeforeClaim = state.Ledger.ListAll().Count;
+    for (int attempt = 0; attempt < 2; attempt++)
+    {
+        using var claimHttp = await httpClient.PostAsJsonAsync(
+            ProtocolContractManifest.Find(ProtocolMessageKind.ClaimTradeOrder).Route, claimRequest);
+        claimHttp.EnsureSuccessStatusCode();
+        var claimed = (await claimHttp.Content.ReadFromJsonAsync<CloseTradeOrderResponse>())!;
+        Require(claimed.Result.Accepted && claimed.TerminalStatus == "Collecting", "真实 HTTP 领取及重试应进入投递中");
+        Equal(eventCountBeforeClaim, state.Ledger.ListAll().Count, "重复领取不能增加交付事件");
+        Equal(ownerSnapshotBeforeClaim, state.SnapshotStore.GetLatest("user-a", "colony-a")!.Identity.SnapshotId!,
+            "领取请求本身不能触发发布者保存");
+    }
+    Require(state.Ledger.Find(fulfilledTrade.OwnerDeliveryEventId!)!.Status is
+        ServerEventStatus.ReadyForImmediateDelivery or ServerEventStatus.PendingOfflineDelivery,
+        "领取必须释放原交付事件");
+    ListTradeOrdersResponse ownerTradeHistory = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
+        "user-a", "colony-a", ownerSnapshotBeforeClaim, scope: "History", authToken: userAAuthToken));
+    Require(ownerTradeHistory.Orders.All(order => order.EventId != tradeToComplete.EventId),
+        "未确认收货入档前不能将交易移入历史记录");
     Require(state.EventNotifications.GetVersion("user-a") > userAVersionBeforeFulfill, "自提履约应通知发布者刷新交易状态");
     Require(state.EventNotifications.GetVersion("user-b") > userBVersionBeforeFulfill, "自提履约应通知接单方刷新接单清单");
 

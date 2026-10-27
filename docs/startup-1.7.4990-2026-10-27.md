@@ -60,6 +60,14 @@ at Verse.ModAssemblyHandler.AssemblyIsUsable(Assembly asm)
 
 修复验证证据：`G:/RimTestRuns/release-0.4.10-2026-10-27/minimal/20261027-130845-5ab07599/`。成功后已按策略回收游戏副本，保留报告、日志和配置。完整 117 项列表将使用最终发布产物验证；不把这一最小配置结果描述为完整列表或业务全量通过。
 
+## CI 产物完整列表验证
+
+使用 `1f3898c2` 的 CI 模组产物运行此前 117 项列表，实际加载数量、顺序逐项一致，主包和兼容包的运行副本哈希与下载产物一致。主菜单就绪且无待处理加载事件，出现“加入服务器”；调用原按钮后成功打开 `ClashOfRimServerEntryDialog`。主程序集成功初始化，旧的缺失接口、缺失产品类型及 Melee Animation 连带错误不再出现。相同主包 DLL 的 16 组客户端专项测试通过。
+
+仍有 **4 条已知第三方 ERROR**：Kiiro Story 两张图片格式错误，以及 `Meow.Patch` / `RatkinGeneExpanded.Patch` 的静态初始化失败（共同指向 `SYSPatch_ReplaceSYSDrawPrefix` 的目标缺失）。因此结论仅为本模组启动修复通过，不能称完整模组列表无报错或游戏业务全量通过。证据：`G:/RimTestRuns/release-0.4.10-2026-10-27/full/20261027-131851-bbda1aae/startup-report.json`。
+
+一次加载完成前的 `game.state` 探测超时，在日志出现 RimTest Ready 后重试成功。最终上传前仍需确认发布工作流通过及包哈希；之后的交易集成测试契约修正仅涉及测试和文档，不改变本次实机验证的产品源码。
+
 ## 证据
 
 本机证据根目录：`G:/RimTestRuns/update-startup-2026-10-27/`，汇总为 `startup-summary.json`。
