@@ -210,6 +210,12 @@
     "OwnsRecovery": true
   },
   {
+    "Kind": "ClaimTradeOrder",
+    "Route": "/events/trades/claim",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
     "Kind": "ListServerShop",
     "Route": "/shop/list",
     "Method": "POST",
