@@ -4,8 +4,12 @@
 
 ### 0.4.10 testing update
 
+- **RimWorld 1.7.4990 startup:** adapt the password masking backend to the new native GUI interface. This fixes the main assembly being rejected during startup and the missing multiplayer menu. Passwords and IME composition remain masked, with native device-coordinate conversion preserved for scaled displays.
+- **Trade collection:** completed trades remain listed as awaiting collection. The creator receives a success notification and can collect proceeds from their own listing, instead of an immediate forced delivery/save. The timeout restarts when the trade completes; unclaimed proceeds are delivered automatically when it expires. Completed listings still occupy the publishing limit until delivery is confirmed.
 - **Remote orders:** remote map preparation clears all inherited designations, including mining, hunting and modded orders. Observation, raids and imported pocket maps share native index/cache cleanup; source-colony maps are unaffected.
 - **Scouting isolation:** viewing a remote mech cluster no longer runs its victory callbacks, quest signals, mood rewards or victory notifications. Projection preserves completed clusters, and closing remote maps suppresses completion during both pawn cleanup and map disposal. Ordinary local and active raid victories retain their native behavior.
+- **Update together:** active clients target RimWorld 1.7.4990. Update the client, server and third-party compatibility package together; trade collection uses protocol 4.3. RimWorld 1.6 remains frozen at 0.3.4.
+- **Validation scope:** this update uses affected unit tests and targeted startup checks. It does not include a new full in-game regression or fixes for unrelated third-party mod startup errors.
 
 ### 0.4.9 testing update
 
